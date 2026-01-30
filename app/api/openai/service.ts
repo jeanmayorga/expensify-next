@@ -91,7 +91,11 @@ export interface ParsedTransaction {
   category_id: string | null;
 }
 
-function buildExtractionPrompt(context: ExtractionContext): string {
+function buildContextInfo(context: ExtractionContext): {
+  banksInfo: string;
+  cardsInfo: string;
+  categoriesInfo: string;
+} {
   const banksInfo = context.banks
     .map((b) => `- ${b.name} (id: ${b.id})`)
     .join("\n");
@@ -107,6 +111,12 @@ function buildExtractionPrompt(context: ExtractionContext): string {
   const categoriesInfo = context.categories
     .map((c) => `- ${c.name} (id: ${c.id})`)
     .join("\n");
+
+  return { banksInfo, cardsInfo, categoriesInfo };
+}
+
+function buildExtractionPrompt(context: ExtractionContext): string {
+  const { banksInfo, cardsInfo, categoriesInfo } = buildContextInfo(context);
 
   return `You are a helpful assistant that extracts transaction information from HTML emails.
 
@@ -127,6 +137,231 @@ ${categoriesInfo}
 5. For dates, convert Ecuador time (UTC-5) to UTC format
 6. For amounts, use positive numbers only
 7. Return null for card_id or category_id if you cannot determine them with confidence
+`;
+}
+
+export interface ImageExtractionHints {
+  userContext?: string;
+  preselectedBankId?: string | null;
+  preselectedCardId?: string | null;
+  preselectedCategoryId?: string | null;
+  preselectedBudgetId?: string | null;
+}
+
+function buildImageExtractionPrompt(
+  context: ExtractionContext,
+  hints?: ImageExtractionHints,
+): string {
+  const { banksInfo, cardsInfo, categoriesInfo } = buildContextInfo(context);
+
+  let hintsSection = "";
+  if (hints?.userContext) {
+    hintsSection += `\n## User provided context:\n${hints.userContext}\n`;
+  }
+  if (hints?.preselectedBankId) {
+    const bank = context.banks.find((b) => b.id === hints.preselectedBankId);
+    if (bank) {
+      hintsSection += `\n## Pre-selected bank: ${bank.name} (id: ${bank.id}) - USE THIS bank_id\n`;
+    }
+  }
+  if (hints?.preselectedCardId) {
+    const card = context.cards.find((c) => c.id === hints.preselectedCardId);
+    if (card) {
+      hintsSection += `\n## Pre-selected card: ${card.name} (id: ${card.id}) - USE THIS card_id\n`;
+    }
+  }
+  if (hints?.preselectedCategoryId) {
+    const category = context.categories.find(
+      (c) => c.id === hints.preselectedCategoryId,
+    );
+    if (category) {
+      hintsSection += `\n## Pre-selected category: ${category.name} (id: ${category.id}) - USE THIS category_id\n`;
+    }
+  }
+
+  return `You are a strict assistant that extracts transaction information from receipt or invoice images.
+
+## Available Banks:
+${banksInfo}
+
+## Available Cards:
+${cardsInfo}
+
+## Available Categories:
+${categoriesInfo}
+${hintsSection}
+## CRITICAL INSTRUCTIONS FOR AMOUNT:
+- The amount MUST be the TOTAL amount paid, NOT subtotals, taxes, or tips separately
+- Look for labels like: "TOTAL", "GRAND TOTAL", "TOTAL A PAGAR", "MONTO TOTAL", "AMOUNT DUE", "BALANCE DUE"
+- The total is usually the LARGEST number at the bottom of the receipt
+- If there's a "TOTAL" and a "SUBTOTAL", always use "TOTAL"
+- The amount must be a positive decimal number (e.g., 25.50, not $25.50)
+- DO NOT include currency symbols in the amount
+- If you see multiple totals, use the final/grand total
+
+## CRITICAL INSTRUCTIONS FOR DATE:
+- Extract the EXACT date shown on the receipt
+- Common date formats: DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD, "Jan 15, 2025", "15 Ene 2025"
+- Look for labels like: "FECHA", "DATE", "Fecha de compra", "Transaction Date"
+- The date is usually near the top of the receipt or near the transaction details
+- Convert the date to UTC format: YYYY-MM-DDTHH:mm:ssZ
+- If only date is shown (no time), use 12:00:00 as the time
+- Assume Ecuador timezone (UTC-5) for the conversion
+- If no date is visible, use current date: ${new Date().toISOString()}
+
+## OTHER INSTRUCTIONS:
+1. Type is almost always "expense" for receipts (use "income" only for refunds)
+2. Description should be the merchant/store name visible on the receipt
+3. Match card by last 4 digits if visible (patterns: "****1234", "ending in 1234", "XXXX1234")
+4. If pre-selected values are provided above, USE THEM
+5. Return null for bank_id, card_id, or category_id ONLY if not pre-selected AND cannot be determined
+`;
+}
+
+function buildBulkTransactionSchema(context: ExtractionContext) {
+  const bankIds = context.banks.map((b) => b.id);
+  const cardIds = context.cards.map((c) => c.id);
+  const categoryIds = context.categories.map((c) => c.id);
+
+  return {
+    type: "object",
+    properties: {
+      transactions: {
+        type: "array",
+        description: "Array of all transactions found in the image",
+        items: {
+          type: "object",
+          properties: {
+            type: {
+              type: "string",
+              enum: ["income", "expense"],
+              description:
+                "Whether this is an income or expense. Credits/deposits are income, debits/purchases are expense.",
+            },
+            description: {
+              type: "string",
+              description:
+                "Description of the transaction (merchant name, transfer description, etc.)",
+            },
+            amount: {
+              type: "number",
+              description: "The monetary amount as a positive number",
+              minimum: 0,
+            },
+            occurred_at: {
+              type: "string",
+              description: `Transaction date in UTC format: YYYY-MM-DDTHH:mm:ssZ`,
+              pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+            },
+            bank_id: {
+              type: "string",
+              description: "The UUID of the bank",
+              enum: bankIds,
+            },
+            card_id: {
+              type: ["string", "null"],
+              description:
+                "The UUID of the card if identifiable by last 4 digits, null otherwise",
+              enum: [...cardIds, null],
+            },
+            category_id: {
+              type: ["string", "null"],
+              description:
+                "The UUID of the category inferred from description, null if uncertain",
+              enum: [...categoryIds, null],
+            },
+          },
+          required: [
+            "type",
+            "description",
+            "amount",
+            "occurred_at",
+            "bank_id",
+            "card_id",
+            "category_id",
+          ],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ["transactions"],
+    additionalProperties: false,
+  } as const;
+}
+
+function buildBulkImageExtractionPrompt(
+  context: ExtractionContext,
+  hints?: ImageExtractionHints,
+): string {
+  const { banksInfo, cardsInfo, categoriesInfo } = buildContextInfo(context);
+
+  let hintsSection = "";
+  if (hints?.userContext) {
+    hintsSection += `\n## User provided context:\n${hints.userContext}\n`;
+  }
+  if (hints?.preselectedBankId) {
+    const bank = context.banks.find((b) => b.id === hints.preselectedBankId);
+    if (bank) {
+      hintsSection += `\n## Pre-selected bank: ${bank.name} (id: ${bank.id}) - USE THIS bank_id FOR ALL TRANSACTIONS\n`;
+    }
+  }
+  if (hints?.preselectedCardId) {
+    const card = context.cards.find((c) => c.id === hints.preselectedCardId);
+    if (card) {
+      hintsSection += `\n## Pre-selected card: ${card.name} (id: ${card.id}) - USE THIS card_id FOR ALL TRANSACTIONS\n`;
+    }
+  }
+  if (hints?.preselectedCategoryId) {
+    const category = context.categories.find(
+      (c) => c.id === hints.preselectedCategoryId,
+    );
+    if (category) {
+      hintsSection += `\n## Pre-selected category: ${category.name} (id: ${category.id}) - USE THIS category_id FOR ALL TRANSACTIONS\n`;
+    }
+  }
+
+  return `You are an expert assistant that extracts MULTIPLE transactions from bank statements, account statements, or images containing several transactions.
+
+## Available Banks:
+${banksInfo}
+
+## Available Cards:
+${cardsInfo}
+
+## Available Categories:
+${categoriesInfo}
+${hintsSection}
+## CRITICAL INSTRUCTIONS:
+1. Extract ALL transactions visible in the image - do not skip any
+2. Each row/line item in a statement is typically ONE transaction
+3. For bank statements, look for columns like: Date, Description, Debit, Credit, Balance
+
+## FOR EACH TRANSACTION:
+- **type**: "expense" for debits/purchases/withdrawals, "income" for credits/deposits/refunds
+- **description**: The merchant name or transaction description shown
+- **amount**: ALWAYS a positive number (the absolute value of the amount)
+- **occurred_at**: The transaction date in UTC format (YYYY-MM-DDTHH:mm:ssZ)
+  - If only date shown, use 12:00:00 as time
+  - Assume Ecuador timezone (UTC-5) and convert to UTC
+
+## DATE EXTRACTION:
+- Look for date columns or date prefixes on each transaction
+- Common formats: DD/MM/YYYY, MM/DD/YYYY, DD-MMM-YYYY, "15 Ene", "Jan 15"
+- If year is not shown, assume current year: ${new Date().getFullYear()}
+- Convert all dates to UTC format
+
+## AMOUNT EXTRACTION:
+- Extract the transaction amount, NOT the balance
+- If there are separate Debit/Credit columns, use those values
+- Amount must be positive (absolute value)
+- Do NOT include currency symbols
+
+## CATEGORY INFERENCE:
+- Infer category from merchant/description when possible
+- Common mappings: Restaurants/Food, Supermarkets/Groceries, Gas stations/Transportation
+- Return null if uncertain
+
+## If pre-selected values are provided above, apply them to ALL transactions.
 `;
 }
 
@@ -200,6 +435,161 @@ export class OpenAIService {
         errorMessage,
       );
       return null;
+    }
+  }
+
+  async getTransactionFromImage(
+    imageBase64: string,
+    mimeType: string,
+    context: ExtractionContext,
+    hints?: ImageExtractionHints,
+  ): Promise<ParsedTransaction | null> {
+    try {
+      console.log(
+        `OpenAIService->getTransactionFromImage() mimeType=${mimeType}`,
+      );
+      console.log(
+        `Context: ${context.banks.length} banks, ${context.cards.length} cards, ${context.categories.length} categories`,
+      );
+      if (hints) {
+        console.log(`Hints: ${JSON.stringify(hints)}`);
+      }
+
+      const systemPrompt = buildImageExtractionPrompt(context, hints);
+      const schema = buildTransactionSchema(context);
+
+      const userMessage = hints?.userContext
+        ? `Extract the transaction information from this receipt or invoice image. Additional context from user: ${hints.userContext}`
+        : "Extract the transaction information from this receipt or invoice image.";
+
+      // gpt-4o-mini supports vision and structured outputs
+      const response = await this.openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          {
+            role: "user",
+            content: [
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:${mimeType};base64,${imageBase64}`,
+                  detail: "high",
+                },
+              },
+              {
+                type: "text",
+                text: userMessage,
+              },
+            ],
+          },
+        ],
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "transaction",
+            schema,
+            strict: true,
+          },
+        },
+        max_tokens: 1000,
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        console.error("OpenAIService->getTransactionFromImage() no content");
+        return null;
+      }
+
+      const parsed = JSON.parse(content);
+      return parsed as ParsedTransaction;
+    } catch (error) {
+      const errorMessage = getErrorMessage(error);
+      console.error(
+        "OpenAIService->getTransactionFromImage()->error",
+        errorMessage,
+      );
+      return null;
+    }
+  }
+
+  async getTransactionsFromImage(
+    imageBase64: string,
+    mimeType: string,
+    context: ExtractionContext,
+    hints?: ImageExtractionHints,
+  ): Promise<ParsedTransaction[]> {
+    try {
+      console.log(
+        `OpenAIService->getTransactionsFromImage() mimeType=${mimeType}`,
+      );
+      console.log(
+        `Context: ${context.banks.length} banks, ${context.cards.length} cards, ${context.categories.length} categories`,
+      );
+      if (hints) {
+        console.log(`Hints: ${JSON.stringify(hints)}`);
+      }
+
+      const systemPrompt = buildBulkImageExtractionPrompt(context, hints);
+      const schema = buildBulkTransactionSchema(context);
+
+      const userMessage = hints?.userContext
+        ? `Extract ALL transactions from this bank statement or document. Additional context: ${hints.userContext}`
+        : "Extract ALL transactions from this bank statement or document. Return every transaction you can identify.";
+
+      // gpt-4o-mini supports vision and structured outputs
+      const response = await this.openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          {
+            role: "user",
+            content: [
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:${mimeType};base64,${imageBase64}`,
+                  detail: "high",
+                },
+              },
+              {
+                type: "text",
+                text: userMessage,
+              },
+            ],
+          },
+        ],
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "transactions_list",
+            schema,
+            strict: true,
+          },
+        },
+        max_tokens: 4000,
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        console.error(
+          "OpenAIService->getTransactionsFromImage() no content",
+        );
+        return [];
+      }
+
+      const parsed = JSON.parse(content);
+      console.log(
+        `OpenAIService->getTransactionsFromImage() extracted ${parsed.transactions?.length || 0} transactions`,
+      );
+      return (parsed.transactions || []) as ParsedTransaction[];
+    } catch (error) {
+      const errorMessage = getErrorMessage(error);
+      console.error(
+        "OpenAIService->getTransactionsFromImage()->error",
+        errorMessage,
+      );
+      return [];
     }
   }
 }

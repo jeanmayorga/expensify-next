@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import {
@@ -14,8 +15,10 @@ import {
   Building2,
   RefreshCw,
   Plus,
+  Camera,
+  Images,
 } from "lucide-react";
-import { useTransactions, useUpdateTransaction } from "./hooks";
+import { useTransactions, useUpdateTransaction, useExtractFromImage } from "./hooks";
 import { useCategories } from "../categories/hooks";
 import { useCards } from "../cards/hooks";
 import { useBanks } from "../banks/hooks";
@@ -40,7 +43,9 @@ import {
   CreateTransactionSheet,
   EditTransactionSheet,
   DeleteTransactionDialog,
+  ImageCaptureDialog,
 } from "./components";
+import type { TransactionInsert, ImageExtractionHints } from "./service";
 
 export default function TransactionsPage() {
   const [selectedMonth, setSelectedMonth] = useState(new Date());
@@ -76,6 +81,7 @@ export default function TransactionsPage() {
   const { data: budgets = [], isLoading: loadingBudgets } = useBudgets();
 
   const updateTransaction = useUpdateTransaction();
+  const extractFromImage = useExtractFromImage();
 
   const loading =
     loadingTx || loadingCat || loadingCards || loadingBanks || loadingBudgets;
@@ -117,6 +123,45 @@ export default function TransactionsPage() {
     null,
   );
   const [detailOpen, setDetailOpen] = useState(false);
+
+  // Image capture states
+  const [imageDialogOpen, setImageDialogOpen] = useState(false);
+  const [extractedData, setExtractedData] = useState<TransactionInsert | null>(null);
+
+  const handleImageCaptured = async (
+    imageBase64: string,
+    mimeType: string,
+    hints: ImageExtractionHints,
+  ) => {
+    try {
+      const result = await extractFromImage.mutateAsync({
+        image: imageBase64,
+        mimeType,
+        hints,
+      });
+      setExtractedData({
+        type: result.type,
+        description: result.description,
+        amount: result.amount,
+        occurred_at: result.occurred_at,
+        bank_id: result.bank_id,
+        card_id: result.card_id,
+        category_id: result.category_id,
+        budget_id: hints.preselectedBudgetId || null,
+      });
+      setImageDialogOpen(false);
+      setCreateOpen(true);
+    } catch (error) {
+      console.error("Failed to extract transaction from image:", error);
+    }
+  };
+
+  const handleCreateSheetClose = (open: boolean) => {
+    setCreateOpen(open);
+    if (!open) {
+      setExtractedData(null);
+    }
+  };
 
   const handleRowClick = (tx: TransactionWithRelations) => {
     setSelectedTx(tx);
@@ -404,6 +449,26 @@ export default function TransactionsPage() {
           <div className="flex items-center gap-2">
             <Button
               size="sm"
+              variant="outline"
+              className="h-7 text-xs"
+              onClick={() => setImageDialogOpen(true)}
+            >
+              <Camera className="h-3.5 w-3.5 mr-1" />
+              Desde imagen
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs"
+              asChild
+            >
+              <Link href="/transactions/from-image">
+                <Images className="h-3.5 w-3.5 mr-1" />
+                Extraer varios
+              </Link>
+            </Button>
+            <Button
+              size="sm"
               className="h-7 text-xs"
               onClick={() => setCreateOpen(true)}
             >
@@ -481,14 +546,27 @@ export default function TransactionsPage() {
         </CardContent>
       </CardUI>
 
+      {/* Image Capture Dialog */}
+      <ImageCaptureDialog
+        open={imageDialogOpen}
+        onOpenChange={setImageDialogOpen}
+        onImageCaptured={handleImageCaptured}
+        isProcessing={extractFromImage.isPending}
+        banks={banks}
+        cards={cards}
+        categories={categories}
+        budgets={budgets}
+      />
+
       {/* Create Transaction Sheet */}
       <CreateTransactionSheet
         open={createOpen}
-        onOpenChange={setCreateOpen}
+        onOpenChange={handleCreateSheetClose}
         categories={categories}
         cards={cards}
         banks={banks}
         budgets={budgets}
+        initialData={extractedData}
       />
 
       {/* Edit Transaction Sheet */}

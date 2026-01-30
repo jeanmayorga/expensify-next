@@ -14,3 +14,4 @@ export type { TransactionFormData } from "./TransactionForm";
 export { CreateTransactionSheet } from "./CreateTransactionSheet";
 export { EditTransactionSheet } from "./EditTransactionSheet";
 export { DeleteTransactionDialog } from "./DeleteTransactionDialog";
+export { ImageCaptureDialog } from "./ImageCaptureDialog";

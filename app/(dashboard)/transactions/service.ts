@@ -62,3 +62,54 @@ export async function createTransaction(payload: TransactionInsert) {
   );
   return data.data;
 }
+
+export interface ParsedTransaction {
+  type: "income" | "expense";
+  description: string;
+  amount: number;
+  occurred_at: string;
+  bank_id: string;
+  card_id: string | null;
+  category_id: string | null;
+}
+
+export interface ImageExtractionHints {
+  userContext?: string;
+  preselectedBankId?: string | null;
+  preselectedCardId?: string | null;
+  preselectedCategoryId?: string | null;
+  preselectedBudgetId?: string | null;
+}
+
+export async function extractTransactionFromImage(
+  imageBase64: string,
+  mimeType: string,
+  hints?: ImageExtractionHints,
+): Promise<ParsedTransaction> {
+  const { data } = await api.post<{ data: ParsedTransaction }>(
+    `/transactions/from-image`,
+    { image: imageBase64, mimeType, hints },
+  );
+  return data.data;
+}
+
+export async function extractTransactionsFromImage(
+  imageBase64: string,
+  mimeType: string,
+  hints?: ImageExtractionHints,
+): Promise<ParsedTransaction[]> {
+  const { data } = await api.post<{ data: ParsedTransaction[] }>(
+    `/transactions/from-image-bulk`,
+    { image: imageBase64, mimeType, hints },
+  );
+  return data.data;
+}
+
+export async function createTransactions(
+  payloads: TransactionInsert[],
+): Promise<Transaction[]> {
+  const results = await Promise.all(
+    payloads.map((payload) => createTransaction(payload)),
+  );
+  return results;
+}

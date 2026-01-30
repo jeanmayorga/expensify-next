@@ -5,9 +5,13 @@ import {
   updateTransaction,
   deleteTransaction,
   createTransaction,
+  createTransactions,
+  extractTransactionFromImage,
+  extractTransactionsFromImage,
   type TransactionFilters,
   type TransactionUpdate,
   type TransactionInsert,
+  type ImageExtractionHints,
 } from "./service";
 
 export const transactionKeys = {
@@ -52,6 +56,44 @@ export function useCreateTransaction() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: TransactionInsert) => createTransaction(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: transactionKeys.all });
+    },
+  });
+}
+
+export function useExtractFromImage() {
+  return useMutation({
+    mutationFn: ({
+      image,
+      mimeType,
+      hints,
+    }: {
+      image: string;
+      mimeType: string;
+      hints?: ImageExtractionHints;
+    }) => extractTransactionFromImage(image, mimeType, hints),
+  });
+}
+
+export function useExtractBulkFromImage() {
+  return useMutation({
+    mutationFn: ({
+      image,
+      mimeType,
+      hints,
+    }: {
+      image: string;
+      mimeType: string;
+      hints?: ImageExtractionHints;
+    }) => extractTransactionsFromImage(image, mimeType, hints),
+  });
+}
+
+export function useCreateTransactions() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: TransactionInsert[]) => createTransactions(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: transactionKeys.all });
     },
