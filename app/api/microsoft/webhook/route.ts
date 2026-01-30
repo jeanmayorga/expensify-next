@@ -28,21 +28,21 @@ interface WebhookPayload {
 export async function POST(request: NextRequest) {
   console.log("POST /api/microsoft/webhook");
 
-  const { searchParams } = request.nextUrl;
-  const validationToken = searchParams.get("validationToken");
-
-  if (validationToken) {
-    console.log(
-      "POST /api/microsoft/webhook -> validationToken",
-      validationToken,
-    );
-    return new Response(validationToken, {
-      status: 200,
-      headers: { "Content-Type": "text/plain" },
-    });
-  }
-
   try {
+    const { searchParams } = request.nextUrl;
+    const validationToken = searchParams.get("validationToken");
+
+    if (validationToken) {
+      console.log(
+        "POST /api/microsoft/webhook -> validationToken",
+        validationToken,
+      );
+      return new Response(validationToken, {
+        status: 200,
+        headers: { "Content-Type": "text/plain" },
+      });
+    }
+
     const payload: WebhookPayload = await request.json();
     const emails = payload.value || [];
 
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
         amount: transactionGenerated.amount,
         occurred_at: transactionGenerated.occurred_at,
         income_message_id: messageId,
-        bank: transactionGenerated.bank,
+        bank_id: null,
       });
       console.log("New transaction saved.", newTransaction?.id);
     }

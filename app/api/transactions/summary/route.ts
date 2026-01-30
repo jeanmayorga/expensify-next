@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { TransactionsService } from "@/app/api/transactions/service";
+import { TransactionsService } from "../service";
 import { getErrorMessage } from "@/utils/handle-error";
 import { fromZonedTime } from "date-fns-tz";
 import { endOfMonth, startOfMonth } from "date-fns";
@@ -29,6 +29,15 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     const message = getErrorMessage(error);
     console.error("GET /api/transactions/summary error:", message);
-    return NextResponse.json({ data: [], error: message }, { status: 500 });
+    return NextResponse.json(
+      {
+        data: {},
+        totalExpenses: 0,
+        totalIncomes: 0,
+        totalAmount: 0,
+        error: message,
+      },
+      { status: 500 },
+    );
   }
 }

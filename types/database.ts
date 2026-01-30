@@ -187,9 +187,9 @@ export type Database = {
       expensify_transactions: {
         Row: {
           amount: number
-          bank: string
+          bank_id: string | null
+          budget_id: string | null
           card_id: string | null
-          category: string | null
           category_id: string | null
           created_at: string
           description: string
@@ -201,9 +201,9 @@ export type Database = {
         }
         Insert: {
           amount: number
-          bank?: string
+          bank_id?: string | null
+          budget_id?: string | null
           card_id?: string | null
-          category?: string | null
           category_id?: string | null
           created_at?: string
           description: string
@@ -215,9 +215,9 @@ export type Database = {
         }
         Update: {
           amount?: number
-          bank?: string
+          bank_id?: string | null
+          budget_id?: string | null
           card_id?: string | null
-          category?: string | null
           category_id?: string | null
           created_at?: string
           description?: string
@@ -228,6 +228,20 @@ export type Database = {
           type?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "expensify_transactions_bank_id_fkey"
+            columns: ["bank_id"]
+            isOneToOne: false
+            referencedRelation: "expensify_banks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expensify_transactions_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "expensify_budgets"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "expensify_transactions_card_id_fkey"
             columns: ["card_id"]
@@ -240,32 +254,6 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "expensify_categories"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      expensify_tx_budget_assignments: {
-        Row: {
-          budget_id: string
-          created_at: string
-          transaction_id: number
-        }
-        Insert: {
-          budget_id: string
-          created_at?: string
-          transaction_id: number
-        }
-        Update: {
-          budget_id?: string
-          created_at?: string
-          transaction_id?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "expensify_tx_budget_assignments_budget_id_fkey"
-            columns: ["budget_id"]
-            isOneToOne: false
-            referencedRelation: "expensify_budgets"
             referencedColumns: ["id"]
           },
         ]

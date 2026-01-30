@@ -60,22 +60,6 @@ export class SubscriptionsService {
     }
   }
 
-  async deleteAllSubscriptions(): Promise<void> {
-    try {
-      console.log("SubscriptionsService->deleteAllSubscriptions()");
-      const subscriptions = await this.getSubscriptions();
-      for (const subscription of subscriptions) {
-        await this.deleteSubscription(subscription.id);
-      }
-    } catch (error: unknown) {
-      const message = getErrorMessage(error);
-      console.error(
-        "SubscriptionsService->deleteAllSubscriptions()->",
-        message,
-      );
-    }
-  }
-
   async createSubscription(): Promise<MicrosoftSubscription | null> {
     try {
       console.log("SubscriptionsService->createSubscription()");

@@ -66,7 +66,6 @@ export async function POST(request: NextRequest) {
       amount: transactionGenerated.amount,
       occurred_at: transactionGenerated.occurred_at,
       income_message_id: id,
-      bank: transactionGenerated.bank,
     });
     console.log("updatedTransaction saved ->", newTransaction?.id);
 
