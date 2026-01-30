@@ -8,7 +8,7 @@ import {
   getEmails,
   getEmail,
   getTransactionByMessageId,
-  extractTransactionFromEmail,
+  getExtractTransactionData,
 } from "./service";
 
 export function useEmails(date: string) {
@@ -36,13 +36,16 @@ export function useTransactionByMessageId(messageId: string) {
   });
 }
 
-export function useExtractTransaction() {
+/**
+ * Fetches extracted transaction data from an email (GET extract-transaction).
+ * Use the returned data to pre-fill the create transaction sheet.
+ */
+export function useExtractTransactionData() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (messageId: string) => extractTransactionFromEmail(messageId),
+    mutationFn: (messageId: string) => getExtractTransactionData(messageId),
     onSuccess: (_data, messageId) => {
-      // Invalidate the transaction query to refetch and enable "Find transaction" button
       queryClient.invalidateQueries({
         queryKey: ["transactions", "by-message", messageId],
       });

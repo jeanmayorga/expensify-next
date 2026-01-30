@@ -52,7 +52,16 @@ export async function POST(request: NextRequest) {
     console.log("POST /api/microsoft/webhook -> emails", emails.length);
 
     for (const notification of emails) {
-      await handleEmailNotification(notification, token);
+      try {
+        await handleEmailNotification(notification, token);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(
+          "Webhook: failed to process notification",
+          msg,
+          notification,
+        );
+      }
     }
 
     return new Response(null, { status: 202 });

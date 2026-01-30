@@ -8,17 +8,21 @@ import {
   useEmails,
   useEmail,
   useTransactionByMessageId,
-  useExtractTransaction,
+  useExtractTransactionData,
 } from "./hooks";
 import { useBanks } from "../banks/hooks";
 import { useCategories } from "../categories/hooks";
 import { useCards } from "../cards/hooks";
 import { useBudgets } from "../budgets/hooks";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   type MicrosoftMeMessage,
   type TransactionWithRelations,
+  type TransactionInsert,
 } from "./service";
 import { EditTransactionSheet } from "../transactions/components/EditTransactionSheet";
+import { DeleteTransactionDialog } from "../transactions/components/DeleteTransactionDialog";
+import { CreateTransactionSheet } from "../transactions/components/CreateTransactionSheet";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
@@ -77,16 +81,38 @@ function EmailsPageContent() {
     () => banks.flatMap((bank) => bank.emails || []),
     [banks],
   );
+  /** Map email address -> bank (first bank that has this email in emails[]) */
+  const bankByEmail = useMemo(() => {
+    const map = new Map<string, (typeof banks)[number]>();
+    for (const bank of banks) {
+      for (const email of bank.emails || []) {
+        if (email && !map.has(email)) map.set(email, bank);
+      }
+    }
+    return map;
+  }, [banks]);
   const blacklistedSubjects = useMemo(
     () => banks.flatMap((bank) => bank.blacklisted_subjects || []),
     [banks],
   );
 
-  const extractMutation = useExtractTransaction();
+  const queryClient = useQueryClient();
+  const extractDataMutation = useExtractTransactionData();
 
   // State for editing transaction sheet
   const [editingTransaction, setEditingTransaction] =
     useState<TransactionWithRelations | null>(null);
+
+  // State for delete transaction dialog
+  const [deletingTransaction, setDeletingTransaction] =
+    useState<TransactionWithRelations | null>(null);
+
+  // State for create sheet with extracted data (Convert to transaction)
+  const [createSheetOpen, setCreateSheetOpen] = useState(false);
+  const [extractedData, setExtractedData] = useState<TransactionInsert | null>(
+    null,
+  );
+  const [extractError, setExtractError] = useState<string | null>(null);
 
   // Flatten all pages into a single array of emails
   const emails = useMemo(() => {
@@ -103,6 +129,7 @@ function EmailsPageContent() {
 
   const handleSelectEmail = (email: MicrosoftMeMessage) => {
     setSelectedEmailId(email.id);
+    setExtractError(null);
   };
 
   // Convert string date to Date object for calendar
@@ -215,6 +242,15 @@ function EmailsPageContent() {
                   const isWhitelisted = whitelistedEmails.includes(email.from);
                   const isBlacklisted = isSubjectBlacklisted(email.subject);
                   const shouldHighlight = isWhitelisted && !isBlacklisted;
+                  const bank = bankByEmail.get(email.from);
+                  const bankColor = bank?.color ?? null;
+                  const highlightStyle =
+                    shouldHighlight && bankColor
+                      ? {
+                          borderLeftColor: bankColor,
+                          backgroundColor: `${bankColor}15`,
+                        }
+                      : undefined;
                   return (
                     <div
                       key={email.id}
@@ -223,8 +259,10 @@ function EmailsPageContent() {
                         "px-3 py-2 cursor-pointer hover:bg-muted/50 transition-colors border-l-4 border-l-transparent",
                         selectedEmailId === email.id && "bg-muted",
                         shouldHighlight &&
+                          !bankColor &&
                           "border-l-green-500 bg-green-50 dark:bg-green-950/20",
                       )}
+                      style={highlightStyle}
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="truncate font-semibold text-sm">
@@ -318,21 +356,41 @@ function EmailsPageContent() {
                     variant="secondary"
                     disabled={
                       !whitelistedEmails.includes(selectedEmail.from) ||
-                      extractMutation.isPending
+                      extractDataMutation.isPending
                     }
-                    onClick={() =>
-                      selectedEmailId && extractMutation.mutate(selectedEmailId)
-                    }
+                    onClick={() => {
+                      if (!selectedEmailId) return;
+                      setExtractError(null);
+                      extractDataMutation.mutate(selectedEmailId, {
+                        onSuccess: (data) => {
+                          setExtractError(null);
+                          setExtractedData(data);
+                          setCreateSheetOpen(true);
+                        },
+                        onError: (err) => {
+                          setExtractError(
+                            err instanceof Error
+                              ? err.message
+                              : "Error al extraer",
+                          );
+                        },
+                      });
+                    }}
                   >
-                    {extractMutation.isPending ? (
+                    {extractDataMutation.isPending ? (
                       <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                     ) : (
                       <Sparkles className="h-4 w-4 mr-1" />
                     )}
-                    {extractMutation.isPending
-                      ? "Extracting..."
+                    {extractDataMutation.isPending
+                      ? "Extrayendo..."
                       : "Convert to transaction"}
                   </Button>
+                  {extractError && (
+                    <p className="text-sm text-destructive mt-1">
+                      {extractError}
+                    </p>
+                  )}
                 </div>
                 {/* Email Header */}
                 <div className="px-4 py-3 border-b shrink-0">
@@ -418,14 +476,41 @@ function EmailsPageContent() {
       <EditTransactionSheet
         transaction={editingTransaction}
         onClose={() => setEditingTransaction(null)}
-        onDelete={() => {
-          // For now, just close the sheet - could add delete confirmation later
+        onDelete={(tx) => {
           setEditingTransaction(null);
+          // Defer opening the delete dialog until after the sheet has closed
+          // (avoids Radix Dialog/Sheet conflict when opening one while the other closes)
+          setTimeout(() => setDeletingTransaction(tx), 0);
         }}
         categories={categories}
         cards={cards}
         banks={banks}
         budgets={budgets}
+      />
+
+      {/* Delete Transaction Dialog */}
+      <DeleteTransactionDialog
+        transaction={deletingTransaction}
+        onClose={() => setDeletingTransaction(null)}
+      />
+
+      {/* Create Transaction Sheet (pre-filled from extracted email data) */}
+      <CreateTransactionSheet
+        open={createSheetOpen}
+        onOpenChange={(open) => {
+          setCreateSheetOpen(open);
+          if (!open) setExtractedData(null);
+        }}
+        categories={categories}
+        cards={cards}
+        banks={banks}
+        budgets={budgets}
+        initialData={extractedData}
+        onCreatedFromMessage={(messageId) => {
+          queryClient.invalidateQueries({
+            queryKey: ["transactions", "by-message", messageId],
+          });
+        }}
       />
     </div>
   );

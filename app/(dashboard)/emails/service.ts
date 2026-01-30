@@ -1,13 +1,17 @@
 import { api } from "@/lib/api";
 import type { MicrosoftMeMessage } from "@/app/api/microsoft/me/messages/model";
 import type { PaginatedMessages } from "@/app/api/microsoft/me/messages/service";
-import type { Transaction } from "@/app/api/transactions/model";
+import type {
+  Transaction,
+  TransactionInsert,
+} from "@/app/api/transactions/model";
 import type { TransactionWithRelations } from "../transactions/service";
 
 export type {
   MicrosoftMeMessage,
   PaginatedMessages,
   Transaction,
+  TransactionInsert,
   TransactionWithRelations,
 };
 
@@ -39,9 +43,28 @@ export async function getTransactionByMessageId(messageId: string) {
   return data.data;
 }
 
-export async function extractTransactionFromEmail(id: string) {
-  const { data } = await api.post<{ data: Transaction }>(
-    `/microsoft/me/messages/${id}/extract`,
-  );
-  return data.data;
+/**
+ * GET extracted transaction data from an email (does not create the transaction).
+ * Returns TransactionInsert ready to pre-fill the create sheet.
+ */
+export async function getExtractTransactionData(
+  messageId: string,
+): Promise<TransactionInsert> {
+  try {
+    const { data } = await api.get<
+      { data: TransactionInsert } | { error: string }
+    >(`/microsoft/me/messages/${messageId}/extract-transaction`);
+    if ("error" in data) {
+      throw new Error(data.error);
+    }
+    return data.data;
+  } catch (err: unknown) {
+    const msg =
+      err && typeof err === "object" && "response" in err
+        ? (err as { response?: { data?: { error?: string } } }).response?.data
+            ?.error
+        : null;
+    if (typeof msg === "string") throw new Error(msg);
+    throw err;
+  }
 }
