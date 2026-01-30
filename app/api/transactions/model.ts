@@ -8,11 +8,12 @@ export type TransactionUpdate =
   Database["public"]["Tables"]["expensify_transactions"]["Update"];
 
 export interface TransactionFilters {
+  /** Formato: YYYY-MM (ej: 2025-01) */
   date?: string;
-  month?: string; // Format: "YYYY-MM"
-  startDate?: string;
-  endDate?: string;
-  type?: "expense" | "income";
+  category_id?: string;
+  card_id?: string;
   bank_id?: string;
   budget_id?: string;
+  /** Timezone IANA (ej: America/Guayaquil, America/New_York). Default: America/Guayaquil */
+  timezone?: string;
 }

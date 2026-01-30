@@ -10,10 +10,9 @@ interface RouteParams {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
-    const numId = Number(id);
 
-    const transactionsService = new TransactionsService();
-    const data = await transactionsService.getById(numId);
+    const service = new TransactionsService();
+    const data = await service.getById(Number(id));
 
     if (!data) {
       return NextResponse.json(
@@ -33,12 +32,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
-    const numId = Number(id);
-
     const body: TransactionUpdate = await request.json();
 
-    const transactionsService = new TransactionsService();
-    const data = await transactionsService.update(numId, body);
+    const service = new TransactionsService();
+    const data = await service.update(Number(id), body);
 
     return NextResponse.json({ data });
   } catch (error) {
@@ -51,10 +48,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
-    const numId = Number(id);
 
-    const transactionsService = new TransactionsService();
-    const success = await transactionsService.delete(numId);
+    const service = new TransactionsService();
+    const success = await service.delete(Number(id));
 
     if (!success) {
       return NextResponse.json(

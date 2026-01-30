@@ -61,6 +61,8 @@ export class OpenAIService {
   }
 
   private createStructuredResponse(message: string) {
+    // gpt-5-nano: modelo más barato con Structured Outputs (json_schema) en Responses API
+    // https://platform.openai.com/docs/pricing
     return this.openai.responses.create({
       model: "gpt-5-nano",
       input: [
