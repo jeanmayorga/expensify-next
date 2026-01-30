@@ -1,0 +1,189 @@
+import axios, { AxiosInstance } from "axios";
+import { env } from "@/app/config/env";
+import { constants } from "@/app/config/constants";
+import { getErrorMessage } from "@/utils/handle-error";
+import { MicrosoftSubscription } from "./model";
+import { getEcuadorDate } from "@/utils/ecuador-time";
+import { format } from "date-fns-tz";
+
+const DOMAIN = env.DOMAIN;
+const NOTIFICATION_URL = `${DOMAIN}/api/microsoft/subscriptions/webhook`;
+
+export class SubscriptionsService {
+  private subscriptionsApi: AxiosInstance;
+
+  constructor(token: string) {
+    this.subscriptionsApi = axios.create({
+      baseURL: "https://graph.microsoft.com/v1.0/subscriptions",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
+
+  async getSubscriptions(): Promise<MicrosoftSubscription[]> {
+    try {
+      console.log("SubscriptionsService->getSubscriptions()");
+      const response = await this.subscriptionsApi.get("/");
+      const mappedSubscriptions = response.data.value
+        .map((subscription: MicrosoftSubscription) => {
+          const expirationDateTime = new Date(subscription.expirationDateTime);
+          const expirationDateTimeEcuador = format(
+            getEcuadorDate(expirationDateTime),
+            "yyyy-MM-dd HH:mm:ss",
+          );
+          return {
+            ...subscription,
+            expirationDateTimeEcuador,
+          };
+        })
+        .sort(
+          (a: MicrosoftSubscription, b: MicrosoftSubscription) =>
+            new Date(b.expirationDateTime).getTime() -
+            new Date(a.expirationDateTime).getTime(),
+        );
+      return mappedSubscriptions;
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
+      console.error("SubscriptionsService->getSubscriptions()->", message);
+      return [];
+    }
+  }
+
+  async deleteSubscription(id: string): Promise<void> {
+    try {
+      console.log("SubscriptionsService->deleteSubscription()", id);
+      await this.subscriptionsApi.delete(`/${id}`);
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
+      console.error("SubscriptionsService->deleteSubscription()->", message);
+    }
+  }
+
+  async deleteAllSubscriptions(): Promise<void> {
+    try {
+      console.log("SubscriptionsService->deleteAllSubscriptions()");
+      const subscriptions = await this.getSubscriptions();
+      for (const subscription of subscriptions) {
+        await this.deleteSubscription(subscription.id);
+      }
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
+      console.error(
+        "SubscriptionsService->deleteAllSubscriptions()->",
+        message,
+      );
+    }
+  }
+
+  async createSubscription(): Promise<MicrosoftSubscription | null> {
+    try {
+      console.log("SubscriptionsService->createSubscription()");
+      const expirationDateTime = new Date();
+      expirationDateTime.setMinutes(
+        expirationDateTime.getMinutes() +
+          constants.SUBSCRIPTION_EXPIRATION_TIME,
+      );
+
+      const response = await this.subscriptionsApi.post("/", {
+        changeType: "created",
+        notificationUrl: NOTIFICATION_URL,
+        resource: "me/mailFolders('inbox')/messages",
+        expirationDateTime: expirationDateTime.toISOString(),
+        clientState: "miClaveSegura",
+      });
+
+      const now = Date.now();
+      const exp = new Date(response.data.expirationDateTime).getTime();
+      const minsLeft = (exp - now) / 60000;
+      const hoursLeft = Math.floor(minsLeft / 60);
+      console.log("SubscriptionsService->createSubscription()->", {
+        now: new Date(now).toISOString(),
+        expires: new Date(exp).toISOString(),
+        minsLeft: minsLeft.toFixed(0) + " mins left",
+        hoursLeft: hoursLeft + " hours left",
+      });
+
+      return response.data;
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
+      console.error("SubscriptionsService->createSubscription()->", message);
+      return null;
+    }
+  }
+
+  async forceRenewSubscription(subscriptionId: string): Promise<void> {
+    try {
+      console.log("SubscriptionsService->forceRenewSubscription()");
+      const newExp = new Date(
+        Date.now() + constants.SUBSCRIPTION_EXPIRATION_TIME * 60 * 1000,
+      ).toISOString();
+      const response = await this.subscriptionsApi.patch(`/${subscriptionId}`, {
+        expirationDateTime: newExp,
+      });
+      console.log("subscription renewed until:", newExp, response.data);
+      console.log("forceRenewSubscription ->", response.data);
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
+      console.error(
+        "SubscriptionsService->forceRenewSubscription()->",
+        message,
+      );
+    }
+  }
+
+  async renewSubscription(): Promise<void> {
+    try {
+      console.log("SubscriptionsService->renewSubscription()");
+      const subscriptions = await this.getSubscriptions();
+      const subscription = subscriptions.find(
+        (subscription) => subscription.notificationUrl === NOTIFICATION_URL,
+      );
+      if (!subscription) {
+        console.log(
+          `SubscriptionsService->renewSubscription()->subscription not found for ${NOTIFICATION_URL}, creating new one`,
+        );
+        await this.createSubscription();
+        return;
+      }
+      const subscriptionId = subscription.id;
+
+      console.log(
+        "subscription found! -> expirationDateTime:",
+        format(
+          getEcuadorDate(new Date(subscription.expirationDateTime)),
+          "yyyy-MM-dd HH:mm:ss",
+        ),
+      );
+      const exp = new Date(subscription.expirationDateTime).getTime();
+      const now = Date.now();
+      const minsLeft = (exp - now) / 60000;
+      const hoursLeft = Math.floor(minsLeft / 60);
+
+      console.log("renewSubscription ->", {
+        now: new Date(now).toISOString(),
+        expires: new Date(exp).toISOString(),
+        minsLeft: minsLeft.toFixed(0) + " mins left",
+        hoursLeft: hoursLeft.toFixed(0) + " hours left",
+        minutesToRenewConstant: constants.SUBSCRIPTION_MINUTES_TO_RENEW,
+        needsRenew: minsLeft <= constants.SUBSCRIPTION_MINUTES_TO_RENEW,
+      });
+
+      if (minsLeft <= constants.SUBSCRIPTION_MINUTES_TO_RENEW) {
+        const newExp = new Date(
+          Date.now() + constants.SUBSCRIPTION_EXPIRATION_TIME * 60 * 1000,
+        ).toISOString();
+        const response = await this.subscriptionsApi.patch(
+          `/${subscriptionId}`,
+          {
+            expirationDateTime: newExp,
+          },
+        );
+        console.log("subscription renewed until:", newExp, response.data);
+      }
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
+      console.error("SubscriptionsService->renewSubscription()->", message);
+    }
+  }
+}
