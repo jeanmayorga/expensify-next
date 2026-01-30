@@ -1,21 +1,18 @@
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { getEmails, getEmail } from "./service";
 
-export const emailKeys = {
-  all: ["emails"] as const,
-  detail: (id: string) => ["emails", id] as const,
-};
-
-export function useEmails() {
-  return useQuery({
-    queryKey: emailKeys.all,
-    queryFn: getEmails,
+export function useEmails(date: string) {
+  return useInfiniteQuery({
+    queryKey: ["emails", date],
+    queryFn: ({ pageParam }) => getEmails(date, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextLink ?? undefined,
   });
 }
 
 export function useEmail(id: string) {
   return useQuery({
-    queryKey: emailKeys.detail(id),
+    queryKey: ["emails", id],
     queryFn: () => getEmail(id),
     enabled: !!id,
   });

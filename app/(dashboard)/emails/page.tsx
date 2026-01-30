@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useEmails, useEmail } from "./hooks";
@@ -21,16 +21,36 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Mail, X } from "lucide-react";
+import { Mail, Calendar, Loader2 } from "lucide-react";
+
+// Get today's date in YYYY-MM-DD format
+const getTodayDate = () => {
+  const today = new Date();
+  return today.toISOString().split("T")[0];
+};
 
 export default function EmailsPage() {
-  const { data: emails = [], isLoading, error } = useEmails();
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayDate());
+  const {
+    data,
+    isLoading,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useEmails(selectedDate);
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
 
   const { data: selectedEmail, isLoading: loadingEmail } = useEmail(
     selectedEmailId || "",
   );
+
+  // Flatten all pages into a single array of emails
+  const emails = useMemo(() => {
+    return data?.pages.flatMap((page) => page.messages) ?? [];
+  }, [data]);
 
   const handleOpenEmail = (email: MicrosoftMeMessage) => {
     setSelectedEmailId(email.id);
@@ -66,9 +86,30 @@ export default function EmailsPage() {
         </div>
       </div>
 
+      {/* Date Filter */}
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <Calendar className="h-4 w-4 text-muted-foreground" />
+          <Input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="w-[180px]"
+          />
+        </div>
+        <span className="text-sm text-muted-foreground">
+          Mostrando emails del{" "}
+          {format(
+            new Date(selectedDate + "T12:00:00"),
+            "d 'de' MMMM 'de' yyyy",
+            { locale: es },
+          )}
+        </span>
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle>Bandeja de entrada</CardTitle>
+          <CardTitle>Emails del día</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
@@ -104,7 +145,7 @@ export default function EmailsPage() {
                     colSpan={4}
                     className="text-center text-muted-foreground py-8"
                   >
-                    No hay emails
+                    No hay emails en esta fecha
                   </TableCell>
                 </TableRow>
               ) : (
@@ -144,6 +185,26 @@ export default function EmailsPage() {
               )}
             </TableBody>
           </Table>
+
+          {/* Load More Button */}
+          {hasNextPage && (
+            <div className="flex justify-center p-4 border-t">
+              <Button
+                variant="outline"
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+              >
+                {isFetchingNextPage ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Cargando...
+                  </>
+                ) : (
+                  "Cargar más"
+                )}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
