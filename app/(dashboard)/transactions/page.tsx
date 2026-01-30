@@ -387,6 +387,7 @@ export default function TransactionsPage() {
                         banks={banks}
                         budgets={budgets}
                         onUpdate={handleQuickUpdate}
+                        onEdit={handleEdit}
                         onDelete={setDeletingTx}
                         onClick={handleRowClick}
                       />

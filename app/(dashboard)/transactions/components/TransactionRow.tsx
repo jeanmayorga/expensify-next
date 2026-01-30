@@ -7,6 +7,7 @@ import {
   TrendingDown,
   TrendingUp,
   MoreVertical,
+  Pencil,
   Trash2,
   Building2,
   CreditCard,
@@ -60,6 +61,7 @@ interface TransactionRowProps {
   banks?: Bank[];
   budgets?: Budget[];
   onUpdate?: (id: number, data: Record<string, string | null>) => void;
+  onEdit?: (tx: TransactionWithRelations) => void;
   onDelete: (tx: TransactionWithRelations) => void;
   onClick?: (tx: TransactionWithRelations) => void;
 }
@@ -78,6 +80,7 @@ export function TransactionRow({
   banks = [],
   budgets = [],
   onUpdate,
+  onEdit,
   onDelete,
   onClick,
 }: TransactionRowProps) {
@@ -344,6 +347,12 @@ export function TransactionRow({
             </DropdownMenuSub>
 
             <DropdownMenuSeparator />
+
+            {/* Edit */}
+            <DropdownMenuItem onClick={() => onEdit?.(tx)}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Editar
+            </DropdownMenuItem>
 
             {/* Delete */}
             <DropdownMenuItem
