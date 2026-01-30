@@ -143,8 +143,8 @@ export type Database = {
       expensify_cards: {
         Row: {
           bank_id: string | null
-          card_type: string | null
           card_kind: string | null
+          card_type: string | null
           cardholder_name: string | null
           color: string | null
           created_at: string
@@ -157,8 +157,8 @@ export type Database = {
         }
         Insert: {
           bank_id?: string | null
-          card_type?: string | null
           card_kind?: string | null
+          card_type?: string | null
           cardholder_name?: string | null
           color?: string | null
           created_at?: string
@@ -171,8 +171,8 @@ export type Database = {
         }
         Update: {
           bank_id?: string | null
-          card_type?: string | null
           card_kind?: string | null
+          card_type?: string | null
           cardholder_name?: string | null
           color?: string | null
           created_at?: string
@@ -224,6 +224,7 @@ export type Database = {
           budget_id: string | null
           card_id: string | null
           category_id: string | null
+          comment: string | null
           created_at: string
           description: string
           id: number
@@ -238,6 +239,7 @@ export type Database = {
           budget_id?: string | null
           card_id?: string | null
           category_id?: string | null
+          comment?: string | null
           created_at?: string
           description: string
           id?: number
@@ -252,6 +254,7 @@ export type Database = {
           budget_id?: string | null
           card_id?: string | null
           category_id?: string | null
+          comment?: string | null
           created_at?: string
           description?: string
           id?: number

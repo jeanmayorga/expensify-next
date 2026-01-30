@@ -9,17 +9,13 @@ import {
   TrendingUp,
   Wallet,
   X,
-  ListFilter,
   Tag,
   CreditCard,
   Building2,
   RefreshCw,
+  Plus,
 } from "lucide-react";
-import {
-  useTransactions,
-  useUpdateTransaction,
-  useDeleteTransaction,
-} from "./hooks";
+import { useTransactions, useUpdateTransaction } from "./hooks";
 import { useCategories } from "../categories/hooks";
 import { useCards } from "../cards/hooks";
 import { useBanks } from "../banks/hooks";
@@ -27,12 +23,7 @@ import { useBudgets } from "../budgets/hooks";
 import { type TransactionWithRelations } from "./service";
 import { MonthPicker } from "@/components/month-picker";
 import { Button } from "@/components/ui/button";
-import {
-  Card as CardUI,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card as CardUI, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -40,20 +31,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   TransactionRow,
   TransactionRowSkeleton,
   EmptyState,
   TransactionSheet,
+  CreateTransactionSheet,
+  EditTransactionSheet,
+  DeleteTransactionDialog,
 } from "./components";
 
 export default function TransactionsPage() {
@@ -90,7 +76,6 @@ export default function TransactionsPage() {
   const { data: budgets = [], isLoading: loadingBudgets } = useBudgets();
 
   const updateTransaction = useUpdateTransaction();
-  const deleteTransaction = useDeleteTransaction();
 
   const loading =
     loadingTx || loadingCat || loadingCards || loadingBanks || loadingBudgets;
@@ -120,76 +105,32 @@ export default function TransactionsPage() {
     return Object.entries(groups).sort(([a], [b]) => b.localeCompare(a));
   }, [filteredTransactions]);
 
-  // Edit dialog
+  // Sheet states
+  const [createOpen, setCreateOpen] = useState(false);
   const [editingTx, setEditingTx] = useState<TransactionWithRelations | null>(
     null,
   );
-  const [editForm, setEditForm] = useState({
-    description: "",
-    amount: 0,
-    category_id: "",
-    card_id: "",
-    bank_id: "",
-  });
-
-  // Delete dialog
   const [deletingTx, setDeletingTx] = useState<TransactionWithRelations | null>(
     null,
   );
-
-  // Detail sheet
   const [selectedTx, setSelectedTx] = useState<TransactionWithRelations | null>(
     null,
   );
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const handleRowClick = (tx: TransactionWithRelations) => {
     setSelectedTx(tx);
-    setSheetOpen(true);
-  };
-
-  const handleEdit = (tx: TransactionWithRelations) => {
-    setEditingTx(tx);
-    setEditForm({
-      description: tx.description,
-      amount: tx.amount,
-      category_id: tx.category_id || "",
-      card_id: tx.card_id || "",
-      bank_id: tx.bank_id || "",
-    });
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingTx) return;
-    await updateTransaction.mutateAsync({
-      id: editingTx.id,
-      data: {
-        description: editForm.description,
-        amount: editForm.amount,
-        category_id: editForm.category_id || null,
-        card_id: editForm.card_id || null,
-        bank_id: editForm.bank_id || null,
-      },
-    });
-    setEditingTx(null);
-  };
-
-  const handleDelete = async () => {
-    if (!deletingTx) return;
-    await deleteTransaction.mutateAsync(deletingTx.id);
-    setDeletingTx(null);
+    setDetailOpen(true);
   };
 
   const handleQuickUpdate = async (
     id: number,
     data: Record<string, string | null>,
   ) => {
-    await updateTransaction.mutateAsync({
-      id,
-      data,
-    });
+    await updateTransaction.mutateAsync({ id, data });
   };
 
+  // Summary calculations
   const totalExpenses = transactions
     .filter((t) => t.type === "expense")
     .reduce((sum, t) => sum + t.amount, 0);
@@ -199,7 +140,6 @@ export default function TransactionsPage() {
     .reduce((sum, t) => sum + t.amount, 0);
 
   const balance = totalIncomes - totalExpenses;
-
   const expenseCount = transactions.filter((t) => t.type === "expense").length;
   const incomeCount = transactions.filter((t) => t.type === "income").length;
 
@@ -319,7 +259,6 @@ export default function TransactionsPage() {
             </TabsList>
           </Tabs>
 
-          {/* Clear Filters */}
           {hasActiveFilters && (
             <Button
               variant="ghost"
@@ -462,17 +401,27 @@ export default function TransactionsPage() {
       <CardUI className="overflow-hidden py-0 gap-0">
         <div className="flex items-center justify-between px-4 py-3 bg-muted/40 border-b">
           <span className="text-sm font-medium">Transacciones</span>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground hover:text-foreground"
-            onClick={() => refetch()}
-            disabled={isRefetching || loading}
-          >
-            <RefreshCw
-              className={`h-3.5 w-3.5 ${isRefetching ? "animate-spin" : ""}`}
-            />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => setCreateOpen(true)}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Nueva
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              onClick={() => refetch()}
+              disabled={isRefetching || loading}
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${isRefetching ? "animate-spin" : ""}`}
+              />
+            </Button>
+          </div>
         </div>
         <CardContent className="p-0">
           {loading ? (
@@ -519,7 +468,7 @@ export default function TransactionsPage() {
                         banks={banks}
                         budgets={budgets}
                         onUpdate={handleQuickUpdate}
-                        onEdit={handleEdit}
+                        onEdit={setEditingTx}
                         onDelete={setDeletingTx}
                         onClick={handleRowClick}
                       />
@@ -532,164 +481,49 @@ export default function TransactionsPage() {
         </CardContent>
       </CardUI>
 
-      {/* Edit Dialog */}
-      <Dialog open={!!editingTx} onOpenChange={() => setEditingTx(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Transaction</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Description</label>
-              <Input
-                value={editForm.description}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, description: e.target.value })
-                }
-                placeholder="Enter description"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Amount</label>
-              <Input
-                type="number"
-                step="0.01"
-                value={editForm.amount}
-                onChange={(e) =>
-                  setEditForm({
-                    ...editForm,
-                    amount: parseFloat(e.target.value) || 0,
-                  })
-                }
-                placeholder="0.00"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Category</label>
-                <Select
-                  value={editForm.category_id || "__none__"}
-                  onValueChange={(v) =>
-                    setEditForm({
-                      ...editForm,
-                      category_id: v === "__none__" ? "" : v,
-                    })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">None</SelectItem>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Card</label>
-                <Select
-                  value={editForm.card_id || "__none__"}
-                  onValueChange={(v) =>
-                    setEditForm({
-                      ...editForm,
-                      card_id: v === "__none__" ? "" : v,
-                    })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">None</SelectItem>
-                    {cards.map((card) => (
-                      <SelectItem key={card.id} value={card.id}>
-                        {card.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Bank</label>
-              <Select
-                value={editForm.bank_id || "__none__"}
-                onValueChange={(v) =>
-                  setEditForm({
-                    ...editForm,
-                    bank_id: v === "__none__" ? "" : v,
-                  })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select bank" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">None</SelectItem>
-                  {banks.map((bank) => (
-                    <SelectItem key={bank.id} value={bank.id}>
-                      {bank.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingTx(null)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSaveEdit}
-              disabled={updateTransaction.isPending}
-            >
-              {updateTransaction.isPending ? "Saving..." : "Save Changes"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Create Transaction Sheet */}
+      <CreateTransactionSheet
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        categories={categories}
+        cards={cards}
+        banks={banks}
+        budgets={budgets}
+      />
 
-      {/* Delete Dialog */}
-      <Dialog open={!!deletingTx} onOpenChange={() => setDeletingTx(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Delete Transaction</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete{" "}
-              <span className="font-medium text-foreground">
-                &quot;{deletingTx?.description}&quot;
-              </span>
-              ? This action cannot be undone.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeletingTx(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={deleteTransaction.isPending}
-            >
-              {deleteTransaction.isPending ? "Deleting..." : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Edit Transaction Sheet */}
+      <EditTransactionSheet
+        transaction={editingTx}
+        onClose={() => setEditingTx(null)}
+        onDelete={(tx) => {
+          setEditingTx(null);
+          setDeletingTx(tx);
+        }}
+        categories={categories}
+        cards={cards}
+        banks={banks}
+        budgets={budgets}
+      />
+
+      {/* Delete Transaction Dialog */}
+      <DeleteTransactionDialog
+        transaction={deletingTx}
+        onClose={() => setDeletingTx(null)}
+      />
 
       {/* Transaction Detail Sheet */}
       <TransactionSheet
         transaction={selectedTx}
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        onEdit={handleEdit}
-        onDelete={setDeletingTx}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        onEdit={(tx) => {
+          setDetailOpen(false);
+          setEditingTx(tx);
+        }}
+        onDelete={(tx) => {
+          setDetailOpen(false);
+          setDeletingTx(tx);
+        }}
       />
     </div>
   );

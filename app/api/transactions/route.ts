@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { TransactionsService } from "./service";
-import { TransactionFilters } from "./model";
+import { TransactionFilters, TransactionInsert } from "./model";
 import { getErrorMessage } from "@/utils/handle-error";
 
 export async function GET(request: NextRequest) {
@@ -31,6 +31,23 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     const message = getErrorMessage(error);
     console.error("GET /api/transactions error:", message);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body: TransactionInsert = await request.json();
+
+    console.log("POST /api/transactions -> body", body);
+
+    const service = new TransactionsService();
+    const data = await service.create(body);
+
+    return NextResponse.json({ data }, { status: 201 });
+  } catch (error) {
+    const message = getErrorMessage(error);
+    console.error("POST /api/transactions error:", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

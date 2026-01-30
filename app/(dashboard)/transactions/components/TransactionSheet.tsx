@@ -15,6 +15,7 @@ import {
   Sparkles,
   HandCoins,
   Tag,
+  MessageSquare,
 } from "lucide-react";
 import { type TransactionWithRelations } from "../service";
 import { getEmail, type MicrosoftMeMessage } from "../../emails/service";
@@ -179,6 +180,21 @@ export function TransactionSheet({
                 Budget
               </h3>
               <BudgetMini budget={tx.budget} />
+            </div>
+          )}
+
+          {/* Comment */}
+          {tx.comment && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <MessageSquare className="h-3.5 w-3.5" />
+                Comment
+              </h3>
+              <div className="rounded-lg bg-muted/50 p-3">
+                <p className="text-sm text-foreground whitespace-pre-wrap">
+                  {tx.comment}
+                </p>
+              </div>
             </div>
           )}
 

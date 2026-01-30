@@ -54,3 +54,11 @@ export async function updateTransaction(
 export async function deleteTransaction(id: number) {
   await api.delete(`/transactions/${id}`);
 }
+
+export async function createTransaction(payload: TransactionInsert) {
+  const { data } = await api.post<{ data: Transaction }>(
+    `/transactions`,
+    payload,
+  );
+  return data.data;
+}

@@ -118,6 +118,7 @@ export class TransactionsService {
       card_id: dto.card_id ?? null,
       income_message_id: dto.income_message_id ?? null,
       is_manual: !isFromEmail,
+      comment: dto.comment ?? null,
     };
 
     const { data, error } = await supabase

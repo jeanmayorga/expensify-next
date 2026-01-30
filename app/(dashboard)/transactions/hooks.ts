@@ -4,8 +4,10 @@ import {
   getTransactions,
   updateTransaction,
   deleteTransaction,
+  createTransaction,
   type TransactionFilters,
   type TransactionUpdate,
+  type TransactionInsert,
 } from "./service";
 
 export const transactionKeys = {
@@ -40,6 +42,16 @@ export function useDeleteTransaction() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => deleteTransaction(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: transactionKeys.all });
+    },
+  });
+}
+
+export function useCreateTransaction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: TransactionInsert) => createTransaction(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: transactionKeys.all });
     },
