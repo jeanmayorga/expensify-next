@@ -22,6 +22,10 @@ import { type Category } from "../../categories/service";
 import { type CardWithBank } from "../../cards/service";
 import { type Bank } from "../../banks/service";
 import { type Budget } from "../../budgets/service";
+import {
+  toEcuadorDateTimeLocal,
+  fromEcuadorDateTimeLocalToUTC,
+} from "@/utils/ecuador-time";
 
 interface EditTransactionSheetProps {
   transaction: TransactionWithRelations | null;
@@ -58,8 +62,8 @@ export function EditTransactionSheet({
         description: transaction.description,
         amount: transaction.amount,
         occurred_at: transaction.occurred_at
-          ? new Date(transaction.occurred_at).toISOString().slice(0, 16)
-          : new Date().toISOString().slice(0, 16),
+          ? toEcuadorDateTimeLocal(transaction.occurred_at) // Convert UTC to Ecuador time
+          : toEcuadorDateTimeLocal(),
         category_id: transaction.category_id || "",
         card_id: transaction.card_id || "",
         bank_id: transaction.bank_id || "",
@@ -77,7 +81,7 @@ export function EditTransactionSheet({
         type: data.type,
         description: data.description,
         amount: data.amount,
-        occurred_at: new Date(data.occurred_at).toISOString(),
+        occurred_at: fromEcuadorDateTimeLocalToUTC(data.occurred_at), // Convert Ecuador time to UTC
         category_id: data.category_id || null,
         card_id: data.card_id || null,
         bank_id: data.bank_id || null,

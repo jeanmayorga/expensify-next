@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toEcuadorDateTimeLocal } from "@/utils/ecuador-time";
 import { type Category } from "../../categories/service";
 import { type CardWithBank } from "../../cards/service";
 import { type Bank } from "../../banks/service";
@@ -19,7 +20,7 @@ export interface TransactionFormData {
   type: "expense" | "income";
   description: string;
   amount: number;
-  occurred_at: string;
+  occurred_at: string; // datetime-local string in Ecuador time
   category_id: string;
   card_id: string;
   bank_id: string;
@@ -31,7 +32,7 @@ export const defaultTransactionFormValues: TransactionFormData = {
   type: "expense",
   description: "",
   amount: 0,
-  occurred_at: new Date().toISOString().slice(0, 16),
+  occurred_at: toEcuadorDateTimeLocal(), // Current time in Ecuador
   category_id: "",
   card_id: "",
   bank_id: "",
