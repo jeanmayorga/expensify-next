@@ -26,14 +26,14 @@ interface WebhookPayload {
 }
 
 export async function POST(request: NextRequest) {
-  console.log("POST /api/microsoft/subscriptions/webhook");
+  console.log("POST /api/microsoft/webhook");
 
   const { searchParams } = request.nextUrl;
   const validationToken = searchParams.get("validationToken");
 
   if (validationToken) {
     console.log(
-      "POST /api/microsoft/subscriptions/webhook -> validationToken",
+      "POST /api/microsoft/webhook -> validationToken",
       validationToken,
     );
     return new Response(validationToken, {
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     const homeAccountId = await redisService.get("homeAccountId");
     if (!homeAccountId) {
       return NextResponse.json(
-        { error: "No account available" },
+        { error: "No account available." },
         { status: 500 },
       );
     }
@@ -59,45 +59,42 @@ export async function POST(request: NextRequest) {
     const token = await microsoftService.getAccessToken(homeAccountId);
     if (!token) {
       return NextResponse.json(
-        { error: "No token available" },
+        { error: "No token available." },
         { status: 500 },
       );
     }
 
-    console.log(
-      "POST /api/microsoft/subscriptions/webhook -> emails",
-      emails.length,
-    );
+    console.log("POST /api/microsoft/webhook -> emails", emails.length);
     for (const notification of emails) {
       const messageId =
         notification?.resourceData?.id ||
         notification?.resource?.split("/").pop();
       if (!messageId) {
-        console.log("messageId not found ->", notification);
+        console.log("No messageId found.", notification);
         continue;
       }
 
       const messageService = new MessagesService(token);
       const message = await messageService.getMessageById(messageId);
       if (!message) {
-        console.log("message not found ->", messageId);
+        console.log("No message found.", messageId);
         continue;
       }
 
       if (!EMAIL_WHITELIST.includes(message.from)) {
-        console.log("email not in whitelist ->", message.from);
+        console.log("Email not in whitelist.", message.from);
         continue;
       }
 
       if (!message.body) {
-        console.log("message body not found ->", message);
+        console.log("No message body found.", message);
         continue;
       }
 
       const transactionsService = new TransactionsService();
       const transaction = await transactionsService.getByMessageId(messageId);
       if (transaction) {
-        console.log("transaction already exists ->", messageId);
+        console.log("Transaction already exists.", messageId);
         continue;
       }
 
@@ -106,7 +103,7 @@ export async function POST(request: NextRequest) {
         message.body,
       );
       if (!transactionGenerated) {
-        console.log("transactionGenerated not found ->", messageId);
+        console.log("No transactionGenerated found.", messageId);
         continue;
       }
 
@@ -118,13 +115,13 @@ export async function POST(request: NextRequest) {
         income_message_id: messageId,
         bank: transactionGenerated.bank,
       });
-      console.log("newTransaction saved ->", newTransaction?.id);
+      console.log("New transaction saved.", newTransaction?.id);
     }
 
     return new Response(null, { status: 202 });
   } catch (error) {
     const message = getErrorMessage(error);
-    console.error("POST /api/microsoft/subscriptions/webhook error:", message);
+    console.error("POST /api/microsoft/webhook error:", message);
     return NextResponse.json(
       { error: "Failed to process webhook" },
       { status: 500 },

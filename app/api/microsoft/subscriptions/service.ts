@@ -7,7 +7,7 @@ import { getEcuadorDate } from "@/utils/ecuador-time";
 import { format } from "date-fns-tz";
 
 const DOMAIN = env.DOMAIN;
-const NOTIFICATION_URL = `${DOMAIN}/api/microsoft/subscriptions/webhook`;
+const NOTIFICATION_URL = `${DOMAIN}/api/microsoft/webhook`;
 
 export class SubscriptionsService {
   private subscriptionsApi: AxiosInstance;

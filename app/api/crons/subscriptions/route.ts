@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { RedisService } from "@/app/api/redis/service";
 import { MicrosoftService } from "@/app/api/microsoft/service";
-import { SubscriptionsService } from "@/app/api/microsoft/subscriptions/subscriptions.service";
+import { SubscriptionsService } from "@/app/api/microsoft/subscriptions/service";
 
 export async function GET() {
   try {

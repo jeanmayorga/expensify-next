@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MicrosoftService } from "../service";
-import { SubscriptionsService } from "../subscriptions/subscriptions.service";
+import { SubscriptionsService } from "../subscriptions/service";
 import { RedisService } from "@/app/api/redis/service";
 import { getErrorMessage } from "@/utils/handle-error";
 

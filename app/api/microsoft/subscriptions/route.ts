@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getMicrosoftAccessToken } from "@/app/api/microsoft/auth";
-import { SubscriptionsService } from "./subscriptions.service";
+import { SubscriptionsService } from "./service";
 import { getErrorMessage } from "@/utils/handle-error";
 
 export async function GET() {

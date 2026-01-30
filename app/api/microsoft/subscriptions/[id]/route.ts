@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getMicrosoftAccessToken } from "@/app/api/microsoft/auth";
-import { SubscriptionsService } from "../subscriptions.service";
+import { SubscriptionsService } from "../service";
 import { getErrorMessage } from "@/utils/handle-error";
 
 interface RouteParams {
@@ -15,7 +15,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { accessToken } = await getMicrosoftAccessToken();
     if (!accessToken) {
       return NextResponse.json(
-        { error: "Authentication failed" },
+        { error: "Authentication failed." },
         { status: 401 },
       );
     }
@@ -28,7 +28,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const message = getErrorMessage(error);
     console.error("DELETE /api/microsoft/subscriptions/[id] error:", message);
     return NextResponse.json(
-      { error: "Failed to delete subscription" },
+      { error: "Failed to delete subscription." },
       { status: 500 },
     );
   }
