@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import {
@@ -13,11 +12,12 @@ import {
   Loader2,
   Pencil,
   Trash2,
-  ExternalLink,
   Sparkles,
   HandCoins,
+  Tag,
 } from "lucide-react";
 import { type TransactionWithRelations } from "../service";
+import { getEmail, type MicrosoftMeMessage } from "../../emails/service";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,15 +27,8 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-
-interface EmailData {
-  id: string;
-  subject: string;
-  from: string;
-  fromName: string;
-  receivedDateTime: string;
-  body: string;
-}
+import { CreditCardMini } from "./CreditCardMini";
+import { BankCardMini } from "./BankCardMini";
 
 interface TransactionSheetProps {
   transaction: TransactionWithRelations | null;
@@ -59,7 +52,7 @@ export function TransactionSheet({
   onEdit,
   onDelete,
 }: TransactionSheetProps) {
-  const [email, setEmail] = useState<EmailData | null>(null);
+  const [email, setEmail] = useState<MicrosoftMeMessage | null>(null);
   const [loadingEmail, setLoadingEmail] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
 
@@ -70,14 +63,10 @@ export function TransactionSheet({
     setEmailError(null);
 
     try {
-      const response = await fetch(`/api/microsoft/me/messages/${tx.income_message_id}`);
-      if (!response.ok) {
-        throw new Error("No se pudo cargar el email");
-      }
-      const { data } = await response.json();
+      const data = await getEmail(tx.income_message_id);
       setEmail(data);
     } catch (error) {
-      setEmailError(error instanceof Error ? error.message : "Error desconocido");
+      setEmailError(error instanceof Error ? error.message : "Unknown error");
     } finally {
       setLoadingEmail(false);
     }
@@ -100,8 +89,9 @@ export function TransactionSheet({
     <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent className="sm:max-w-md p-0 flex flex-col">
         <VisuallyHidden>
-          <SheetTitle>Detalles de transacción</SheetTitle>
+          <SheetTitle>Transaction details</SheetTitle>
         </VisuallyHidden>
+
         {/* Hero Header */}
         <div
           className={`relative px-6 pt-12 pb-6 ${
@@ -110,7 +100,6 @@ export function TransactionSheet({
               : "bg-gradient-to-br from-emerald-500 to-emerald-600"
           }`}
         >
-          {/* Decorative elements */}
           <div className="absolute top-4 right-4 opacity-20">
             {isExpense ? (
               <TrendingDown className="h-24 w-24 text-white" />
@@ -119,17 +108,14 @@ export function TransactionSheet({
             )}
           </div>
 
-          {/* Amount */}
           <p className="text-4xl font-bold text-white tracking-tight">
             {isExpense ? "-" : "+"}${tx.amount.toFixed(2)}
           </p>
 
-          {/* Description */}
           <p className="text-white/90 font-medium mt-2 text-lg leading-tight">
             {tx.description}
           </p>
 
-          {/* Date & Time */}
           <p className="text-white/70 text-sm mt-3">
             {format(date, "EEEE d 'de' MMMM, yyyy", { locale: es })}
             <span className="mx-2">·</span>
@@ -138,90 +124,79 @@ export function TransactionSheet({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-          {/* Info Rows */}
-          <div className="space-y-1">
-            {/* Bank */}
-            {tx.bank && (
-              <div className="flex items-center gap-3 py-2.5 border-b">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted overflow-hidden">
-                  {tx.bank.image ? (
-                    <Image
-                      src={tx.bank.image}
-                      alt={tx.bank.name}
-                      width={36}
-                      height={36}
-                      className="h-full w-full object-contain"
-                    />
-                  ) : (
-                    <Building2 className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-muted-foreground">Banco</p>
-                  <p className="text-sm font-medium truncate">{tx.bank.name}</p>
-                </div>
-              </div>
-            )}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          {/* Card - Mini visual */}
+          {tx.card && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <CreditCard className="h-3.5 w-3.5" />
+                Card Used
+              </h3>
+              <CreditCardMini card={tx.card} />
+            </div>
+          )}
 
-            {/* Card */}
-            {tx.card && (
-              <div className="flex items-center gap-3 py-2.5 border-b">
-                <div
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
-                  style={{
-                    backgroundColor: tx.card.color ? `${tx.card.color}20` : undefined,
-                  }}
-                >
-                  <CreditCard
-                    className="h-4 w-4"
-                    style={{ color: tx.card.color || "currentColor" }}
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-muted-foreground">Tarjeta</p>
-                  <p className="text-sm font-medium truncate">
-                    {tx.card.name}
-                    {tx.card.last4 && (
-                      <span className="text-muted-foreground ml-1">•••• {tx.card.last4}</span>
-                    )}
-                  </p>
-                </div>
-              </div>
-            )}
+          {/* Bank - Visual card */}
+          {tx.bank && !tx.card && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <Building2 className="h-3.5 w-3.5" />
+                Bank Account
+              </h3>
+              <BankCardMini bank={tx.bank} />
+            </div>
+          )}
 
-            {/* Category */}
+          {/* Bank info when card is present */}
+          {tx.bank && tx.card && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <Building2 className="h-3.5 w-3.5" />
+                Bank
+              </h3>
+              <BankCardMini bank={tx.bank} />
+            </div>
+          )}
+
+          {/* Category & Budget */}
+          <div className="space-y-2">
             {tx.category && (
-              <div className="flex items-center gap-3 py-2.5 border-b">
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
                 <div
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+                  className="h-8 w-8 rounded-lg flex items-center justify-center"
                   style={{
-                    backgroundColor: tx.category.color ? `${tx.category.color}20` : undefined,
+                    backgroundColor: tx.category.color
+                      ? `${tx.category.color}20`
+                      : undefined,
                   }}
                 >
-                  <div
-                    className="h-3 w-3 rounded-full"
-                    style={{ backgroundColor: tx.category.color || "#888" }}
+                  <Tag
+                    className="h-4 w-4"
+                    style={{ color: tx.category.color || "currentColor" }}
                   />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-muted-foreground">Categoría</p>
-                  <p className="text-sm font-medium" style={{ color: tx.category.color || undefined }}>
+                  <p className="text-xs text-muted-foreground">Category</p>
+                  <p
+                    className="text-sm font-medium"
+                    style={{ color: tx.category.color || undefined }}
+                  >
                     {tx.category.name}
                   </p>
                 </div>
               </div>
             )}
 
-            {/* Budget */}
             {tx.budget && (
-              <div className="flex items-center gap-3 py-2.5 border-b">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
                   <HandCoins className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-muted-foreground">Presupuesto</p>
-                  <p className="text-sm font-medium truncate">{tx.budget.name}</p>
+                  <p className="text-xs text-muted-foreground">Budget</p>
+                  <p className="text-sm font-medium truncate">
+                    {tx.budget.name}
+                  </p>
                 </div>
               </div>
             )}
@@ -238,20 +213,19 @@ export function TransactionSheet({
               ) : (
                 <>
                   <Sparkles className="h-3 w-3" />
-                  Automático
+                  Automatic
                 </>
               )}
             </Badge>
-            <span className="text-xs text-muted-foreground">
-              ID: {tx.id}
-            </span>
+            <span className="text-xs text-muted-foreground">ID: {tx.id}</span>
           </div>
 
           {/* Email Section */}
           {tx.income_message_id && (
             <div className="space-y-3">
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Email Original
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <Mail className="h-3.5 w-3.5" />
+                Original Email
               </h3>
 
               {!email ? (
@@ -266,17 +240,27 @@ export function TransactionSheet({
                     <Mail className="h-6 w-6 text-muted-foreground" />
                   )}
                   <span className="text-sm text-muted-foreground">
-                    {loadingEmail ? "Cargando..." : emailError || "Ver email original"}
+                    {loadingEmail
+                      ? "Loading..."
+                      : emailError || "View original email"}
                   </span>
                 </button>
               ) : (
                 <div className="rounded-xl border overflow-hidden">
                   <div className="px-4 py-3 bg-muted/50 border-b">
-                    <p className="text-sm font-medium leading-tight">{email.subject}</p>
+                    <p className="text-sm font-medium leading-tight">
+                      {email.subject}
+                    </p>
                     <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                       <span>{email.fromName || email.from}</span>
                       <span>·</span>
-                      <span>{format(parseISO(email.receivedDateTime), "d MMM, HH:mm", { locale: es })}</span>
+                      <span>
+                        {format(
+                          parseISO(email.receivedDateTime),
+                          "d MMM, HH:mm",
+                          { locale: es },
+                        )}
+                      </span>
                     </div>
                   </div>
                   <div className="h-64">
@@ -325,7 +309,7 @@ export function TransactionSheet({
               }}
             >
               <Pencil className="mr-2 h-4 w-4" />
-              Editar
+              Edit
             </Button>
             <Button
               variant="ghost"
