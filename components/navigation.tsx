@@ -11,6 +11,7 @@ import {
   Landmark,
   PiggyBank,
   Mail,
+  Bell,
 } from "lucide-react";
 
 const navigation = [
@@ -21,6 +22,7 @@ const navigation = [
   { name: "Bancos", href: "/banks", icon: Landmark },
   { name: "Presupuestos", href: "/budgets", icon: PiggyBank },
   { name: "Emails", href: "/emails", icon: Mail },
+  { name: "Subs", href: "/subscriptions", icon: Bell },
 ];
 
 export function Navigation() {
@@ -32,7 +34,7 @@ export function Navigation() {
 
   return (
     <Tabs value={currentTab} className="w-full">
-      <TabsList className="grid w-full grid-cols-7">
+      <TabsList className="grid w-full grid-cols-8">
         {navigation.map((item) => {
           const Icon = item.icon;
           return (
