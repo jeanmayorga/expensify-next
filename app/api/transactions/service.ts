@@ -89,7 +89,9 @@ export class TransactionsService {
     );
     const { data, error } = await supabase
       .from("expensify_transactions")
-      .select("*")
+      .select(
+        "*, bank:bank_id(*), category:category_id(*), card:card_id(*), budget:budget_id(*)",
+      )
       .eq("income_message_id", messageId)
       .maybeSingle();
 

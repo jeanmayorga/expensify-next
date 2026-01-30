@@ -11,7 +11,14 @@ import {
   useExtractTransaction,
 } from "./hooks";
 import { useBanks } from "../banks/hooks";
-import { type MicrosoftMeMessage } from "./service";
+import { useCategories } from "../categories/hooks";
+import { useCards } from "../cards/hooks";
+import { useBudgets } from "../budgets/hooks";
+import {
+  type MicrosoftMeMessage,
+  type TransactionWithRelations,
+} from "./service";
+import { EditTransactionSheet } from "../transactions/components/EditTransactionSheet";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
@@ -63,6 +70,9 @@ function EmailsPageContent() {
     useTransactionByMessageId(selectedEmailId || "");
 
   const { data: banks = [] } = useBanks();
+  const { data: categories = [] } = useCategories();
+  const { data: cards = [] } = useCards();
+  const { data: budgets = [] } = useBudgets();
   const whitelistedEmails = useMemo(
     () => banks.flatMap((bank) => bank.emails || []),
     [banks],
@@ -73,6 +83,10 @@ function EmailsPageContent() {
   );
 
   const extractMutation = useExtractTransaction();
+
+  // State for editing transaction sheet
+  const [editingTransaction, setEditingTransaction] =
+    useState<TransactionWithRelations | null>(null);
 
   // Flatten all pages into a single array of emails
   const emails = useMemo(() => {
@@ -291,6 +305,10 @@ function EmailsPageContent() {
                       !linkedTransaction ||
                       loadingTransaction
                     }
+                    onClick={() =>
+                      linkedTransaction &&
+                      setEditingTransaction(linkedTransaction)
+                    }
                   >
                     <Eye className="h-4 w-4 mr-1" />
                     {loadingTransaction ? "Loading..." : "Find transaction"}
@@ -322,6 +340,17 @@ function EmailsPageContent() {
                     {selectedEmail.subject || "(Sin asunto)"}
                   </h2>
                   <div className="space-y-0.5 text-sm mt-2">
+                    <div className="flex gap-2 items-center">
+                      <span className="font-medium w-14 shrink-0">ID:</span>
+                      <a
+                        href={`/api/microsoft/me/messages/${selectedEmail.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline truncate font-mono text-xs"
+                      >
+                        {selectedEmail.id}
+                      </a>
+                    </div>
                     <div className="flex gap-2">
                       <span className="font-medium w-14">De:</span>
                       <span className="text-muted-foreground truncate">
@@ -384,6 +413,20 @@ function EmailsPageContent() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Edit Transaction Sheet */}
+      <EditTransactionSheet
+        transaction={editingTransaction}
+        onClose={() => setEditingTransaction(null)}
+        onDelete={() => {
+          // For now, just close the sheet - could add delete confirmation later
+          setEditingTransaction(null);
+        }}
+        categories={categories}
+        cards={cards}
+        banks={banks}
+        budgets={budgets}
+      />
     </div>
   );
 }

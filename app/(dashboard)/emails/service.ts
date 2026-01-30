@@ -2,8 +2,14 @@ import { api } from "@/lib/api";
 import type { MicrosoftMeMessage } from "@/app/api/microsoft/me/messages/model";
 import type { PaginatedMessages } from "@/app/api/microsoft/me/messages/service";
 import type { Transaction } from "@/app/api/transactions/model";
+import type { TransactionWithRelations } from "../transactions/service";
 
-export type { MicrosoftMeMessage, PaginatedMessages, Transaction };
+export type {
+  MicrosoftMeMessage,
+  PaginatedMessages,
+  Transaction,
+  TransactionWithRelations,
+};
 
 export async function getEmails(date: string, cursor?: string) {
   const { data } = await api.get<{ data: PaginatedMessages }>(
@@ -27,7 +33,7 @@ export async function getEmail(id: string) {
 }
 
 export async function getTransactionByMessageId(messageId: string) {
-  const { data } = await api.get<{ data: Transaction | null }>(
+  const { data } = await api.get<{ data: TransactionWithRelations | null }>(
     `/transactions/by-message/${messageId}`,
   );
   return data.data;
