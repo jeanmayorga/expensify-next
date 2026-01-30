@@ -10,7 +10,7 @@ export async function GET() {
     const { accessToken } = await getMicrosoftAccessToken();
     if (!accessToken) {
       return NextResponse.json(
-        { error: "Authentication failed" },
+        { error: "Authentication failed." },
         { status: 401 },
       );
     }

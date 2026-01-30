@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { RedisService } from "@/app/api/redis/service";
-import { MicrosoftOutlookService } from "@/app/api/microsoft/outlook/outlook.service";
+import { MicrosoftService } from "@/app/api/microsoft/service";
 import { MessagesService } from "@/app/api/microsoft/me/messages/service";
 import { OpenAIService } from "@/app/api/openai/service";
 import { TransactionsService } from "@/app/api/transactions/service";
@@ -55,8 +55,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const outlookService = new MicrosoftOutlookService();
-    const token = await outlookService.getAccessToken(homeAccountId);
+    const microsoftService = new MicrosoftService();
+    const token = await microsoftService.getAccessToken(homeAccountId);
     if (!token) {
       return NextResponse.json(
         { error: "No token available" },
@@ -64,7 +64,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("POST /api/microsoft/subscriptions/webhook -> emails", emails.length);
+    console.log(
+      "POST /api/microsoft/subscriptions/webhook -> emails",
+      emails.length,
+    );
     for (const notification of emails) {
       const messageId =
         notification?.resourceData?.id ||
@@ -99,8 +102,9 @@ export async function POST(request: NextRequest) {
       }
 
       const openaiService = new OpenAIService();
-      const transactionGenerated =
-        await openaiService.getTransactionFromEmail(message.body);
+      const transactionGenerated = await openaiService.getTransactionFromEmail(
+        message.body,
+      );
       if (!transactionGenerated) {
         console.log("transactionGenerated not found ->", messageId);
         continue;

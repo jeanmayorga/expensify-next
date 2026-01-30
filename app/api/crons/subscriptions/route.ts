@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { RedisService } from "@/app/api/redis/service";
-import { MicrosoftOutlookService } from "@/app/api/microsoft/outlook/outlook.service";
+import { MicrosoftService } from "@/app/api/microsoft/service";
 import { SubscriptionsService } from "@/app/api/microsoft/subscriptions/subscriptions.service";
 
 export async function GET() {
@@ -17,8 +17,8 @@ export async function GET() {
       );
     }
 
-    const outlookService = new MicrosoftOutlookService();
-    const accessToken = await outlookService.getAccessToken(homeAccountId);
+    const microsoftService = new MicrosoftService();
+    const accessToken = await microsoftService.getAccessToken(homeAccountId);
 
     if (!accessToken) {
       console.log("No access token available.");

@@ -24,7 +24,7 @@ export async function GET(
     }
 
     return Response.json({ data: message });
-  } catch (error: unknown) {
+  } catch (error) {
     const message = getErrorMessage(error);
     console.error("GET /api/microsoft/me/messages/:id error:", message);
     return Response.json({ error: "Failed to get message" }, { status: 500 });

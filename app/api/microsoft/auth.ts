@@ -1,4 +1,4 @@
-import { MicrosoftOutlookService } from "@/app/api/microsoft/outlook/outlook.service";
+import { MicrosoftService } from "@/app/api/microsoft/service";
 import { RedisService } from "@/app/api/redis/service";
 
 export interface MicrosoftAuthResult {
@@ -16,8 +16,8 @@ export async function getMicrosoftAccessToken(): Promise<MicrosoftAuthResult> {
       return { accessToken: null };
     }
 
-    const outlookService = new MicrosoftOutlookService();
-    const accessToken = await outlookService.getAccessToken(homeAccountId);
+    const microsoftService = new MicrosoftService();
+    const accessToken = await microsoftService.getAccessToken(homeAccountId);
     if (!accessToken) {
       console.log("getMicrosoftAccessToken(): No accessToken available.");
       return { accessToken: null };

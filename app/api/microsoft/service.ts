@@ -7,7 +7,7 @@ import { env } from "@/app/config/env";
 import { RedisService } from "@/app/api/redis/service";
 
 const DOMAIN = env.DOMAIN;
-const REDIRECT_URL = `${DOMAIN}/api/microsoft/outlook/redirect`;
+const REDIRECT_URL = `${DOMAIN}/api/microsoft/redirect`;
 const SCOPES = [
   "User.Read",
   "Mail.Read",
@@ -19,9 +19,9 @@ const SCOPES = [
 
 const MSAL_CACHE_KEY = "msal:token-cache:v1";
 
-export class MicrosoftOutlookService {
+export class MicrosoftService {
   private redis = new RedisService();
-  private outlook = new ConfidentialClientApplication({
+  private msal = new ConfidentialClientApplication({
     auth: {
       clientId: env.MICROSOFT_CLIENT_ID,
       clientSecret: env.MICROSOFT_CLIENT_SECRET,
@@ -43,11 +43,8 @@ export class MicrosoftOutlookService {
     },
   });
 
-  constructor() {}
-
   async getAuthUrl(): Promise<string> {
-    console.log("MicrosoftOutlookService->getAuthUrl()");
-    const url = await this.outlook.getAuthCodeUrl({
+    const url = await this.msal.getAuthCodeUrl({
       scopes: SCOPES,
       redirectUri: REDIRECT_URL,
     });
@@ -57,8 +54,7 @@ export class MicrosoftOutlookService {
   async getAcquireTokenByCode(
     code: string,
   ): Promise<{ accessToken: string; homeAccountId: string | null }> {
-    console.log("MicrosoftOutlookService->getAcquireTokenByCode()");
-    const response = await this.outlook.acquireTokenByCode({
+    const response = await this.msal.acquireTokenByCode({
       code,
       scopes: SCOPES,
       redirectUri: REDIRECT_URL,
@@ -71,14 +67,13 @@ export class MicrosoftOutlookService {
   }
 
   async getAccessToken(homeAccountId: string): Promise<string | null> {
-    console.log("MicrosoftOutlookService->getAccessToken()", homeAccountId);
     try {
-      const account = await this.outlook
+      const account = await this.msal
         .getTokenCache()
         .getAccountByHomeId(homeAccountId);
       if (!account) throw new Error("No account found.");
 
-      const result = await this.outlook.acquireTokenSilent({
+      const result = await this.msal.acquireTokenSilent({
         account,
         scopes: SCOPES,
         forceRefresh: false,
@@ -87,7 +82,6 @@ export class MicrosoftOutlookService {
 
       return result.accessToken;
     } catch (err) {
-      console.error("MicrosoftOutlookService->getAccessToken()->", err);
       if (err instanceof InteractionRequiredAuthError) {
         throw new Error("Manual interaction required.");
       }
