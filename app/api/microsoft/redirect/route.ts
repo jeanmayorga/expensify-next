@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     const subscriptionService = new SubscriptionsService(accessTokenTmp);
     await subscriptionService.renewSubscription();
 
-    return NextResponse.json({ homeAccountId, accessTokenTmp });
+    return NextResponse.json({ data: { homeAccountId, accessTokenTmp } });
   } catch (error) {
     const message = getErrorMessage(error);
     console.error("GET /api/microsoft/redirect error:", message);
