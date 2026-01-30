@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { getEmails, getEmail } from "./service";
+import { getEmails, getEmail, getTransactionByMessageId } from "./service";
 
 export function useEmails(date: string) {
   return useInfiniteQuery({
@@ -15,5 +15,13 @@ export function useEmail(id: string) {
     queryKey: ["emails", id],
     queryFn: () => getEmail(id),
     enabled: !!id,
+  });
+}
+
+export function useTransactionByMessageId(messageId: string) {
+  return useQuery({
+    queryKey: ["transactions", "by-message", messageId],
+    queryFn: () => getTransactionByMessageId(messageId),
+    enabled: !!messageId,
   });
 }

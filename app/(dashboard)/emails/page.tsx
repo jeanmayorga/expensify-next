@@ -3,27 +3,28 @@
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { useEmails, useEmail } from "./hooks";
+import { useQueryState, parseAsString } from "nuqs";
+import { useEmails, useEmail, useTransactionByMessageId } from "./hooks";
 import { type MicrosoftMeMessage } from "./service";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Calendar } from "@/components/ui/calendar";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Mail, Calendar, Loader2 } from "lucide-react";
+import {
+  Mail,
+  CalendarIcon,
+  Loader2,
+  RefreshCw,
+  Sparkles,
+  Eye,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { EMAIL_WHITELIST } from "@/lib/constants";
 
 // Get today's date in YYYY-MM-DD format
 const getTodayDate = () => {
@@ -32,7 +33,10 @@ const getTodayDate = () => {
 };
 
 export default function EmailsPage() {
-  const [selectedDate, setSelectedDate] = useState<string>(getTodayDate());
+  const [selectedDate, setSelectedDate] = useQueryState(
+    "date",
+    parseAsString.withDefault(getTodayDate()),
+  );
   const {
     data,
     isLoading,
@@ -40,24 +44,39 @@ export default function EmailsPage() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    refetch,
+    isRefetching,
   } = useEmails(selectedDate);
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   const { data: selectedEmail, isLoading: loadingEmail } = useEmail(
     selectedEmailId || "",
   );
+
+  const { data: linkedTransaction, isLoading: loadingTransaction } =
+    useTransactionByMessageId(selectedEmailId || "");
 
   // Flatten all pages into a single array of emails
   const emails = useMemo(() => {
     return data?.pages.flatMap((page) => page.messages) ?? [];
   }, [data]);
 
-  const handleOpenEmail = (email: MicrosoftMeMessage) => {
+  const handleSelectEmail = (email: MicrosoftMeMessage) => {
     setSelectedEmailId(email.id);
   };
 
-  const handleCloseEmail = () => {
-    setSelectedEmailId(null);
+  // Convert string date to Date object for calendar
+  const selectedDateObj = selectedDate
+    ? new Date(selectedDate + "T12:00:00")
+    : new Date();
+
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date) {
+      const dateStr = format(date, "yyyy-MM-dd");
+      setSelectedDate(dateStr);
+      setCalendarOpen(false);
+    }
   };
 
   if (error) {
@@ -77,195 +96,255 @@ export default function EmailsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Emails</h1>
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Mail className="h-4 w-4" />
-          <span>{emails.length} emails</span>
-        </div>
-      </div>
-
-      {/* Date Filter */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-muted-foreground" />
-          <Input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="w-[180px]"
-          />
-        </div>
-        <span className="text-sm text-muted-foreground">
-          Mostrando emails del{" "}
-          {format(
-            new Date(selectedDate + "T12:00:00"),
-            "d 'de' MMMM 'de' yyyy",
-            { locale: es },
-          )}
-        </span>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Emails del día</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>De</TableHead>
-                <TableHead>Asunto</TableHead>
-                <TableHead>Fecha</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell>
-                      <Skeleton className="h-4 w-40" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-4 w-60" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-4 w-24" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-4 w-16 ml-auto" />
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : emails.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={4}
-                    className="text-center text-muted-foreground py-8"
-                  >
-                    No hay emails en esta fecha
-                  </TableCell>
-                </TableRow>
-              ) : (
-                emails.map((email) => (
-                  <TableRow
-                    key={email.id}
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => handleOpenEmail(email)}
-                  >
-                    <TableCell className="font-medium">{email.from}</TableCell>
-                    <TableCell className="max-w-md truncate">
-                      {email.subject || "(Sin asunto)"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {email.receivedDateTime
-                        ? format(
-                            new Date(email.receivedDateTime),
-                            "d MMM yyyy, HH:mm",
-                            { locale: es },
-                          )
-                        : "—"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenEmail(email);
-                        }}
-                      >
-                        Abrir
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
+        <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className={cn(
+                "justify-start text-left font-normal",
+                !selectedDate && "text-muted-foreground",
               )}
-            </TableBody>
-          </Table>
+            >
+              <CalendarIcon className="h-4 w-4" />
+              {selectedDate ? (
+                format(selectedDateObj, "EEEE, d/MMMM/yyyy", {
+                  locale: es,
+                })
+              ) : (
+                <span>Selecciona una fecha</span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="end">
+            <Calendar
+              mode="single"
+              selected={selectedDateObj}
+              onSelect={handleDateSelect}
+              locale={es}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
 
-          {/* Load More Button */}
-          {hasNextPage && (
-            <div className="flex justify-center p-4 border-t">
-              <Button
-                variant="outline"
-                onClick={() => fetchNextPage()}
-                disabled={isFetchingNextPage}
-              >
-                {isFetchingNextPage ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Cargando...
-                  </>
-                ) : (
-                  "Cargar más"
+      {/* Grid Layout: 3 cols for list, 5 cols for detail */}
+      <div className="grid grid-cols-8 gap-4 h-[calc(100vh-200px)]">
+        {/* Email List - 3 columns */}
+        <Card className="col-span-3 overflow-hidden flex flex-col py-0 gap-0">
+          {/* List Header */}
+          <div className="flex items-center justify-between px-3 py-2 border-b shrink-0">
+            <span className="text-sm text-muted-foreground">
+              {emails.length} emails
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => refetch()}
+              disabled={isLoading || isRefetching}
+            >
+              <RefreshCw
+                className={cn(
+                  "h-4 w-4",
+                  (isLoading || isRefetching) && "animate-spin",
                 )}
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              />
+            </Button>
+          </div>
+          <CardContent className="p-0 flex-1 overflow-auto">
+            {isLoading ? (
+              <div className="divide-y">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="px-3 py-2 space-y-1">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-48" />
+                  </div>
+                ))}
+              </div>
+            ) : emails.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">
+                No hay emails en esta fecha
+              </div>
+            ) : (
+              <div className="divide-y">
+                {emails.map((email) => {
+                  const isWhitelisted = EMAIL_WHITELIST.includes(email.from);
+                  return (
+                    <div
+                      key={email.id}
+                      onClick={() => handleSelectEmail(email)}
+                      className={cn(
+                        "px-3 py-2 cursor-pointer hover:bg-muted/50 transition-colors border-l-4 border-l-transparent",
+                        selectedEmailId === email.id && "bg-muted",
+                        isWhitelisted &&
+                          "border-l-green-500 bg-green-50 dark:bg-green-950/20",
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="truncate font-semibold text-sm">
+                          {email.fromName || email.from}
+                        </div>
+                        <div className="text-xs text-muted-foreground shrink-0">
+                          {email.receivedDateTime
+                            ? format(
+                                new Date(email.receivedDateTime),
+                                "HH:mm",
+                                { locale: es },
+                              )
+                            : "—"}
+                        </div>
+                      </div>
+                      <div className="truncate text-xs text-muted-foreground">
+                        {email.fromName ? email.from : "\u00A0"}
+                      </div>
+                      <div className="truncate text-sm">
+                        {email.subject || "(Sin asunto)"}
+                      </div>
+                    </div>
+                  );
+                })}
 
-      {/* Email Detail Dialog */}
-      <Dialog open={!!selectedEmailId} onOpenChange={handleCloseEmail}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
-          <DialogHeader className="flex-shrink-0">
-            <div className="flex items-start justify-between">
-              <DialogTitle className="pr-8">
-                {loadingEmail ? (
-                  <Skeleton className="h-6 w-64" />
-                ) : (
-                  selectedEmail?.subject || "(Sin asunto)"
+                {/* Load More Button */}
+                {hasNextPage && (
+                  <div className="p-3">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => fetchNextPage()}
+                      disabled={isFetchingNextPage}
+                    >
+                      {isFetchingNextPage ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Cargando...
+                        </>
+                      ) : (
+                        "Cargar más"
+                      )}
+                    </Button>
+                  </div>
                 )}
-              </DialogTitle>
-            </div>
-          </DialogHeader>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-          {loadingEmail ? (
-            <div className="space-y-4 py-4">
-              <Skeleton className="h-4 w-48" />
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-32 w-full" />
-            </div>
-          ) : selectedEmail ? (
-            <div className="flex-1 overflow-hidden flex flex-col">
-              <div className="space-y-2 py-4 border-b flex-shrink-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">De:</span>
-                  <span className="text-sm text-muted-foreground">
-                    {selectedEmail.from}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">Fecha:</span>
-                  <span className="text-sm text-muted-foreground">
-                    {selectedEmail.receivedDateTime
-                      ? format(
-                          new Date(selectedEmail.receivedDateTime),
-                          "EEEE, d 'de' MMMM 'de' yyyy, HH:mm",
-                          { locale: es },
-                        )
-                      : "—"}
-                  </span>
+        {/* Email Detail - 5 columns */}
+        <Card className="col-span-5 overflow-hidden flex flex-col py-0 gap-0">
+          <CardContent className="p-0 flex-1 overflow-auto">
+            {!selectedEmailId ? (
+              <div className="h-full flex items-center justify-center text-muted-foreground">
+                <div className="text-center">
+                  <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Selecciona un email para ver su contenido</p>
                 </div>
               </div>
-
-              <div className="flex-1 overflow-auto py-4">
-                <div
-                  className="prose prose-sm max-w-none dark:prose-invert"
-                  dangerouslySetInnerHTML={{ __html: selectedEmail.body }}
-                />
+            ) : loadingEmail ? (
+              <div className="p-6 space-y-4">
+                <Skeleton className="h-6 w-3/4" />
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-64 w-full mt-4" />
               </div>
-            </div>
-          ) : (
-            <p className="py-4 text-muted-foreground">
-              No se pudo cargar el email
-            </p>
-          )}
-        </DialogContent>
-      </Dialog>
+            ) : selectedEmail ? (
+              <div className="flex flex-col h-full">
+                {/* Actions Header */}
+                <div className="flex items-center justify-end gap-2 px-3 py-2 border-b shrink-0">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={
+                      !EMAIL_WHITELIST.includes(selectedEmail.from) ||
+                      !linkedTransaction ||
+                      loadingTransaction
+                    }
+                  >
+                    <Eye className="h-4 w-4 mr-1" />
+                    {loadingTransaction ? "Cargando..." : "Mirar transacción"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={!EMAIL_WHITELIST.includes(selectedEmail.from)}
+                  >
+                    <Sparkles className="h-4 w-4 mr-1" />
+                    Extraer
+                  </Button>
+                </div>
+                {/* Email Header */}
+                <div className="px-4 py-3 border-b shrink-0">
+                  <h2 className="text-lg font-semibold truncate">
+                    {selectedEmail.subject || "(Sin asunto)"}
+                  </h2>
+                  <div className="space-y-0.5 text-sm mt-2">
+                    <div className="flex gap-2">
+                      <span className="font-medium w-14">De:</span>
+                      <span className="text-muted-foreground truncate">
+                        {selectedEmail.fromName || selectedEmail.from}
+                        {selectedEmail.fromName && (
+                          <span className="ml-1">({selectedEmail.from})</span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <span className="font-medium w-14">Fecha:</span>
+                      <span className="text-muted-foreground">
+                        {selectedEmail.receivedDateTime
+                          ? format(
+                              new Date(selectedEmail.receivedDateTime),
+                              "EEEE, d 'de' MMMM 'de' yyyy, HH:mm",
+                              { locale: es },
+                            )
+                          : "—"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Email Body - Isolated in iframe */}
+                <div className="flex-1 overflow-hidden">
+                  <iframe
+                    srcDoc={`
+                      <!DOCTYPE html>
+                      <html>
+                        <head>
+                          <meta charset="utf-8">
+                          <style>
+                            body {
+                              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                              font-size: 14px;
+                              line-height: 1.5;
+                              color: #333;
+                              margin: 0;
+                              padding: 16px;
+                            }
+                            img { max-width: 100%; height: auto; }
+                            a { color: #0066cc; }
+                          </style>
+                        </head>
+                        <body>${selectedEmail.body}</body>
+                      </html>
+                    `}
+                    className="w-full h-full border-0"
+                    sandbox="allow-same-origin"
+                    title="Email content"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="h-full flex items-center justify-center text-muted-foreground">
+                No se pudo cargar el email
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

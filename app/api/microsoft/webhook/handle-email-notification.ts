@@ -1,16 +1,7 @@
 import { MessagesService } from "@/app/api/microsoft/me/messages/service";
 import { OpenAIService } from "@/app/api/openai/service";
 import { TransactionsService } from "@/app/api/transactions/service";
-
-const EMAIL_WHITELIST = [
-  "pauldhmayorgaw@gmail.com",
-  "bancaenlinea@produbanco.com",
-  "xperta@pichincha.com",
-  "notificaciones@infopacificard.com.ec",
-  "bancavirtual@bancoguayaquil.com",
-  "banco@pichincha.com",
-  "servicios@tarjetasbancopichincha.com",
-];
+import { EMAIL_WHITELIST } from "@/lib/constants";
 
 export interface WebhookEmailNotification {
   resourceData?: { id?: string };

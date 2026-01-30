@@ -35,13 +35,13 @@ export interface PaginatedMessages {
 
 function formatMessage(msg: GraphMessage): MicrosoftMeMessage {
   // Microsoft Graph uses 'from' for single message and 'sender' for list
-  const emailAddress =
-    msg.from?.emailAddress?.address || msg.sender?.emailAddress?.address;
+  const sender = msg.from?.emailAddress || msg.sender?.emailAddress;
 
   return {
     id: msg.id,
     subject: msg.subject || "",
-    from: emailAddress?.toLowerCase() || "",
+    from: sender?.address?.toLowerCase() || "",
+    fromName: sender?.name || "",
     receivedDateTime: msg.receivedDateTime || new Date().toISOString(),
     body: msg.body?.content || "",
   };
