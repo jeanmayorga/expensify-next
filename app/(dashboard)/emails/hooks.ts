@@ -1,5 +1,15 @@
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { getEmails, getEmail, getTransactionByMessageId } from "./service";
+import {
+  useInfiniteQuery,
+  useQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
+import {
+  getEmails,
+  getEmail,
+  getTransactionByMessageId,
+  extractTransactionFromEmail,
+} from "./service";
 
 export function useEmails(date: string) {
   return useInfiniteQuery({
@@ -23,5 +33,19 @@ export function useTransactionByMessageId(messageId: string) {
     queryKey: ["transactions", "by-message", messageId],
     queryFn: () => getTransactionByMessageId(messageId),
     enabled: !!messageId,
+  });
+}
+
+export function useExtractTransaction() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (messageId: string) => extractTransactionFromEmail(messageId),
+    onSuccess: (_data, messageId) => {
+      // Invalidate the transaction query to refetch and enable "Find transaction" button
+      queryClient.invalidateQueries({
+        queryKey: ["transactions", "by-message", messageId],
+      });
+    },
   });
 }

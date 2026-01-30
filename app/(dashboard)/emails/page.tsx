@@ -4,7 +4,12 @@ import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useQueryState, parseAsString } from "nuqs";
-import { useEmails, useEmail, useTransactionByMessageId } from "./hooks";
+import {
+  useEmails,
+  useEmail,
+  useTransactionByMessageId,
+  useExtractTransaction,
+} from "./hooks";
 import { type MicrosoftMeMessage } from "./service";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -56,6 +61,8 @@ export default function EmailsPage() {
 
   const { data: linkedTransaction, isLoading: loadingTransaction } =
     useTransactionByMessageId(selectedEmailId || "");
+
+  const extractMutation = useExtractTransaction();
 
   // Flatten all pages into a single array of emails
   const emails = useMemo(() => {
@@ -266,15 +273,27 @@ export default function EmailsPage() {
                     }
                   >
                     <Eye className="h-4 w-4 mr-1" />
-                    {loadingTransaction ? "Cargando..." : "Mirar transacción"}
+                    {loadingTransaction ? "Loading..." : "Find transaction"}
                   </Button>
                   <Button
                     size="sm"
                     variant="secondary"
-                    disabled={!EMAIL_WHITELIST.includes(selectedEmail.from)}
+                    disabled={
+                      !EMAIL_WHITELIST.includes(selectedEmail.from) ||
+                      extractMutation.isPending
+                    }
+                    onClick={() =>
+                      selectedEmailId && extractMutation.mutate(selectedEmailId)
+                    }
                   >
-                    <Sparkles className="h-4 w-4 mr-1" />
-                    Extraer
+                    {extractMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4 mr-1" />
+                    )}
+                    {extractMutation.isPending
+                      ? "Extracting..."
+                      : "Convert to transaction"}
                   </Button>
                 </div>
                 {/* Email Header */}

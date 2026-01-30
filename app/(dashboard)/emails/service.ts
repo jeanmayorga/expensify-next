@@ -32,3 +32,10 @@ export async function getTransactionByMessageId(messageId: string) {
   );
   return data.data;
 }
+
+export async function extractTransactionFromEmail(messageId: string) {
+  const { data } = await api.post<{ data: Transaction }>(
+    `/emails/${messageId}/extract`,
+  );
+  return data.data;
+}

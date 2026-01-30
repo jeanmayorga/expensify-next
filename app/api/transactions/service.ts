@@ -12,6 +12,7 @@ const DEFAULT_TIMEZONE = "America/Guayaquil";
 
 export class TransactionsService {
   async getAll(filters: TransactionFilters = {}): Promise<Transaction[]> {
+    console.log("TransactionsService->getAll()->filters", filters);
     let query = supabase
       .from("expensify_transactions")
       .select(
@@ -61,6 +62,7 @@ export class TransactionsService {
   }
 
   async getById(id: number): Promise<Transaction | null> {
+    console.log("TransactionsService->getById()->id", id);
     const { data, error } = await supabase
       .from("expensify_transactions")
       .select(
@@ -81,6 +83,10 @@ export class TransactionsService {
   }
 
   async getByIncomeMessageId(messageId: string): Promise<Transaction | null> {
+    console.log(
+      "TransactionsService->getByIncomeMessageId()->messageId",
+      messageId,
+    );
     const { data, error } = await supabase
       .from("expensify_transactions")
       .select("*")
@@ -99,6 +105,7 @@ export class TransactionsService {
   }
 
   async create(dto: TransactionInsert): Promise<Transaction> {
+    console.log("TransactionsService->create()->dto", dto);
     const isFromEmail = Boolean(dto.income_message_id);
     const transactionData = {
       type: dto.type,
@@ -128,6 +135,7 @@ export class TransactionsService {
   }
 
   async update(id: number, dto: TransactionUpdate): Promise<Transaction> {
+    console.log("TransactionsService->update()->id", id);
     const { data, error } = await supabase
       .from("expensify_transactions")
       .update(dto)
@@ -144,6 +152,7 @@ export class TransactionsService {
   }
 
   async delete(id: number): Promise<boolean> {
+    console.log("TransactionsService->delete()->id", id);
     const { error } = await supabase
       .from("expensify_transactions")
       .delete()
