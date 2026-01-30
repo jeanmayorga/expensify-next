@@ -18,6 +18,7 @@ import {
 import { useCategories } from "../categories/hooks";
 import { useCards } from "../cards/hooks";
 import { useBanks } from "../banks/hooks";
+import { useBudgets } from "../budgets/hooks";
 import { type TransactionWithRelations } from "./service";
 import { MonthPicker } from "@/components/month-picker";
 import { Button } from "@/components/ui/button";
@@ -68,11 +69,12 @@ export default function TransactionsPage() {
   const { data: categories = [], isLoading: loadingCat } = useCategories();
   const { data: cards = [], isLoading: loadingCards } = useCards();
   const { data: banks = [], isLoading: loadingBanks } = useBanks();
+  const { data: budgets = [], isLoading: loadingBudgets } = useBudgets();
 
   const updateTransaction = useUpdateTransaction();
   const deleteTransaction = useDeleteTransaction();
 
-  const loading = loadingTx || loadingCat || loadingCards || loadingBanks;
+  const loading = loadingTx || loadingCat || loadingCards || loadingBanks || loadingBudgets;
 
   // Filter transactions by type
   const filteredTransactions = useMemo(() => {
@@ -153,6 +155,13 @@ export default function TransactionsPage() {
     setDeletingTx(null);
   };
 
+  const handleQuickUpdate = async (id: number, data: Record<string, string | null>) => {
+    await updateTransaction.mutateAsync({
+      id,
+      data,
+    });
+  };
+
   const totalExpenses = transactions
     .filter((t) => t.type === "expense")
     .reduce((sum, t) => sum + t.amount, 0);
@@ -192,66 +201,57 @@ export default function TransactionsPage() {
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3">
-        <CardUI>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-100">
-                <TrendingDown className="h-4 w-4 text-red-600" />
-              </div>
-              Total Expenses
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">
+        {/* Expenses Card */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-500 to-red-600 p-5 text-white shadow-lg">
+          <div className="absolute top-3 right-3 opacity-20">
+            <TrendingDown className="h-16 w-16" />
+          </div>
+          <div className="relative">
+            <p className="text-sm font-medium text-white/80">Total Gastos</p>
+            <p className="text-3xl font-bold tracking-tight mt-1">
               ${totalExpenses.toFixed(2)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {expenseCount} transaction{expenseCount !== 1 ? "s" : ""}
             </p>
-          </CardContent>
-        </CardUI>
+            <p className="text-xs text-white/70 mt-2">
+              {expenseCount} transacción{expenseCount !== 1 ? "es" : ""}
+            </p>
+          </div>
+        </div>
 
-        <CardUI>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100">
-                <TrendingUp className="h-4 w-4 text-emerald-600" />
-              </div>
-              Total Income
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-emerald-600">
+        {/* Income Card */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 p-5 text-white shadow-lg">
+          <div className="absolute top-3 right-3 opacity-20">
+            <TrendingUp className="h-16 w-16" />
+          </div>
+          <div className="relative">
+            <p className="text-sm font-medium text-white/80">Total Ingresos</p>
+            <p className="text-3xl font-bold tracking-tight mt-1">
               ${totalIncomes.toFixed(2)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {incomeCount} transaction{incomeCount !== 1 ? "s" : ""}
             </p>
-          </CardContent>
-        </CardUI>
+            <p className="text-xs text-white/70 mt-2">
+              {incomeCount} transacción{incomeCount !== 1 ? "es" : ""}
+            </p>
+          </div>
+        </div>
 
-        <CardUI>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100">
-                <Wallet className="h-4 w-4 text-blue-600" />
-              </div>
-              Balance
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div
-              className={`text-2xl font-bold ${
-                balance >= 0 ? "text-emerald-600" : "text-red-600"
-              }`}
-            >
+        {/* Balance Card */}
+        <div className={`relative overflow-hidden rounded-2xl p-5 text-white shadow-lg ${
+          balance >= 0
+            ? "bg-gradient-to-br from-blue-500 to-blue-600"
+            : "bg-gradient-to-br from-orange-500 to-orange-600"
+        }`}>
+          <div className="absolute top-3 right-3 opacity-20">
+            <Wallet className="h-16 w-16" />
+          </div>
+          <div className="relative">
+            <p className="text-sm font-medium text-white/80">Balance</p>
+            <p className="text-3xl font-bold tracking-tight mt-1">
               {balance >= 0 ? "+" : "-"}${Math.abs(balance).toFixed(2)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {transactions.length} total transaction{transactions.length !== 1 ? "s" : ""}
             </p>
-          </CardContent>
-        </CardUI>
+            <p className="text-xs text-white/70 mt-2">
+              {transactions.length} transacción{transactions.length !== 1 ? "es" : ""} total
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Filters and Tabs */}
@@ -382,7 +382,11 @@ export default function TransactionsPage() {
                       <TransactionRow
                         key={tx.id}
                         transaction={tx}
-                        onEdit={handleEdit}
+                        categories={categories}
+                        cards={cards}
+                        banks={banks}
+                        budgets={budgets}
+                        onUpdate={handleQuickUpdate}
                         onDelete={setDeletingTx}
                         onClick={handleRowClick}
                       />
