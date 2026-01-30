@@ -13,6 +13,7 @@ import {
   Tag,
   CreditCard,
   Building2,
+  RefreshCw,
 } from "lucide-react";
 import {
   useTransactions,
@@ -48,11 +49,18 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TransactionRow, TransactionRowSkeleton, EmptyState, TransactionSheet } from "./components";
+import {
+  TransactionRow,
+  TransactionRowSkeleton,
+  EmptyState,
+  TransactionSheet,
+} from "./components";
 
 export default function TransactionsPage() {
   const [selectedMonth, setSelectedMonth] = useState(new Date());
-  const [typeFilter, setTypeFilter] = useState<"all" | "expense" | "income">("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "expense" | "income">(
+    "all",
+  );
 
   // Filters
   const [categoryFilter, setCategoryFilter] = useState<string>("__all__");
@@ -70,8 +78,12 @@ export default function TransactionsPage() {
   if (budgetFilter !== "__all__") filters.budget_id = budgetFilter;
 
   // Queries
-  const { data: transactions = [], isLoading: loadingTx } =
-    useTransactions(filters);
+  const {
+    data: transactions = [],
+    isLoading: loadingTx,
+    refetch,
+    isRefetching,
+  } = useTransactions(filters);
   const { data: categories = [], isLoading: loadingCat } = useCategories();
   const { data: cards = [], isLoading: loadingCards } = useCards();
   const { data: banks = [], isLoading: loadingBanks } = useBanks();
@@ -80,7 +92,8 @@ export default function TransactionsPage() {
   const updateTransaction = useUpdateTransaction();
   const deleteTransaction = useDeleteTransaction();
 
-  const loading = loadingTx || loadingCat || loadingCards || loadingBanks || loadingBudgets;
+  const loading =
+    loadingTx || loadingCat || loadingCards || loadingBanks || loadingBudgets;
 
   // Filter transactions by type
   const filteredTransactions = useMemo(() => {
@@ -108,7 +121,9 @@ export default function TransactionsPage() {
   }, [filteredTransactions]);
 
   // Edit dialog
-  const [editingTx, setEditingTx] = useState<TransactionWithRelations | null>(null);
+  const [editingTx, setEditingTx] = useState<TransactionWithRelations | null>(
+    null,
+  );
   const [editForm, setEditForm] = useState({
     description: "",
     amount: 0,
@@ -118,10 +133,14 @@ export default function TransactionsPage() {
   });
 
   // Delete dialog
-  const [deletingTx, setDeletingTx] = useState<TransactionWithRelations | null>(null);
+  const [deletingTx, setDeletingTx] = useState<TransactionWithRelations | null>(
+    null,
+  );
 
   // Detail sheet
-  const [selectedTx, setSelectedTx] = useState<TransactionWithRelations | null>(null);
+  const [selectedTx, setSelectedTx] = useState<TransactionWithRelations | null>(
+    null,
+  );
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const handleRowClick = (tx: TransactionWithRelations) => {
@@ -161,7 +180,10 @@ export default function TransactionsPage() {
     setDeletingTx(null);
   };
 
-  const handleQuickUpdate = async (id: number, data: Record<string, string | null>) => {
+  const handleQuickUpdate = async (
+    id: number,
+    data: Record<string, string | null>,
+  ) => {
     await updateTransaction.mutateAsync({
       id,
       data,
@@ -242,11 +264,13 @@ export default function TransactionsPage() {
         </div>
 
         {/* Balance Card */}
-        <div className={`relative overflow-hidden rounded-2xl p-5 text-white shadow-lg ${
-          balance >= 0
-            ? "bg-gradient-to-br from-blue-500 to-blue-600"
-            : "bg-gradient-to-br from-orange-500 to-orange-600"
-        }`}>
+        <div
+          className={`relative overflow-hidden rounded-2xl p-5 text-white shadow-lg ${
+            balance >= 0
+              ? "bg-gradient-to-br from-blue-500 to-blue-600"
+              : "bg-gradient-to-br from-orange-500 to-orange-600"
+          }`}
+        >
           <div className="absolute top-3 right-3 opacity-20">
             <Wallet className="h-16 w-16" />
           </div>
@@ -256,56 +280,87 @@ export default function TransactionsPage() {
               {balance >= 0 ? "+" : "-"}${Math.abs(balance).toFixed(2)}
             </p>
             <p className="text-xs text-white/70 mt-2">
-              {transactions.length} transacción{transactions.length !== 1 ? "es" : ""} total
+              {transactions.length} transacción
+              {transactions.length !== 1 ? "es" : ""} total
             </p>
           </div>
         </div>
       </div>
 
-      {/* Filters and Tabs */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        {/* Type Tabs */}
-        <Tabs
-          value={typeFilter}
-          onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}
-        >
-          <TabsList>
-            <TabsTrigger value="all" className="gap-1.5">
-              <ListFilter className="h-4 w-4" />
-              All
-              <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium">
-                {transactions.length}
-              </span>
-            </TabsTrigger>
-            <TabsTrigger value="expense" className="gap-1.5">
-              <TrendingDown className="h-4 w-4" />
-              Expenses
-              <span className="ml-1 rounded-full bg-red-100 text-red-700 px-1.5 py-0.5 text-xs font-medium">
-                {expenseCount}
-              </span>
-            </TabsTrigger>
-            <TabsTrigger value="income" className="gap-1.5">
-              <TrendingUp className="h-4 w-4" />
-              Income
-              <span className="ml-1 rounded-full bg-emerald-100 text-emerald-700 px-1.5 py-0.5 text-xs font-medium">
-                {incomeCount}
-              </span>
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+      {/* Filters Section */}
+      <div className="space-y-3">
+        {/* Type Tabs Row */}
+        <div className="flex items-center justify-between">
+          <Tabs
+            value={typeFilter}
+            onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}
+          >
+            <TabsList>
+              <TabsTrigger value="all" className="gap-1.5 text-xs">
+                Todas
+                <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+                  {transactions.length}
+                </span>
+              </TabsTrigger>
+              <TabsTrigger value="expense" className="gap-1.5 text-xs">
+                <TrendingDown className="h-3.5 w-3.5" />
+                Gastos
+                <span className="ml-1 rounded-full bg-red-100 text-red-700 px-1.5 py-0.5 text-[10px] font-medium">
+                  {expenseCount}
+                </span>
+              </TabsTrigger>
+              <TabsTrigger value="income" className="gap-1.5 text-xs">
+                <TrendingUp className="h-3.5 w-3.5" />
+                Ingresos
+                <span className="ml-1 rounded-full bg-emerald-100 text-emerald-700 px-1.5 py-0.5 text-[10px] font-medium">
+                  {incomeCount}
+                </span>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
 
-        {/* Additional Filters */}
-        <div className="flex items-center gap-2 flex-wrap">
+          {/* Clear Filters */}
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+              onClick={clearFilters}
+            >
+              <X className="h-3.5 w-3.5 mr-1" />
+              Limpiar
+            </Button>
+          )}
+        </div>
+
+        {/* Filter Dropdowns Row */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
           {/* Category Filter */}
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[140px] h-8 text-xs bg-background">
+            <SelectTrigger
+              className={`h-8 text-xs shrink-0 ${
+                categoryFilter !== "__all__"
+                  ? "bg-primary/10 border-primary/30"
+                  : "bg-background"
+              }`}
+              style={{ width: "auto", minWidth: "120px" }}
+            >
               <div className="flex items-center gap-2">
-                <Tag className="h-3 w-3 text-muted-foreground" />
-                <SelectValue placeholder="Categoría" />
+                <Tag className="h-3.5 w-3.5" />
+                <span>
+                  {categoryFilter === "__all__"
+                    ? "Categoría"
+                    : categories.find((c) => c.id === categoryFilter)?.name ||
+                      "Categoría"}
+                </span>
               </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">Todas</SelectItem>
+              <SelectItem value="__all__">
+                <span className="text-muted-foreground">
+                  Todas las categorías
+                </span>
+              </SelectItem>
               {categories.map((cat) => (
                 <SelectItem key={cat.id} value={cat.id}>
                   <div className="flex items-center gap-2">
@@ -322,24 +377,48 @@ export default function TransactionsPage() {
 
           {/* Card Filter */}
           <Select value={cardFilter} onValueChange={setCardFilter}>
-            <SelectTrigger className="w-[160px] h-8 text-xs bg-background">
+            <SelectTrigger
+              className={`h-8 text-xs shrink-0 ${
+                cardFilter !== "__all__"
+                  ? "bg-primary/10 border-primary/30"
+                  : "bg-background"
+              }`}
+              style={{ width: "auto", minWidth: "120px" }}
+            >
               <div className="flex items-center gap-2">
-                <CreditCard className="h-3 w-3 text-muted-foreground" />
-                <SelectValue placeholder="Tarjeta" />
+                <CreditCard className="h-3.5 w-3.5" />
+                <span>
+                  {cardFilter === "__all__"
+                    ? "Tarjeta"
+                    : (() => {
+                        const card = cards.find((c) => c.id === cardFilter);
+                        return card
+                          ? card.last4
+                            ? `•••• ${card.last4}`
+                            : card.name
+                          : "Tarjeta";
+                      })()}
+                </span>
               </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">Todas</SelectItem>
+              <SelectItem value="__all__">
+                <span className="text-muted-foreground">
+                  Todas las tarjetas
+                </span>
+              </SelectItem>
               {cards.map((card) => (
                 <SelectItem key={card.id} value={card.id}>
                   <div className="flex items-center gap-2">
                     <CreditCard
-                      className="h-3 w-3 shrink-0"
+                      className="h-3.5 w-3.5 shrink-0"
                       style={{ color: card.color || undefined }}
                     />
-                    <span className="truncate">{card.name}</span>
+                    <span>{card.name}</span>
                     {card.last4 && (
-                      <span className="text-muted-foreground">•{card.last4}</span>
+                      <span className="text-muted-foreground text-xs">
+                        •••• {card.last4}
+                      </span>
                     )}
                   </div>
                 </SelectItem>
@@ -349,14 +428,38 @@ export default function TransactionsPage() {
 
           {/* Bank Filter */}
           <Select value={bankFilter} onValueChange={setBankFilter}>
-            <SelectTrigger className="w-[150px] h-8 text-xs bg-background">
+            <SelectTrigger
+              className={`h-8 text-xs shrink-0 ${
+                bankFilter !== "__all__"
+                  ? "bg-primary/10 border-primary/30"
+                  : "bg-background"
+              }`}
+              style={{ width: "auto", minWidth: "100px" }}
+            >
               <div className="flex items-center gap-2">
-                <Building2 className="h-3 w-3 text-muted-foreground" />
-                <SelectValue placeholder="Banco" />
+                {bankFilter !== "__all__" &&
+                banks.find((b) => b.id === bankFilter)?.image ? (
+                  <Image
+                    src={banks.find((b) => b.id === bankFilter)!.image!}
+                    alt=""
+                    width={14}
+                    height={14}
+                    className="h-3.5 w-3.5 rounded object-contain"
+                  />
+                ) : (
+                  <Building2 className="h-3.5 w-3.5" />
+                )}
+                <span>
+                  {bankFilter === "__all__"
+                    ? "Banco"
+                    : banks.find((b) => b.id === bankFilter)?.name || "Banco"}
+                </span>
               </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">Todos</SelectItem>
+              <SelectItem value="__all__">
+                <span className="text-muted-foreground">Todos los bancos</span>
+              </SelectItem>
               {banks.map((bank) => (
                 <SelectItem key={bank.id} value={bank.id}>
                   <div className="flex items-center gap-2">
@@ -364,12 +467,12 @@ export default function TransactionsPage() {
                       <Image
                         src={bank.image}
                         alt={bank.name}
-                        width={14}
-                        height={14}
-                        className="h-3.5 w-3.5 rounded object-contain shrink-0"
+                        width={16}
+                        height={16}
+                        className="h-4 w-4 rounded object-contain shrink-0"
                       />
                     ) : (
-                      <Building2 className="h-3 w-3 shrink-0" />
+                      <Building2 className="h-3.5 w-3.5 shrink-0" />
                     )}
                     {bank.name}
                   </div>
@@ -380,41 +483,59 @@ export default function TransactionsPage() {
 
           {/* Budget Filter */}
           <Select value={budgetFilter} onValueChange={setBudgetFilter}>
-            <SelectTrigger className="w-[150px] h-8 text-xs bg-background">
+            <SelectTrigger
+              className={`h-8 text-xs shrink-0 ${
+                budgetFilter !== "__all__"
+                  ? "bg-primary/10 border-primary/30"
+                  : "bg-background"
+              }`}
+              style={{ width: "auto", minWidth: "120px" }}
+            >
               <div className="flex items-center gap-2">
-                <Wallet className="h-3 w-3 text-muted-foreground" />
-                <SelectValue placeholder="Presupuesto" />
+                <Wallet className="h-3.5 w-3.5" />
+                <span>
+                  {budgetFilter === "__all__"
+                    ? "Presupuesto"
+                    : budgets.find((b) => b.id === budgetFilter)?.name ||
+                      "Presupuesto"}
+                </span>
               </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">Todos</SelectItem>
+              <SelectItem value="__all__">
+                <span className="text-muted-foreground">
+                  Todos los presupuestos
+                </span>
+              </SelectItem>
               {budgets.map((budget) => (
                 <SelectItem key={budget.id} value={budget.id}>
                   <div className="flex items-center gap-2">
-                    <Wallet className="h-3 w-3 shrink-0 text-blue-500" />
+                    <Wallet className="h-3.5 w-3.5 shrink-0 text-blue-500" />
                     {budget.name}
                   </div>
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
-              onClick={clearFilters}
-            >
-              <X className="h-3 w-3 mr-1" />
-              Limpiar
-            </Button>
-          )}
         </div>
       </div>
 
       {/* Transactions List */}
-      <CardUI className="overflow-hidden">
+      <CardUI className="overflow-hidden py-0 gap-0">
+        <div className="flex items-center justify-between px-4 py-3 bg-muted/40 border-b">
+          <span className="text-sm font-medium">Transacciones</span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+            onClick={() => refetch()}
+            disabled={isRefetching || loading}
+          >
+            <RefreshCw
+              className={`h-3.5 w-3.5 ${isRefetching ? "animate-spin" : ""}`}
+            />
+          </Button>
+        </div>
         <CardContent className="p-0">
           {loading ? (
             <div className="divide-y">
@@ -442,7 +563,11 @@ export default function TransactionsPage() {
                   {/* Date Header */}
                   <div className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm px-4 py-2 border-b">
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      {format(parseISO(dateKey), "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })}
+                      {format(
+                        parseISO(dateKey),
+                        "EEEE, d 'de' MMMM 'de' yyyy",
+                        { locale: es },
+                      )}
                     </p>
                   </div>
                   {/* Transactions for this date */}

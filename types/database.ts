@@ -77,6 +77,7 @@ export type Database = {
       expensify_banks: {
         Row: {
           blacklisted_subjects: string[] | null
+          color: string | null
           created_at: string
           emails: string[] | null
           extraction_prompt: string | null
@@ -88,6 +89,7 @@ export type Database = {
         }
         Insert: {
           blacklisted_subjects?: string[] | null
+          color?: string | null
           created_at?: string
           emails?: string[] | null
           extraction_prompt?: string | null
@@ -99,6 +101,7 @@ export type Database = {
         }
         Update: {
           blacklisted_subjects?: string[] | null
+          color?: string | null
           created_at?: string
           emails?: string[] | null
           extraction_prompt?: string | null
@@ -140,29 +143,44 @@ export type Database = {
       expensify_cards: {
         Row: {
           bank_id: string | null
+          card_type: string | null
+          card_kind: string | null
+          cardholder_name: string | null
           color: string | null
           created_at: string
+          expiration_date: string | null
           id: string
           last4: string | null
           name: string
+          outstanding_balance: number | null
           updated_at: string
         }
         Insert: {
           bank_id?: string | null
+          card_type?: string | null
+          card_kind?: string | null
+          cardholder_name?: string | null
           color?: string | null
           created_at?: string
+          expiration_date?: string | null
           id?: string
           last4?: string | null
           name: string
+          outstanding_balance?: number | null
           updated_at?: string
         }
         Update: {
           bank_id?: string | null
+          card_type?: string | null
+          card_kind?: string | null
+          cardholder_name?: string | null
           color?: string | null
           created_at?: string
+          expiration_date?: string | null
           id?: string
           last4?: string | null
           name?: string
+          outstanding_balance?: number | null
           updated_at?: string
         }
         Relationships: [
