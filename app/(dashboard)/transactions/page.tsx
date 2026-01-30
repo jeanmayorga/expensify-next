@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Image from "next/image";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import {
@@ -9,6 +10,9 @@ import {
   Wallet,
   X,
   ListFilter,
+  Tag,
+  CreditCard,
+  Building2,
 } from "lucide-react";
 import {
   useTransactions,
@@ -54,6 +58,7 @@ export default function TransactionsPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>("__all__");
   const [cardFilter, setCardFilter] = useState<string>("__all__");
   const [bankFilter, setBankFilter] = useState<string>("__all__");
+  const [budgetFilter, setBudgetFilter] = useState<string>("__all__");
 
   // Build filters
   const filters: Record<string, string> = {
@@ -62,6 +67,7 @@ export default function TransactionsPage() {
   if (categoryFilter !== "__all__") filters.category_id = categoryFilter;
   if (cardFilter !== "__all__") filters.card_id = cardFilter;
   if (bankFilter !== "__all__") filters.bank_id = bankFilter;
+  if (budgetFilter !== "__all__") filters.budget_id = budgetFilter;
 
   // Queries
   const { data: transactions = [], isLoading: loadingTx } =
@@ -178,12 +184,14 @@ export default function TransactionsPage() {
   const hasActiveFilters =
     categoryFilter !== "__all__" ||
     cardFilter !== "__all__" ||
-    bankFilter !== "__all__";
+    bankFilter !== "__all__" ||
+    budgetFilter !== "__all__";
 
   const clearFilters = () => {
     setCategoryFilter("__all__");
     setCardFilter("__all__");
     setBankFilter("__all__");
+    setBudgetFilter("__all__");
   };
 
   return (
@@ -288,43 +296,104 @@ export default function TransactionsPage() {
 
         {/* Additional Filters */}
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Category Filter */}
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[130px] h-8 text-xs bg-background">
-              <SelectValue placeholder="Category" />
+            <SelectTrigger className="w-[140px] h-8 text-xs bg-background">
+              <div className="flex items-center gap-2">
+                <Tag className="h-3 w-3 text-muted-foreground" />
+                <SelectValue placeholder="Categoría" />
+              </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">All Categories</SelectItem>
+              <SelectItem value="__all__">Todas</SelectItem>
               {categories.map((cat) => (
                 <SelectItem key={cat.id} value={cat.id}>
-                  {cat.name}
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="h-2.5 w-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: cat.color || "#888" }}
+                    />
+                    {cat.name}
+                  </div>
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
 
+          {/* Card Filter */}
           <Select value={cardFilter} onValueChange={setCardFilter}>
-            <SelectTrigger className="w-[130px] h-8 text-xs bg-background">
-              <SelectValue placeholder="Card" />
+            <SelectTrigger className="w-[160px] h-8 text-xs bg-background">
+              <div className="flex items-center gap-2">
+                <CreditCard className="h-3 w-3 text-muted-foreground" />
+                <SelectValue placeholder="Tarjeta" />
+              </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">All Cards</SelectItem>
+              <SelectItem value="__all__">Todas</SelectItem>
               {cards.map((card) => (
                 <SelectItem key={card.id} value={card.id}>
-                  {card.name}
+                  <div className="flex items-center gap-2">
+                    <CreditCard
+                      className="h-3 w-3 shrink-0"
+                      style={{ color: card.color || undefined }}
+                    />
+                    <span className="truncate">{card.name}</span>
+                    {card.last4 && (
+                      <span className="text-muted-foreground">•{card.last4}</span>
+                    )}
+                  </div>
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
 
+          {/* Bank Filter */}
           <Select value={bankFilter} onValueChange={setBankFilter}>
-            <SelectTrigger className="w-[130px] h-8 text-xs bg-background">
-              <SelectValue placeholder="Bank" />
+            <SelectTrigger className="w-[150px] h-8 text-xs bg-background">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-3 w-3 text-muted-foreground" />
+                <SelectValue placeholder="Banco" />
+              </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">All Banks</SelectItem>
+              <SelectItem value="__all__">Todos</SelectItem>
               {banks.map((bank) => (
                 <SelectItem key={bank.id} value={bank.id}>
-                  {bank.name}
+                  <div className="flex items-center gap-2">
+                    {bank.image ? (
+                      <Image
+                        src={bank.image}
+                        alt={bank.name}
+                        width={14}
+                        height={14}
+                        className="h-3.5 w-3.5 rounded object-contain shrink-0"
+                      />
+                    ) : (
+                      <Building2 className="h-3 w-3 shrink-0" />
+                    )}
+                    {bank.name}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Budget Filter */}
+          <Select value={budgetFilter} onValueChange={setBudgetFilter}>
+            <SelectTrigger className="w-[150px] h-8 text-xs bg-background">
+              <div className="flex items-center gap-2">
+                <Wallet className="h-3 w-3 text-muted-foreground" />
+                <SelectValue placeholder="Presupuesto" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos</SelectItem>
+              {budgets.map((budget) => (
+                <SelectItem key={budget.id} value={budget.id}>
+                  <div className="flex items-center gap-2">
+                    <Wallet className="h-3 w-3 shrink-0 text-blue-500" />
+                    {budget.name}
+                  </div>
                 </SelectItem>
               ))}
             </SelectContent>
@@ -338,7 +407,7 @@ export default function TransactionsPage() {
               onClick={clearFilters}
             >
               <X className="h-3 w-3 mr-1" />
-              Clear
+              Limpiar
             </Button>
           )}
         </div>
