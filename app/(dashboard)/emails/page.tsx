@@ -10,6 +10,7 @@ import {
   useTransactionByMessageId,
   useExtractTransaction,
 } from "./hooks";
+import { useBanks } from "../banks/hooks";
 import { type MicrosoftMeMessage } from "./service";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,7 +30,6 @@ import {
   Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { EMAIL_WHITELIST } from "@/lib/constants";
 
 // Get today's date in YYYY-MM-DD format
 const getTodayDate = () => {
@@ -61,6 +61,12 @@ export default function EmailsPage() {
 
   const { data: linkedTransaction, isLoading: loadingTransaction } =
     useTransactionByMessageId(selectedEmailId || "");
+
+  const { data: banks = [] } = useBanks();
+  const whitelistedEmails = useMemo(
+    () => banks.flatMap((bank) => bank.emails || []),
+    [banks],
+  );
 
   const extractMutation = useExtractTransaction();
 
@@ -180,7 +186,7 @@ export default function EmailsPage() {
             ) : (
               <div className="divide-y">
                 {emails.map((email) => {
-                  const isWhitelisted = EMAIL_WHITELIST.includes(email.from);
+                  const isWhitelisted = whitelistedEmails.includes(email.from);
                   return (
                     <div
                       key={email.id}
@@ -267,7 +273,7 @@ export default function EmailsPage() {
                     size="sm"
                     variant="secondary"
                     disabled={
-                      !EMAIL_WHITELIST.includes(selectedEmail.from) ||
+                      !whitelistedEmails.includes(selectedEmail.from) ||
                       !linkedTransaction ||
                       loadingTransaction
                     }
@@ -279,7 +285,7 @@ export default function EmailsPage() {
                     size="sm"
                     variant="secondary"
                     disabled={
-                      !EMAIL_WHITELIST.includes(selectedEmail.from) ||
+                      !whitelistedEmails.includes(selectedEmail.from) ||
                       extractMutation.isPending
                     }
                     onClick={() =>

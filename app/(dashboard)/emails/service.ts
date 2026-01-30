@@ -33,9 +33,9 @@ export async function getTransactionByMessageId(messageId: string) {
   return data.data;
 }
 
-export async function extractTransactionFromEmail(messageId: string) {
+export async function extractTransactionFromEmail(id: string) {
   const { data } = await api.post<{ data: Transaction }>(
-    `/emails/${messageId}/extract`,
+    `/microsoft/me/messages/${id}/extract`,
   );
   return data.data;
 }

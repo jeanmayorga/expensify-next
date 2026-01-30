@@ -16,6 +16,20 @@ export class BanksRepository {
     return data || [];
   }
 
+  async getByEmail(email: string): Promise<Bank | null> {
+    const { data, error } = await supabase
+      .from("expensify_banks")
+      .select("*")
+      .contains("emails", [email.toLowerCase()]);
+
+    if (error) {
+      console.error("BanksRepository->getByEmail()->error", error.message);
+      throw error;
+    }
+
+    return data?.[0] || null;
+  }
+
   async getById(id: string): Promise<Bank | null> {
     const { data, error } = await supabase
       .from("expensify_banks")

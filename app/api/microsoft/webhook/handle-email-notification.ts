@@ -2,7 +2,7 @@ import { MessagesService } from "@/app/api/microsoft/me/messages/service";
 import { OpenAIService } from "@/app/api/openai/service";
 import { TransactionsService } from "@/app/api/transactions/service";
 import { Transaction } from "@/app/api/transactions/model";
-import { EMAIL_WHITELIST } from "@/lib/constants";
+import { BanksRepository } from "@/app/api/banks/repository";
 
 export interface WebhookEmailNotification {
   resourceData?: { id?: string };
@@ -29,8 +29,10 @@ export async function extractTransactionFromEmail(
     return { success: false, error: "Message not found" };
   }
 
-  // Check whitelist
-  if (!EMAIL_WHITELIST.includes(message.from)) {
+  // Find bank by email (also validates whitelist)
+  const banksRepository = new BanksRepository();
+  const bank = await banksRepository.getByEmail(message.from);
+  if (!bank) {
     return { success: false, error: "Email not in whitelist" };
   }
 
@@ -51,10 +53,13 @@ export async function extractTransactionFromEmail(
     };
   }
 
-  // Extract transaction using OpenAI
+  console.log(`Extracting transaction for bank: ${bank.name}`);
+
+  // Extract transaction using OpenAI with bank-specific prompt
   const openaiService = new OpenAIService();
   const transactionGenerated = await openaiService.getTransactionFromEmail(
     message.body,
+    bank.extraction_prompt,
   );
   if (!transactionGenerated) {
     return {
@@ -63,14 +68,14 @@ export async function extractTransactionFromEmail(
     };
   }
 
-  // Create the transaction
+  // Create the transaction with bank_id
   const newTransaction = await transactionsService.create({
     type: transactionGenerated.type,
     description: transactionGenerated.description,
     amount: transactionGenerated.amount,
     occurred_at: transactionGenerated.occurred_at,
     income_message_id: messageId,
-    bank_id: null,
+    bank_id: bank.id,
   });
 
   return { success: true, transaction: newTransaction };

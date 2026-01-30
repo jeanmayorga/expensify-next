@@ -77,21 +77,30 @@ export type Database = {
       expensify_banks: {
         Row: {
           created_at: string
+          emails: string[] | null
+          extraction_prompt: string | null
           id: string
+          image: string | null
           name: string
           slug: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
+          emails?: string[] | null
+          extraction_prompt?: string | null
           id?: string
+          image?: string | null
           name: string
           slug?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
+          emails?: string[] | null
+          extraction_prompt?: string | null
           id?: string
+          image?: string | null
           name?: string
           slug?: string | null
           updated_at?: string

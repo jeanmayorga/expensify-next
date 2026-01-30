@@ -51,6 +51,14 @@ export interface ParsedTransaction {
   bank: string;
 }
 
+const DEFAULT_EXTRACTION_PROMPT = `
+You are a helpful assistant that extracts transaction information from HTML emails.
+Extract the transaction type (income/expense), description, amount, date/time, and bank info.
+For dates, use ISO 8601 format (YYYY-MM-DDTHH:mm:ssZ).
+For amounts, use positive numbers only.
+Be precise and only extract information that is clearly present in the email.
+`;
+
 export class OpenAIService {
   private openai: OpenAI;
 
@@ -60,27 +68,20 @@ export class OpenAIService {
     });
   }
 
-  private createStructuredResponse(message: string) {
+  private createStructuredResponse(
+    message: string,
+    bankPrompt?: string | null,
+  ) {
+    const systemPrompt = bankPrompt
+      ? `${DEFAULT_EXTRACTION_PROMPT}\n\nBank-specific instructions:\n${bankPrompt}`
+      : DEFAULT_EXTRACTION_PROMPT;
+
     // gpt-5-nano: modelo más barato con Structured Outputs (json_schema) en Responses API
     // https://platform.openai.com/docs/pricing
     return this.openai.responses.create({
       model: "gpt-5-nano",
       input: [
-        {
-          role: "system",
-          content:
-            "You are a helpful assistant that extracts transaction information from HTML emails. " +
-            "Extract the transaction type (income/expense), description, amount, date/time, and bank info. " +
-            "For dates, use ISO 8601 format (YYYY-MM-DDTHH:mm:ssZ). " +
-            "For amounts, use positive numbers only. " +
-            "Be precise and only extract information that is clearly present in the email." +
-            "Bank instructions: " +
-            "Banco del Pacifico is the *bank name* of the following names: Banco del Pacífico, PacifiCard, Pacifico, infopacificard" +
-            "Banco Pichincha is the *bank name* of the following names: Pichincha" +
-            "Banco de Guayaquil is the *bank name* of the following names: Banco Guayaquil, Guayaquil, infoguayaquil. " +
-            "Produbanco is the *bank name* of the following names: Produbanco. " +
-            "If the bank is Produbanco, the *description* needs to get from the patterns like: Establecimiento: <description>",
-        },
+        { role: "system", content: systemPrompt },
         { role: "user", content: message },
       ],
       text: {
@@ -96,12 +97,13 @@ export class OpenAIService {
 
   async getTransactionFromEmail(
     message: string,
+    bankPrompt?: string | null,
   ): Promise<ParsedTransaction | null> {
     try {
       console.log(
         `OpenAIService->getTransactionFromEmail() ${message.length} chars`,
       );
-      const response = await this.createStructuredResponse(message);
+      const response = await this.createStructuredResponse(message, bankPrompt);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const outputText = (response as any).output_text as string;
       const parsed = JSON.parse(outputText);
