@@ -24,7 +24,9 @@ import {
   Sheet,
   SheetContent,
   SheetFooter,
+  SheetTitle,
 } from "@/components/ui/sheet";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
 interface EmailData {
   id: string;
@@ -97,6 +99,9 @@ export function TransactionSheet({
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent className="sm:max-w-md p-0 flex flex-col">
+        <VisuallyHidden>
+          <SheetTitle>Detalles de transacción</SheetTitle>
+        </VisuallyHidden>
         {/* Hero Header */}
         <div
           className={`relative px-6 pt-12 pb-6 ${
