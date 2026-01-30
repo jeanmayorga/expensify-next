@@ -76,6 +76,7 @@ export type Database = {
       }
       expensify_banks: {
         Row: {
+          blacklisted_subjects: string[] | null
           created_at: string
           emails: string[] | null
           extraction_prompt: string | null
@@ -86,6 +87,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          blacklisted_subjects?: string[] | null
           created_at?: string
           emails?: string[] | null
           extraction_prompt?: string | null
@@ -96,6 +98,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          blacklisted_subjects?: string[] | null
           created_at?: string
           emails?: string[] | null
           extraction_prompt?: string | null
@@ -137,6 +140,7 @@ export type Database = {
       expensify_cards: {
         Row: {
           bank_id: string | null
+          color: string | null
           created_at: string
           id: string
           last4: string | null
@@ -145,6 +149,7 @@ export type Database = {
         }
         Insert: {
           bank_id?: string | null
+          color?: string | null
           created_at?: string
           id?: string
           last4?: string | null
@@ -153,6 +158,7 @@ export type Database = {
         }
         Update: {
           bank_id?: string | null
+          color?: string | null
           created_at?: string
           id?: string
           last4?: string | null

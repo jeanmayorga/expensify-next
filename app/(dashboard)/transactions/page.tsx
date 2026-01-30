@@ -1,7 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { format } from "date-fns";
+import { useState, useMemo } from "react";
+import { format, parseISO } from "date-fns";
+import { es } from "date-fns/locale";
+import {
+  TrendingDown,
+  TrendingUp,
+  Wallet,
+  X,
+  ListFilter,
+} from "lucide-react";
 import {
   useTransactions,
   useUpdateTransaction,
@@ -13,21 +21,12 @@ import { useBanks } from "../banks/hooks";
 import { type TransactionWithRelations } from "./service";
 import { MonthPicker } from "@/components/month-picker";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Card as CardUI,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
@@ -43,12 +42,14 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TransactionRow, TransactionRowSkeleton, EmptyState, TransactionSheet } from "./components";
 
 export default function TransactionsPage() {
   const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const [typeFilter, setTypeFilter] = useState<"all" | "expense" | "income">("all");
 
-  // Filters (use __all__ since Radix Select reserves "" for clearing)
+  // Filters
   const [categoryFilter, setCategoryFilter] = useState<string>("__all__");
   const [cardFilter, setCardFilter] = useState<string>("__all__");
   const [bankFilter, setBankFilter] = useState<string>("__all__");
@@ -73,10 +74,33 @@ export default function TransactionsPage() {
 
   const loading = loadingTx || loadingCat || loadingCards || loadingBanks;
 
+  // Filter transactions by type
+  const filteredTransactions = useMemo(() => {
+    if (typeFilter === "all") return transactions;
+    return transactions.filter((t) => t.type === typeFilter);
+  }, [transactions, typeFilter]);
+
+  // Helper to parse date without timezone issues
+  const parseDate = (date: string | Date): Date => {
+    if (typeof date === "string") {
+      return parseISO(date);
+    }
+    return date;
+  };
+
+  // Group transactions by date
+  const groupedTransactions = useMemo(() => {
+    const groups: Record<string, TransactionWithRelations[]> = {};
+    filteredTransactions.forEach((tx) => {
+      const dateKey = format(parseDate(tx.occurred_at), "yyyy-MM-dd");
+      if (!groups[dateKey]) groups[dateKey] = [];
+      groups[dateKey].push(tx);
+    });
+    return Object.entries(groups).sort(([a], [b]) => b.localeCompare(a));
+  }, [filteredTransactions]);
+
   // Edit dialog
-  const [editingTx, setEditingTx] = useState<TransactionWithRelations | null>(
-    null,
-  );
+  const [editingTx, setEditingTx] = useState<TransactionWithRelations | null>(null);
   const [editForm, setEditForm] = useState({
     description: "",
     amount: 0,
@@ -86,9 +110,16 @@ export default function TransactionsPage() {
   });
 
   // Delete dialog
-  const [deletingTx, setDeletingTx] = useState<TransactionWithRelations | null>(
-    null,
-  );
+  const [deletingTx, setDeletingTx] = useState<TransactionWithRelations | null>(null);
+
+  // Detail sheet
+  const [selectedTx, setSelectedTx] = useState<TransactionWithRelations | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  const handleRowClick = (tx: TransactionWithRelations) => {
+    setSelectedTx(tx);
+    setSheetOpen(true);
+  };
 
   const handleEdit = (tx: TransactionWithRelations) => {
     setEditingTx(tx);
@@ -130,10 +161,32 @@ export default function TransactionsPage() {
     .filter((t) => t.type === "income")
     .reduce((sum, t) => sum + t.amount, 0);
 
+  const balance = totalIncomes - totalExpenses;
+
+  const expenseCount = transactions.filter((t) => t.type === "expense").length;
+  const incomeCount = transactions.filter((t) => t.type === "income").length;
+
+  const hasActiveFilters =
+    categoryFilter !== "__all__" ||
+    cardFilter !== "__all__" ||
+    bankFilter !== "__all__";
+
+  const clearFilters = () => {
+    setCategoryFilter("__all__");
+    setCardFilter("__all__");
+    setBankFilter("__all__");
+  };
+
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Transactions</h1>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Transactions</h1>
+          <p className="text-sm text-muted-foreground">
+            Manage and track your financial activity
+          </p>
+        </div>
         <MonthPicker value={selectedMonth} onChange={setSelectedMonth} />
       </div>
 
@@ -141,7 +194,10 @@ export default function TransactionsPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <CardUI>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-100">
+                <TrendingDown className="h-4 w-4 text-red-600" />
+              </div>
               Total Expenses
             </CardTitle>
           </CardHeader>
@@ -149,214 +205,199 @@ export default function TransactionsPage() {
             <div className="text-2xl font-bold text-red-600">
               ${totalExpenses.toFixed(2)}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {expenseCount} transaction{expenseCount !== 1 ? "s" : ""}
+            </p>
           </CardContent>
         </CardUI>
+
         <CardUI>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100">
+                <TrendingUp className="h-4 w-4 text-emerald-600" />
+              </div>
               Total Income
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-2xl font-bold text-emerald-600">
               ${totalIncomes.toFixed(2)}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {incomeCount} transaction{incomeCount !== 1 ? "s" : ""}
+            </p>
           </CardContent>
         </CardUI>
+
         <CardUI>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100">
+                <Wallet className="h-4 w-4 text-blue-600" />
+              </div>
               Balance
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              ${(totalIncomes - totalExpenses).toFixed(2)}
+            <div
+              className={`text-2xl font-bold ${
+                balance >= 0 ? "text-emerald-600" : "text-red-600"
+              }`}
+            >
+              {balance >= 0 ? "+" : "-"}${Math.abs(balance).toFixed(2)}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {transactions.length} total transaction{transactions.length !== 1 ? "s" : ""}
+            </p>
           </CardContent>
         </CardUI>
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-4">
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="All Categories" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">All Categories</SelectItem>
-            {categories.map((cat) => (
-              <SelectItem key={cat.id} value={cat.id}>
-                {cat.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      {/* Filters and Tabs */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {/* Type Tabs */}
+        <Tabs
+          value={typeFilter}
+          onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}
+        >
+          <TabsList>
+            <TabsTrigger value="all" className="gap-1.5">
+              <ListFilter className="h-4 w-4" />
+              All
+              <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium">
+                {transactions.length}
+              </span>
+            </TabsTrigger>
+            <TabsTrigger value="expense" className="gap-1.5">
+              <TrendingDown className="h-4 w-4" />
+              Expenses
+              <span className="ml-1 rounded-full bg-red-100 text-red-700 px-1.5 py-0.5 text-xs font-medium">
+                {expenseCount}
+              </span>
+            </TabsTrigger>
+            <TabsTrigger value="income" className="gap-1.5">
+              <TrendingUp className="h-4 w-4" />
+              Income
+              <span className="ml-1 rounded-full bg-emerald-100 text-emerald-700 px-1.5 py-0.5 text-xs font-medium">
+                {incomeCount}
+              </span>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
 
-        <Select value={cardFilter} onValueChange={setCardFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="All Cards" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">All Cards</SelectItem>
-            {cards.map((card) => (
-              <SelectItem key={card.id} value={card.id}>
-                {card.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Additional Filters */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-[130px] h-8 text-xs bg-background">
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">All Categories</SelectItem>
+              {categories.map((cat) => (
+                <SelectItem key={cat.id} value={cat.id}>
+                  {cat.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Select value={bankFilter} onValueChange={setBankFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="All Banks" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">All Banks</SelectItem>
-            {banks.map((bank) => (
-              <SelectItem key={bank.id} value={bank.id}>
-                {bank.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <Select value={cardFilter} onValueChange={setCardFilter}>
+            <SelectTrigger className="w-[130px] h-8 text-xs bg-background">
+              <SelectValue placeholder="Card" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">All Cards</SelectItem>
+              {cards.map((card) => (
+                <SelectItem key={card.id} value={card.id}>
+                  {card.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        {(categoryFilter !== "__all__" ||
-          cardFilter !== "__all__" ||
-          bankFilter !== "__all__") && (
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setCategoryFilter("__all__");
-              setCardFilter("__all__");
-              setBankFilter("__all__");
-            }}
-          >
-            Clear Filters
-          </Button>
-        )}
+          <Select value={bankFilter} onValueChange={setBankFilter}>
+            <SelectTrigger className="w-[130px] h-8 text-xs bg-background">
+              <SelectValue placeholder="Bank" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">All Banks</SelectItem>
+              {banks.map((bank) => (
+                <SelectItem key={bank.id} value={bank.id}>
+                  {bank.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+              onClick={clearFilters}
+            >
+              <X className="h-3 w-3 mr-1" />
+              Clear
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* Transactions Table */}
-      <CardUI>
+      {/* Transactions List */}
+      <CardUI className="overflow-hidden">
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Card</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell>
-                      <Skeleton className="h-4 w-20" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-4 w-40" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-4 w-24" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-4 w-24" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-4 w-16 ml-auto" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-4 w-20 ml-auto" />
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : transactions.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={6}
-                    className="text-center text-muted-foreground py-8"
-                  >
-                    No transactions found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                transactions.map((tx) => (
-                  <TableRow key={tx.id}>
-                    <TableCell className="font-medium">
-                      {format(new Date(tx.occurred_at), "MMM dd")}
-                    </TableCell>
-                    <TableCell>{tx.description}</TableCell>
-                    <TableCell>
-                      {tx.category ? (
-                        <Badge
-                          variant="secondary"
-                          style={{
-                            backgroundColor: tx.category.color || undefined,
-                          }}
-                        >
-                          {tx.category.name}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {tx.card ? (
-                        <span className="text-sm">
-                          {tx.card.name}
-                          {tx.card.last4 && (
-                            <span className="text-muted-foreground">
-                              {" "}
-                              •••• {tx.card.last4}
-                            </span>
-                          )}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell
-                      className={`text-right font-medium ${
-                        tx.type === "expense"
-                          ? "text-red-600"
-                          : "text-green-600"
-                      }`}
-                    >
-                      {tx.type === "expense" ? "-" : "+"}${tx.amount.toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEdit(tx)}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-600"
-                        onClick={() => setDeletingTx(tx)}
-                      >
-                        Delete
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+          {loading ? (
+            <div className="divide-y">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <TransactionRowSkeleton key={i} />
+              ))}
+            </div>
+          ) : filteredTransactions.length === 0 ? (
+            <EmptyState
+              title={
+                hasActiveFilters || typeFilter !== "all"
+                  ? "No matching transactions"
+                  : "No transactions yet"
+              }
+              description={
+                hasActiveFilters || typeFilter !== "all"
+                  ? "Try adjusting your filters to see more results."
+                  : "Your transactions for this month will appear here."
+              }
+            />
+          ) : (
+            <div>
+              {groupedTransactions.map(([dateKey, txs]) => (
+                <div key={dateKey}>
+                  {/* Date Header */}
+                  <div className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm px-4 py-2 border-b">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      {format(parseISO(dateKey), "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })}
+                    </p>
+                  </div>
+                  {/* Transactions for this date */}
+                  <div className="divide-y">
+                    {txs.map((tx) => (
+                      <TransactionRow
+                        key={tx.id}
+                        transaction={tx}
+                        onEdit={handleEdit}
+                        onDelete={setDeletingTx}
+                        onClick={handleRowClick}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </CardUI>
 
       {/* Edit Dialog */}
       <Dialog open={!!editingTx} onOpenChange={() => setEditingTx(null)}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Edit Transaction</DialogTitle>
           </DialogHeader>
@@ -368,6 +409,7 @@ export default function TransactionsPage() {
                 onChange={(e) =>
                   setEditForm({ ...editForm, description: e.target.value })
                 }
+                placeholder="Enter description"
               />
             </div>
             <div className="space-y-2">
@@ -382,55 +424,58 @@ export default function TransactionsPage() {
                     amount: parseFloat(e.target.value) || 0,
                   })
                 }
+                placeholder="0.00"
               />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Category</label>
-              <Select
-                value={editForm.category_id || "__none__"}
-                onValueChange={(v) =>
-                  setEditForm({
-                    ...editForm,
-                    category_id: v === "__none__" ? "" : v,
-                  })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">None</SelectItem>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Card</label>
-              <Select
-                value={editForm.card_id || "__none__"}
-                onValueChange={(v) =>
-                  setEditForm({
-                    ...editForm,
-                    card_id: v === "__none__" ? "" : v,
-                  })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select card" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">None</SelectItem>
-                  {cards.map((card) => (
-                    <SelectItem key={card.id} value={card.id}>
-                      {card.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Category</label>
+                <Select
+                  value={editForm.category_id || "__none__"}
+                  onValueChange={(v) =>
+                    setEditForm({
+                      ...editForm,
+                      category_id: v === "__none__" ? "" : v,
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">None</SelectItem>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Card</label>
+                <Select
+                  value={editForm.card_id || "__none__"}
+                  onValueChange={(v) =>
+                    setEditForm({
+                      ...editForm,
+                      card_id: v === "__none__" ? "" : v,
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">None</SelectItem>
+                    {cards.map((card) => (
+                      <SelectItem key={card.id} value={card.id}>
+                        {card.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Bank</label>
@@ -465,7 +510,7 @@ export default function TransactionsPage() {
               onClick={handleSaveEdit}
               disabled={updateTransaction.isPending}
             >
-              {updateTransaction.isPending ? "Saving..." : "Save"}
+              {updateTransaction.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -473,14 +518,19 @@ export default function TransactionsPage() {
 
       {/* Delete Dialog */}
       <Dialog open={!!deletingTx} onOpenChange={() => setDeletingTx(null)}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Delete Transaction</DialogTitle>
           </DialogHeader>
-          <p className="py-4">
-            Are you sure you want to delete &quot;{deletingTx?.description}
-            &quot;? This action cannot be undone.
-          </p>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to delete{" "}
+              <span className="font-medium text-foreground">
+                &quot;{deletingTx?.description}&quot;
+              </span>
+              ? This action cannot be undone.
+            </p>
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeletingTx(null)}>
               Cancel
@@ -495,6 +545,15 @@ export default function TransactionsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Transaction Detail Sheet */}
+      <TransactionSheet
+        transaction={selectedTx}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        onEdit={handleEdit}
+        onDelete={setDeletingTx}
+      />
     </div>
   );
 }

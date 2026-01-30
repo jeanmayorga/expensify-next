@@ -16,13 +16,9 @@ export async function POST(
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const result = await extractTransactionFromEmail(id, accessToken);
+    await extractTransactionFromEmail(id, accessToken);
 
-    if (!result.success) {
-      return Response.json({ error: result.error }, { status: 400 });
-    }
-
-    return Response.json({ data: result.transaction });
+    return Response.json({ data: null });
   } catch (error) {
     const message = getErrorMessage(error);
     console.error(

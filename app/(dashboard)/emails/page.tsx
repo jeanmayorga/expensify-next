@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useQueryState, parseAsString } from "nuqs";
@@ -37,7 +37,7 @@ const getTodayDate = () => {
   return today.toISOString().split("T")[0];
 };
 
-export default function EmailsPage() {
+function EmailsPageContent() {
   const [selectedDate, setSelectedDate] = useQueryState(
     "date",
     parseAsString.withDefault(getTodayDate()),
@@ -67,6 +67,10 @@ export default function EmailsPage() {
     () => banks.flatMap((bank) => bank.emails || []),
     [banks],
   );
+  const blacklistedSubjects = useMemo(
+    () => banks.flatMap((bank) => bank.blacklisted_subjects || []),
+    [banks],
+  );
 
   const extractMutation = useExtractTransaction();
 
@@ -74,6 +78,14 @@ export default function EmailsPage() {
   const emails = useMemo(() => {
     return data?.pages.flatMap((page) => page.messages) ?? [];
   }, [data]);
+
+  // Check if an email subject is blacklisted
+  const isSubjectBlacklisted = (subject: string | undefined) => {
+    const subjectUpper = subject?.toUpperCase() || "";
+    return blacklistedSubjects.some((blacklisted) =>
+      subjectUpper.includes(blacklisted.toUpperCase()),
+    );
+  };
 
   const handleSelectEmail = (email: MicrosoftMeMessage) => {
     setSelectedEmailId(email.id);
@@ -187,6 +199,8 @@ export default function EmailsPage() {
               <div className="divide-y">
                 {emails.map((email) => {
                   const isWhitelisted = whitelistedEmails.includes(email.from);
+                  const isBlacklisted = isSubjectBlacklisted(email.subject);
+                  const shouldHighlight = isWhitelisted && !isBlacklisted;
                   return (
                     <div
                       key={email.id}
@@ -194,7 +208,7 @@ export default function EmailsPage() {
                       className={cn(
                         "px-3 py-2 cursor-pointer hover:bg-muted/50 transition-colors border-l-4 border-l-transparent",
                         selectedEmailId === email.id && "bg-muted",
-                        isWhitelisted &&
+                        shouldHighlight &&
                           "border-l-green-500 bg-green-50 dark:bg-green-950/20",
                       )}
                     >
@@ -371,5 +385,43 @@ export default function EmailsPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+function EmailsPageSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-9 w-32" />
+        <Skeleton className="h-10 w-48" />
+      </div>
+      <div className="grid grid-cols-8 gap-4 h-[calc(100vh-200px)]">
+        <Card className="col-span-3">
+          <CardContent className="p-4">
+            <div className="space-y-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-full" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="col-span-5">
+          <CardContent className="p-4">
+            <Skeleton className="h-64 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+export default function EmailsPage() {
+  return (
+    <Suspense fallback={<EmailsPageSkeleton />}>
+      <EmailsPageContent />
+    </Suspense>
   );
 }

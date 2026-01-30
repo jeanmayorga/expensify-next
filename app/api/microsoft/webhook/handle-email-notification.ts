@@ -1,8 +1,16 @@
 import { MessagesService } from "@/app/api/microsoft/me/messages/service";
-import { OpenAIService } from "@/app/api/openai/service";
+import {
+  OpenAIService,
+  ExtractionContext,
+  ParsedTransaction,
+} from "@/app/api/openai/service";
 import { TransactionsService } from "@/app/api/transactions/service";
 import { Transaction } from "@/app/api/transactions/model";
 import { BanksRepository } from "@/app/api/banks/repository";
+import { CardsRepository } from "@/app/api/cards/repository";
+import { CategoriesRepository } from "@/app/api/categories/repository";
+import { extractInfoFromBancoPichincha } from "./extract-info-from-banco-pichincha";
+import { extractInfoFromBancoPacifico } from "./extract-info-from-banco-pacifico";
 
 export interface WebhookEmailNotification {
   resourceData?: { id?: string };
@@ -16,29 +24,64 @@ export interface ExtractTransactionResult {
 }
 
 /**
+ * Build extraction context from database
+ */
+async function buildExtractionContext(): Promise<ExtractionContext> {
+  const [banks, cards, categories] = await Promise.all([
+    new BanksRepository().getAll(),
+    new CardsRepository().getAll(),
+    new CategoriesRepository().getAll(),
+  ]);
+
+  return {
+    banks: banks.map((b) => ({ id: b.id, name: b.name })),
+    cards: cards.map((c) => ({
+      id: c.id,
+      name: c.name,
+      last4: c.last4,
+      bank_id: c.bank_id,
+    })),
+    categories: categories.map((c) => ({ id: c.id, name: c.name })),
+  };
+}
+
+/**
  * Extract a transaction from an email by message ID
  */
 export async function extractTransactionFromEmail(
   messageId: string,
   accessToken: string,
-): Promise<ExtractTransactionResult> {
+) {
   // Get the message
   const messageService = new MessagesService(accessToken);
   const message = await messageService.getMessageById(messageId);
   if (!message) {
-    return { success: false, error: "Message not found" };
+    console.log("Message not found", messageId);
+    return;
   }
 
   // Find bank by email (also validates whitelist)
   const banksRepository = new BanksRepository();
   const bank = await banksRepository.getByEmail(message.from);
   if (!bank) {
-    return { success: false, error: "Email not in whitelist" };
+    console.log("Email not in whitelist", message.from);
+    return;
+  }
+
+  // Check if subject is blacklisted for this bank
+  const blacklistedSubjects = bank.blacklisted_subjects || [];
+  const isBlacklisted = blacklistedSubjects.some((subject) =>
+    message.subject?.toUpperCase().includes(subject.toUpperCase()),
+  );
+  if (isBlacklisted) {
+    console.log("Subject blacklisted", message.subject);
+    return;
   }
 
   // Check body
   if (!message.body) {
-    return { success: false, error: "No message body found" };
+    console.log("No message body found", messageId);
+    return;
   }
 
   // Check if transaction already exists
@@ -46,39 +89,49 @@ export async function extractTransactionFromEmail(
   const existingTransaction =
     await transactionsService.getByIncomeMessageId(messageId);
   if (existingTransaction) {
-    return {
-      success: true,
-      transaction: existingTransaction,
-      error: "Transaction already exists",
-    };
+    console.log("Transaction already exists", messageId);
+    return;
   }
 
   console.log(`Extracting transaction for bank: ${bank.name}`);
 
-  // Extract transaction using OpenAI with bank-specific prompt
-  const openaiService = new OpenAIService();
-  const transactionGenerated = await openaiService.getTransactionFromEmail(
-    message.body,
-    bank.extraction_prompt,
-  );
-  if (!transactionGenerated) {
-    return {
-      success: false,
-      error: "Could not extract transaction from email",
-    };
+  let bodyModified = message.body;
+  if (bank.slug === "pichincha") {
+    bodyModified = extractInfoFromBancoPichincha(message);
+  }
+  if (bank.slug === "pacifico") {
+    bodyModified = extractInfoFromBancoPacifico(message);
   }
 
-  // Create the transaction with bank_id
-  const newTransaction = await transactionsService.create({
-    type: transactionGenerated.type,
-    description: transactionGenerated.description,
-    amount: transactionGenerated.amount,
-    occurred_at: transactionGenerated.occurred_at,
+  const context = await buildExtractionContext();
+
+  // Extract transaction using OpenAI with context and bank-specific prompt
+  const openaiService = new OpenAIService();
+  const extracted = await openaiService.getTransactionFromEmail(
+    bodyModified,
+    context,
+    bank.extraction_prompt,
+  );
+  // }
+
+  if (!extracted) {
+    console.log("Could not extract transaction from email", messageId);
+    return;
+  }
+
+  // Create the transaction with IDs from OpenAI
+  await transactionsService.create({
+    type: extracted.type,
+    description: extracted.description,
+    amount: extracted.amount,
+    occurred_at: extracted.occurred_at,
     income_message_id: messageId,
-    bank_id: bank.id,
+    bank_id: extracted.bank_id,
+    card_id: extracted.card_id,
+    category_id: extracted.category_id,
   });
 
-  return { success: true, transaction: newTransaction };
+  console.log("Transaction created", messageId);
 }
 
 /**
@@ -95,10 +148,5 @@ export async function handleEmailNotification(
     return;
   }
 
-  const result = await extractTransactionFromEmail(messageId, accessToken);
-  if (result.success) {
-    console.log("Transaction processed.", result.transaction?.id);
-  } else {
-    console.log("Failed to process:", result.error);
-  }
+  await extractTransactionFromEmail(messageId, accessToken);
 }
