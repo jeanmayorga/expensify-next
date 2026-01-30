@@ -338,29 +338,17 @@ export default function TransactionsPage() {
           {/* Category Filter */}
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
             <SelectTrigger
-              className={`h-8 text-xs shrink-0 ${
+              className={`h-8 text-xs shrink-0 min-w-[120px] ${
                 categoryFilter !== "__all__"
                   ? "bg-primary/10 border-primary/30"
                   : "bg-background"
               }`}
-              style={{ width: "auto", minWidth: "120px" }}
             >
-              <div className="flex items-center gap-2">
-                <Tag className="h-3.5 w-3.5" />
-                <span>
-                  {categoryFilter === "__all__"
-                    ? "Categoría"
-                    : categories.find((c) => c.id === categoryFilter)?.name ||
-                      "Categoría"}
-                </span>
-              </div>
+              <Tag className="h-3.5 w-3.5" />
+              <SelectValue placeholder="Categoría" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">
-                <span className="text-muted-foreground">
-                  Todas las categorías
-                </span>
-              </SelectItem>
+            <SelectContent position="popper" side="bottom" align="start">
+              <SelectItem value="__all__">Todas las categorías</SelectItem>
               {categories.map((cat) => (
                 <SelectItem key={cat.id} value={cat.id}>
                   <div className="flex items-center gap-2">
@@ -378,35 +366,17 @@ export default function TransactionsPage() {
           {/* Card Filter */}
           <Select value={cardFilter} onValueChange={setCardFilter}>
             <SelectTrigger
-              className={`h-8 text-xs shrink-0 ${
+              className={`h-8 text-xs shrink-0 min-w-[120px] ${
                 cardFilter !== "__all__"
                   ? "bg-primary/10 border-primary/30"
                   : "bg-background"
               }`}
-              style={{ width: "auto", minWidth: "120px" }}
             >
-              <div className="flex items-center gap-2">
-                <CreditCard className="h-3.5 w-3.5" />
-                <span>
-                  {cardFilter === "__all__"
-                    ? "Tarjeta"
-                    : (() => {
-                        const card = cards.find((c) => c.id === cardFilter);
-                        return card
-                          ? card.last4
-                            ? `•••• ${card.last4}`
-                            : card.name
-                          : "Tarjeta";
-                      })()}
-                </span>
-              </div>
+              <CreditCard className="h-3.5 w-3.5" />
+              <SelectValue placeholder="Tarjeta" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">
-                <span className="text-muted-foreground">
-                  Todas las tarjetas
-                </span>
-              </SelectItem>
+            <SelectContent position="popper" side="bottom" align="start">
+              <SelectItem value="__all__">Todas las tarjetas</SelectItem>
               {cards.map((card) => (
                 <SelectItem key={card.id} value={card.id}>
                   <div className="flex items-center gap-2">
@@ -429,37 +399,17 @@ export default function TransactionsPage() {
           {/* Bank Filter */}
           <Select value={bankFilter} onValueChange={setBankFilter}>
             <SelectTrigger
-              className={`h-8 text-xs shrink-0 ${
+              className={`h-8 text-xs shrink-0 min-w-[100px] ${
                 bankFilter !== "__all__"
                   ? "bg-primary/10 border-primary/30"
                   : "bg-background"
               }`}
-              style={{ width: "auto", minWidth: "100px" }}
             >
-              <div className="flex items-center gap-2">
-                {bankFilter !== "__all__" &&
-                banks.find((b) => b.id === bankFilter)?.image ? (
-                  <Image
-                    src={banks.find((b) => b.id === bankFilter)!.image!}
-                    alt=""
-                    width={14}
-                    height={14}
-                    className="h-3.5 w-3.5 rounded object-contain"
-                  />
-                ) : (
-                  <Building2 className="h-3.5 w-3.5" />
-                )}
-                <span>
-                  {bankFilter === "__all__"
-                    ? "Banco"
-                    : banks.find((b) => b.id === bankFilter)?.name || "Banco"}
-                </span>
-              </div>
+              <Building2 className="h-3.5 w-3.5" />
+              <SelectValue placeholder="Banco" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">
-                <span className="text-muted-foreground">Todos los bancos</span>
-              </SelectItem>
+            <SelectContent position="popper" side="bottom" align="start">
+              <SelectItem value="__all__">Todos los bancos</SelectItem>
               {banks.map((bank) => (
                 <SelectItem key={bank.id} value={bank.id}>
                   <div className="flex items-center gap-2">
@@ -484,29 +434,17 @@ export default function TransactionsPage() {
           {/* Budget Filter */}
           <Select value={budgetFilter} onValueChange={setBudgetFilter}>
             <SelectTrigger
-              className={`h-8 text-xs shrink-0 ${
+              className={`h-8 text-xs shrink-0 min-w-[120px] ${
                 budgetFilter !== "__all__"
                   ? "bg-primary/10 border-primary/30"
                   : "bg-background"
               }`}
-              style={{ width: "auto", minWidth: "120px" }}
             >
-              <div className="flex items-center gap-2">
-                <Wallet className="h-3.5 w-3.5" />
-                <span>
-                  {budgetFilter === "__all__"
-                    ? "Presupuesto"
-                    : budgets.find((b) => b.id === budgetFilter)?.name ||
-                      "Presupuesto"}
-                </span>
-              </div>
+              <Wallet className="h-3.5 w-3.5" />
+              <SelectValue placeholder="Presupuesto" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">
-                <span className="text-muted-foreground">
-                  Todos los presupuestos
-                </span>
-              </SelectItem>
+            <SelectContent position="popper" side="bottom" align="start">
+              <SelectItem value="__all__">Todos los presupuestos</SelectItem>
               {budgets.map((budget) => (
                 <SelectItem key={budget.id} value={budget.id}>
                   <div className="flex items-center gap-2">
