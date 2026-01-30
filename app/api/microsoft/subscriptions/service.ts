@@ -1,10 +1,14 @@
 import axios, { AxiosInstance } from "axios";
 import { env } from "@/app/config/env";
-import { constants } from "@/app/config/constants";
 import { getErrorMessage } from "@/utils/handle-error";
 import { MicrosoftSubscription } from "./model";
 import { getEcuadorDate } from "@/utils/ecuador-time";
 import { format } from "date-fns-tz";
+
+export const constants = {
+  SUBSCRIPTION_EXPIRATION_TIME: 1440 as const, // minutes; 1440 equals 1 day
+  SUBSCRIPTION_MINUTES_TO_RENEW: 120 as const, // minutes; 120 equals 2 hours
+};
 
 const DOMAIN = env.DOMAIN;
 const NOTIFICATION_URL = `${DOMAIN}/api/microsoft/webhook`;
