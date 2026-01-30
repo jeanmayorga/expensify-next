@@ -29,6 +29,8 @@ import {
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { CreditCardMini } from "./CreditCardMini";
 import { BankCardMini } from "./BankCardMini";
+import { CategoryMini } from "./CategoryMini";
+import { BudgetMini } from "./BudgetMini";
 
 interface TransactionSheetProps {
   transaction: TransactionWithRelations | null;
@@ -158,49 +160,27 @@ export function TransactionSheet({
             </div>
           )}
 
-          {/* Category & Budget */}
-          <div className="space-y-2">
-            {tx.category && (
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                <div
-                  className="h-8 w-8 rounded-lg flex items-center justify-center"
-                  style={{
-                    backgroundColor: tx.category.color
-                      ? `${tx.category.color}20`
-                      : undefined,
-                  }}
-                >
-                  <Tag
-                    className="h-4 w-4"
-                    style={{ color: tx.category.color || "currentColor" }}
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-muted-foreground">Category</p>
-                  <p
-                    className="text-sm font-medium"
-                    style={{ color: tx.category.color || undefined }}
-                  >
-                    {tx.category.name}
-                  </p>
-                </div>
-              </div>
-            )}
+          {/* Category */}
+          {tx.category && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <Tag className="h-3.5 w-3.5" />
+                Category
+              </h3>
+              <CategoryMini category={tx.category} />
+            </div>
+          )}
 
-            {tx.budget && (
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
-                  <HandCoins className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-muted-foreground">Budget</p>
-                  <p className="text-sm font-medium truncate">
-                    {tx.budget.name}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
+          {/* Budget */}
+          {tx.budget && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <HandCoins className="h-3.5 w-3.5" />
+                Budget
+              </h3>
+              <BudgetMini budget={tx.budget} />
+            </div>
+          )}
 
           {/* Type Badge */}
           <div className="flex items-center gap-2">

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 import {
   useBudgets,
   useCreateBudget,
@@ -9,15 +10,14 @@ import {
 } from "./hooks";
 import { type Budget } from "./service";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from "@/components/ui/sheet";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +27,84 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Wallet, Plus, Trash2 } from "lucide-react";
+
+function formatCurrency(amount: number, currency = "USD") {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+  }).format(amount);
+}
+
+interface BudgetFormData {
+  name: string;
+  amount: number;
+}
+
+const defaultFormValues: BudgetFormData = {
+  name: "",
+  amount: 0,
+};
+
+function budgetToForm(budget: Budget): BudgetFormData {
+  return {
+    name: budget.name,
+    amount: budget.amount,
+  };
+}
+
+function BudgetCard({
+  budget,
+  onClick,
+}: {
+  budget: Budget;
+  onClick: () => void;
+}) {
+  return (
+    <Card
+      className="cursor-pointer transition-all duration-200 hover:shadow-md hover:border-primary/20 active:scale-[0.98]"
+      onClick={onClick}
+    >
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center">
+              <Wallet className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground">{budget.name}</h3>
+              <p className="text-xs text-muted-foreground">Monthly budget</p>
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 pt-4 border-t">
+          <p className="text-2xl font-bold tracking-tight text-foreground">
+            {formatCurrency(budget.amount, budget.currency)}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function BudgetCardSkeleton() {
+  return (
+    <Card>
+      <CardContent className="p-5">
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-10 w-10 rounded-xl" />
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-3 w-16" />
+          </div>
+        </div>
+        <div className="mt-4 pt-4 border-t">
+          <Skeleton className="h-8 w-28" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function BudgetsPage() {
   const { data: budgets = [], isLoading } = useBudgets();
@@ -35,214 +113,261 @@ export default function BudgetsPage() {
   const deleteBudget = useDeleteBudget();
 
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
-  const [deletingBudget, setDeletingBudget] = useState<Budget | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [form, setForm] = useState({ name: "", amount: 0 });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const handleCreate = async () => {
-    await createBudget.mutateAsync(form);
-    setIsCreating(false);
-    setForm({ name: "", amount: 0 });
-  };
-
-  const handleEdit = (budget: Budget) => {
-    setEditingBudget(budget);
-    setForm({ name: budget.name, amount: budget.amount });
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingBudget) return;
-    await updateBudget.mutateAsync({ id: editingBudget.id, data: form });
-    setEditingBudget(null);
-    setForm({ name: "", amount: 0 });
-  };
-
-  const handleDelete = async () => {
-    if (!deletingBudget) return;
-    await deleteBudget.mutateAsync(deletingBudget.id);
-    setDeletingBudget(null);
-  };
+  const form = useForm<BudgetFormData>({ defaultValues: defaultFormValues });
+  const { register, watch, reset, handleSubmit } = form;
+  const amount = watch("amount") || 0;
 
   const totalBudget = budgets.reduce((sum, b) => sum + b.amount, 0);
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Budgets</h1>
-        <Button onClick={() => setIsCreating(true)}>Add Budget</Button>
+  useEffect(() => {
+    if (editingBudget) {
+      reset(budgetToForm(editingBudget));
+    }
+  }, [editingBudget, reset]);
+
+  const onCreateSubmit = async (data: BudgetFormData) => {
+    await createBudget.mutateAsync({
+      name: data.name,
+      amount: data.amount,
+    });
+    setIsCreating(false);
+    reset(defaultFormValues);
+  };
+
+  const onEditSubmit = async (data: BudgetFormData) => {
+    if (!editingBudget) return;
+    await updateBudget.mutateAsync({
+      id: editingBudget.id,
+      data: {
+        name: data.name,
+        amount: data.amount,
+      },
+    });
+    setEditingBudget(null);
+    reset(defaultFormValues);
+  };
+
+  const handleDelete = async () => {
+    if (!editingBudget) return;
+    await deleteBudget.mutateAsync(editingBudget.id);
+    setShowDeleteConfirm(false);
+    setEditingBudget(null);
+    reset(defaultFormValues);
+  };
+
+  const openCreate = () => {
+    reset(defaultFormValues);
+    setIsCreating(true);
+  };
+
+  const FormFields = () => (
+    <div className="space-y-4">
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">Name *</label>
+        <Input {...register("name")} placeholder="Monthly Groceries" />
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex justify-between">
-            <span>All Budgets</span>
-            <span className="text-muted-foreground">
-              Total: ${totalBudget.toFixed(2)}
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                Array.from({ length: 3 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell>
-                      <Skeleton className="h-4 w-32" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-4 w-20 ml-auto" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-4 w-20 ml-auto" />
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : budgets.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={3}
-                    className="text-center text-muted-foreground py-8"
-                  >
-                    No budgets found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                budgets.map((budget) => (
-                  <TableRow key={budget.id}>
-                    <TableCell className="font-medium">{budget.name}</TableCell>
-                    <TableCell className="text-right">
-                      ${budget.amount.toFixed(2)}{" "}
-                      <span className="text-muted-foreground">
-                        {budget.currency}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEdit(budget)}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-600"
-                        onClick={() => setDeletingBudget(budget)}
-                      >
-                        Delete
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">Amount *</label>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+            $
+          </span>
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            {...register("amount", { valueAsNumber: true })}
+            placeholder="0.00"
+            className="pl-7"
+          />
+        </div>
+      </div>
 
-      {/* Create Dialog */}
-      <Dialog open={isCreating} onOpenChange={setIsCreating}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>New Budget</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Name</label>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Budget name"
-              />
+      {/* Preview */}
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">Preview</label>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <span className="font-medium">
+                {watch("name") || "Budget Name"}
+              </span>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Amount</label>
-              <Input
-                type="number"
-                step="0.01"
-                value={form.amount}
-                onChange={(e) =>
-                  setForm({ ...form, amount: parseFloat(e.target.value) || 0 })
-                }
-                placeholder="0.00"
-              />
+            <p className="text-xl font-bold">{formatCurrency(amount)}</p>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Budgets</h1>
+          <p className="text-sm text-muted-foreground">
+            Set spending limits and track your expenses
+          </p>
+        </div>
+        <Button onClick={openCreate} size="sm">
+          <Plus className="h-4 w-4 mr-1" />
+          Add
+        </Button>
+      </div>
+
+      {/* Summary */}
+      {budgets.length > 0 && (
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Budget</p>
+                <p className="text-2xl font-bold tracking-tight mt-1">
+                  {formatCurrency(totalBudget)}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">
+                  {budgets.length} budget{budgets.length !== 1 ? "s" : ""}
+                </p>
+              </div>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Budgets Grid */}
+      {isLoading ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <BudgetCardSkeleton key={i} />
+          ))}
+        </div>
+      ) : budgets.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20">
+          <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center mb-4">
+            <Wallet className="h-7 w-7 text-muted-foreground" />
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreating(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreate} disabled={createBudget.isPending}>
-              {createBudget.isPending ? "Creating..." : "Create"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <p className="text-muted-foreground mb-4">No budgets yet</p>
+          <Button onClick={openCreate} size="sm">
+            <Plus className="h-4 w-4 mr-1" />
+            Add budget
+          </Button>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {budgets.map((budget) => (
+            <BudgetCard
+              key={budget.id}
+              budget={budget}
+              onClick={() => setEditingBudget(budget)}
+            />
+          ))}
+        </div>
+      )}
 
-      {/* Edit Dialog */}
-      <Dialog
-        open={!!editingBudget}
+      {/* Create Sheet */}
+      <Sheet open={isCreating} onOpenChange={setIsCreating}>
+        <SheetContent className="sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>New Budget</SheetTitle>
+          </SheetHeader>
+          <form
+            onSubmit={handleSubmit(onCreateSubmit)}
+            className="flex flex-col flex-1 overflow-hidden"
+          >
+            <div className="flex-1 px-4 pb-4 overflow-y-auto">
+              <FormFields />
+            </div>
+            <SheetFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsCreating(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={createBudget.isPending || !watch("name")}
+              >
+                {createBudget.isPending ? "Creating..." : "Create"}
+              </Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
+
+      {/* Edit Sheet */}
+      <Sheet
+        open={!!editingBudget && !showDeleteConfirm}
         onOpenChange={() => setEditingBudget(null)}
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Budget</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Name</label>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-              />
+        <SheetContent className="sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>Edit Budget</SheetTitle>
+          </SheetHeader>
+          <form
+            onSubmit={handleSubmit(onEditSubmit)}
+            className="flex flex-col flex-1 overflow-hidden"
+          >
+            <div className="flex-1 px-4 pb-4 overflow-y-auto">
+              <FormFields />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Amount</label>
-              <Input
-                type="number"
-                step="0.01"
-                value={form.amount}
-                onChange={(e) =>
-                  setForm({ ...form, amount: parseFloat(e.target.value) || 0 })
-                }
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingBudget(null)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveEdit} disabled={updateBudget.isPending}>
-              {updateBudget.isPending ? "Saving..." : "Save"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <SheetFooter className="flex-col sm:flex-row">
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10 sm:mr-auto"
+                onClick={() => setShowDeleteConfirm(true)}
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                Delete
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditingBudget(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={updateBudget.isPending || !watch("name")}
+              >
+                {updateBudget.isPending ? "Saving..." : "Save"}
+              </Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
 
-      {/* Delete Dialog */}
-      <Dialog
-        open={!!deletingBudget}
-        onOpenChange={() => setDeletingBudget(null)}
-      >
-        <DialogContent>
+      {/* Delete Confirmation */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Delete Budget</DialogTitle>
           </DialogHeader>
-          <p className="py-4">
-            Are you sure you want to delete &quot;{deletingBudget?.name}&quot;?
-            This action cannot be undone.
+          <p className="text-sm text-muted-foreground py-2">
+            Are you sure you want to delete{" "}
+            <span className="font-medium text-foreground">
+              {editingBudget?.name}
+            </span>
+            ? This action cannot be undone.
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeletingBudget(null)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteConfirm(false)}
+            >
               Cancel
             </Button>
             <Button
