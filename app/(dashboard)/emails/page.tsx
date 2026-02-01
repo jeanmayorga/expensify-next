@@ -10,19 +10,19 @@ import {
   useTransactionByMessageId,
   useExtractTransactionData,
 } from "./hooks";
-import { useBanks } from "../banks/hooks";
-import { useCategories } from "../categories/hooks";
-import { useCards } from "../cards/hooks";
-import { useBudgets } from "../budgets/hooks";
+import { useBanks } from "../[month]/banks/hooks";
+import { useCategories } from "../[month]/categories/hooks";
+import { useCards } from "../[month]/cards/hooks";
+import { useBudgets } from "../[month]/budgets/hooks";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   type MicrosoftMeMessage,
   type TransactionWithRelations,
   type TransactionInsert,
 } from "./service";
-import { EditTransactionSheet } from "../transactions/components/EditTransactionSheet";
-import { DeleteTransactionDialog } from "../transactions/components/DeleteTransactionDialog";
-import { CreateTransactionSheet } from "../transactions/components/CreateTransactionSheet";
+import { EditTransactionSheet } from "../[month]/transactions/components/EditTransactionSheet";
+import { DeleteTransactionDialog } from "../[month]/transactions/components/DeleteTransactionDialog";
+import { CreateTransactionSheet } from "../[month]/transactions/components/CreateTransactionSheet";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";

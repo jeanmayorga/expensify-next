@@ -5,7 +5,7 @@ import type {
   Transaction,
   TransactionInsert,
 } from "@/app/api/transactions/model";
-import type { TransactionWithRelations } from "../transactions/service";
+import type { TransactionWithRelations } from "../[month]/transactions/service";
 
 export type {
   MicrosoftMeMessage,
