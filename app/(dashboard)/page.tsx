@@ -176,6 +176,11 @@ export default function HomePage() {
 
   const balance = totalIncome - totalExpenses;
 
+  const expenseCount = transactions.filter(
+    (tx) => tx.type === "expense",
+  ).length;
+  const incomeCount = transactions.filter((tx) => tx.type === "income").length;
+
   // Get recent transactions (last 10)
   const recentTransactions = useMemo(() => {
     return [...transactions]
@@ -286,35 +291,15 @@ export default function HomePage() {
         <MonthPicker value={selectedMonth} onChange={setSelectedMonth} />
       </div>
 
-      {/* Summary Cards */}
+      {/* Summary Cards: Gastos → Ingresos → Balance (igual que Transacciones) */}
       <div className="grid gap-4 md:grid-cols-3">
-        {/* Income Card */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 p-5 text-white shadow-lg">
-          <div className="absolute top-3 right-3 opacity-20">
-            <TrendingUp className="h-16 w-16" />
-          </div>
-          <div className="relative">
-            <p className="text-sm font-medium text-white/80">Ingresos</p>
-            {loading ? (
-              <Skeleton className="h-9 w-32 bg-white/20 mt-1" />
-            ) : (
-              <p className="text-3xl font-bold tracking-tight mt-1">
-                {formatCurrency(totalIncome)}
-              </p>
-            )}
-            <p className="text-xs text-white/70 mt-2 capitalize">
-              {currentMonth}
-            </p>
-          </div>
-        </div>
-
-        {/* Expenses Card */}
+        {/* Total Gastos */}
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-500 to-red-600 p-5 text-white shadow-lg">
           <div className="absolute top-3 right-3 opacity-20">
             <TrendingDown className="h-16 w-16" />
           </div>
           <div className="relative">
-            <p className="text-sm font-medium text-white/80">Gastos</p>
+            <p className="text-sm font-medium text-white/80">Total Gastos</p>
             {loading ? (
               <Skeleton className="h-9 w-32 bg-white/20 mt-1" />
             ) : (
@@ -322,13 +307,33 @@ export default function HomePage() {
                 {formatCurrency(totalExpenses)}
               </p>
             )}
-            <p className="text-xs text-white/70 mt-2 capitalize">
-              {currentMonth}
+            <p className="text-xs text-white/70 mt-2">
+              {expenseCount} transacción{expenseCount !== 1 ? "es" : ""}
             </p>
           </div>
         </div>
 
-        {/* Balance Card */}
+        {/* Total Ingresos */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 p-5 text-white shadow-lg">
+          <div className="absolute top-3 right-3 opacity-20">
+            <TrendingUp className="h-16 w-16" />
+          </div>
+          <div className="relative">
+            <p className="text-sm font-medium text-white/80">Total Ingresos</p>
+            {loading ? (
+              <Skeleton className="h-9 w-32 bg-white/20 mt-1" />
+            ) : (
+              <p className="text-3xl font-bold tracking-tight mt-1">
+                {formatCurrency(totalIncome)}
+              </p>
+            )}
+            <p className="text-xs text-white/70 mt-2">
+              {incomeCount} transacción{incomeCount !== 1 ? "es" : ""}
+            </p>
+          </div>
+        </div>
+
+        {/* Balance */}
         <div
           className={`relative overflow-hidden rounded-2xl p-5 text-white shadow-lg ${
             balance >= 0
@@ -346,11 +351,12 @@ export default function HomePage() {
             ) : (
               <p className="text-3xl font-bold tracking-tight mt-1">
                 {balance >= 0 ? "+" : ""}
-                {formatCurrency(balance)}
+                {formatCurrency(Math.abs(balance))}
               </p>
             )}
-            <p className="text-xs text-white/70 mt-2 capitalize">
-              {currentMonth}
+            <p className="text-xs text-white/70 mt-2">
+              {transactions.length} transacción
+              {transactions.length !== 1 ? "es" : ""} total
             </p>
           </div>
         </div>
@@ -475,7 +481,7 @@ export default function HomePage() {
                     return (
                       <Link
                         key={budget.id}
-                        href="/budgets"
+                        href={`/budgets/${budget.id}`}
                         className="relative block p-4 rounded-xl border hover:shadow-md transition-all overflow-hidden cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                       >
                         {/* Background accent */}

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getBudgets,
+  getBudget,
   createBudget,
   updateBudget,
   deleteBudget,
@@ -10,12 +11,21 @@ import {
 
 export const budgetKeys = {
   all: ["budgets"] as const,
+  detail: (id: string) => ["budgets", id] as const,
 };
 
 export function useBudgets() {
   return useQuery({
     queryKey: budgetKeys.all,
     queryFn: getBudgets,
+  });
+}
+
+export function useBudget(id: string | null) {
+  return useQuery({
+    queryKey: budgetKeys.detail(id ?? ""),
+    queryFn: () => getBudget(id!),
+    enabled: !!id,
   });
 }
 
