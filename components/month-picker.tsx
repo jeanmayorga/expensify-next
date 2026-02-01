@@ -23,7 +23,7 @@ export function MonthPicker({ value, onChange }: MonthPickerProps) {
       <Button variant="outline" size="icon" onClick={handlePrevMonth}>
         ←
       </Button>
-      <div className="min-w-[140px] text-center font-medium capitalize">
+      <div className="min-w-[110px] sm:min-w-[140px] text-center font-medium capitalize text-sm sm:text-base">
         {format(value, "MMMM yyyy", { locale: es })}
       </div>
       <Button variant="outline" size="icon" onClick={handleNextMonth}>

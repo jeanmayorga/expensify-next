@@ -27,7 +27,6 @@ import {
   EmptyState,
   EditTransactionSheet,
   DeleteTransactionDialog,
-  TransactionSheet,
 } from "../../transactions/components";
 
 function formatCurrency(amount: number, currency = "USD") {
@@ -92,14 +91,9 @@ export default function BudgetDetailPage() {
   const [deletingTx, setDeletingTx] = useState<TransactionWithRelations | null>(
     null,
   );
-  const [selectedTx, setSelectedTx] = useState<TransactionWithRelations | null>(
-    null,
-  );
-  const [detailOpen, setDetailOpen] = useState(false);
 
   const handleRowClick = (tx: TransactionWithRelations) => {
-    setSelectedTx(tx);
-    setDetailOpen(true);
+    setEditingTx(tx);
   };
 
   const handleQuickUpdate = async (
@@ -160,34 +154,37 @@ export default function BudgetDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <Button
             variant="ghost"
             size="icon"
+            className="shrink-0"
             onClick={() => router.push("/budgets")}
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center">
-            <Wallet className="h-6 w-6 text-muted-foreground" />
+          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-muted flex items-center justify-center shrink-0">
+            <Wallet className="h-5 w-5 sm:h-6 sm:w-6 text-muted-foreground" />
           </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">{budget.name}</h1>
-            <p className="text-sm text-muted-foreground">
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-2xl font-bold tracking-tight truncate">
+              {budget.name}
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground">
               Transacciones de este presupuesto
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <MonthPicker value={selectedMonth} onChange={setSelectedMonth} />
           <Button
             variant="outline"
             size="sm"
             onClick={() => router.push(`/budgets/${budget.id}/edit`)}
           >
-            <Edit className="h-4 w-4 mr-1" />
-            Editar
+            <Edit className="h-4 w-4 sm:mr-1" />
+            <span className="hidden sm:inline">Editar</span>
           </Button>
         </div>
       </div>
@@ -296,20 +293,6 @@ export default function BudgetDetailPage() {
       <DeleteTransactionDialog
         transaction={deletingTx}
         onClose={() => setDeletingTx(null)}
-      />
-
-      <TransactionSheet
-        transaction={selectedTx}
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-        onEdit={(tx) => {
-          setDetailOpen(false);
-          setEditingTx(tx);
-        }}
-        onDelete={(tx) => {
-          setDetailOpen(false);
-          setDeletingTx(tx);
-        }}
       />
     </div>
   );

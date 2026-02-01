@@ -15,7 +15,10 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useCard } from "../hooks";
-import { useTransactions, useUpdateTransaction } from "../../transactions/hooks";
+import {
+  useTransactions,
+  useUpdateTransaction,
+} from "../../transactions/hooks";
 import { useCategories } from "../../categories/hooks";
 import { useCards } from "../hooks";
 import { useBanks } from "../../banks/hooks";
@@ -25,14 +28,19 @@ import { MonthPicker } from "@/components/month-picker";
 import { Button } from "@/components/ui/button";
 import { Card as CardUI, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { isLightColor, formatCurrency, CARD_TYPES, CARD_KINDS, DARK_TEXT_COLOR } from "../utils";
+import {
+  isLightColor,
+  formatCurrency,
+  CARD_TYPES,
+  CARD_KINDS,
+  DARK_TEXT_COLOR,
+} from "../utils";
 import {
   TransactionRow,
   TransactionRowSkeleton,
   EmptyState,
   EditTransactionSheet,
   DeleteTransactionDialog,
-  TransactionSheet,
 } from "../../transactions/components";
 
 export default function CardDetailPage() {
@@ -94,14 +102,9 @@ export default function CardDetailPage() {
   const [deletingTx, setDeletingTx] = useState<TransactionWithRelations | null>(
     null,
   );
-  const [selectedTx, setSelectedTx] = useState<TransactionWithRelations | null>(
-    null,
-  );
-  const [detailOpen, setDetailOpen] = useState(false);
 
   const handleRowClick = (tx: TransactionWithRelations) => {
-    setSelectedTx(tx);
-    setDetailOpen(true);
+    setEditingTx(tx);
   };
 
   const handleQuickUpdate = async (
@@ -158,54 +161,60 @@ export default function CardDetailPage() {
 
   const cardColor = card.color || "#1e293b";
   const useDarkText = isLightColor(cardColor);
-  const cardTypeLabel = CARD_TYPES.find((t) => t.value === card.card_type)?.label;
-  const cardKindLabel = CARD_KINDS.find((k) => k.value === card.card_kind)?.label;
+  const cardTypeLabel = CARD_TYPES.find(
+    (t) => t.value === card.card_type,
+  )?.label;
+  const cardKindLabel = CARD_KINDS.find(
+    (k) => k.value === card.card_kind,
+  )?.label;
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <Button
             variant="ghost"
             size="icon"
+            className="shrink-0"
             onClick={() => router.push("/cards")}
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div
-            className="h-12 w-12 rounded-xl flex items-center justify-center shadow-lg"
+            className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl flex items-center justify-center shadow-lg shrink-0"
             style={{
               background: `linear-gradient(135deg, ${cardColor} 0%, ${cardColor}dd 100%)`,
               color: useDarkText ? DARK_TEXT_COLOR : "white",
             }}
           >
-            <CreditCard className="h-6 w-6" />
+            <CreditCard className="h-5 w-5 sm:h-6 sm:w-6" />
           </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-2xl font-bold tracking-tight truncate">
               {card.name}
             </h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               Transacciones de esta tarjeta
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <MonthPicker value={selectedMonth} onChange={setSelectedMonth} />
           <Button
             variant="outline"
             size="sm"
             onClick={() => router.push(`/cards/${card.id}/edit`)}
           >
-            <Edit className="h-4 w-4 mr-1" />
-            Editar
+            <Edit className="h-4 w-4 sm:mr-1" />
+            <span className="hidden sm:inline">Editar</span>
           </Button>
         </div>
       </div>
 
       {/* Card Summary */}
-      <div className="relative overflow-hidden rounded-2xl p-5 shadow-xl"
+      <div
+        className="relative overflow-hidden rounded-2xl p-5 shadow-xl"
         style={{
           background: `linear-gradient(135deg, ${cardColor} 0%, ${cardColor}dd 50%, ${cardColor}aa 100%)`,
           color: useDarkText ? DARK_TEXT_COLOR : "white",
@@ -227,7 +236,11 @@ export default function CardDetailPage() {
               {card.bank?.image ? (
                 <div
                   className="h-8 w-8 rounded-md backdrop-blur-sm p-1 flex items-center justify-center"
-                  style={{ backgroundColor: useDarkText ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.2)" }}
+                  style={{
+                    backgroundColor: useDarkText
+                      ? "rgba(0,0,0,0.1)"
+                      : "rgba(255,255,255,0.2)",
+                  }}
                 >
                   <img
                     src={card.bank.image}
@@ -238,29 +251,41 @@ export default function CardDetailPage() {
               ) : (
                 <div
                   className="h-8 w-8 rounded-md backdrop-blur-sm flex items-center justify-center"
-                  style={{ backgroundColor: useDarkText ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.2)" }}
+                  style={{
+                    backgroundColor: useDarkText
+                      ? "rgba(0,0,0,0.1)"
+                      : "rgba(255,255,255,0.2)",
+                  }}
                 >
                   <CreditCard className="h-4 w-4" />
                 </div>
               )}
               <div>
                 {card.bank && (
-                  <span className="text-sm font-medium opacity-80">{card.bank.name}</span>
+                  <span className="text-sm font-medium opacity-80">
+                    {card.bank.name}
+                  </span>
                 )}
                 {cardKindLabel && (
-                  <div className="text-xs font-medium uppercase opacity-60">{cardKindLabel}</div>
+                  <div className="text-xs font-medium uppercase opacity-60">
+                    {cardKindLabel}
+                  </div>
                 )}
               </div>
             </div>
             <div className="flex flex-col items-end gap-1">
               {cardTypeLabel && (
-                <span className="text-xs font-bold uppercase opacity-80">{cardTypeLabel}</span>
-              )}
-              {card.card_kind === "credit" && card.outstanding_balance != null && card.outstanding_balance > 0 && (
-                <span className="text-xs font-semibold opacity-70">
-                  Saldo: {formatCurrency(card.outstanding_balance)}
+                <span className="text-xs font-bold uppercase opacity-80">
+                  {cardTypeLabel}
                 </span>
               )}
+              {card.card_kind === "credit" &&
+                card.outstanding_balance != null &&
+                card.outstanding_balance > 0 && (
+                  <span className="text-xs font-semibold opacity-70">
+                    Saldo: {formatCurrency(card.outstanding_balance)}
+                  </span>
+                )}
             </div>
           </div>
 
@@ -276,7 +301,9 @@ export default function CardDetailPage() {
                 </p>
               )}
               {card.expiration_date && (
-                <p className="text-xs opacity-60 mt-0.5">{card.expiration_date}</p>
+                <p className="text-xs opacity-60 mt-0.5">
+                  {card.expiration_date}
+                </p>
               )}
             </div>
           </div>
@@ -331,7 +358,8 @@ export default function CardDetailPage() {
           <div className="relative">
             <p className="text-sm font-medium text-white/80">Balance</p>
             <p className="text-3xl font-bold tracking-tight mt-1">
-              {balance >= 0 ? "+" : "-"}{formatCurrency(Math.abs(balance))}
+              {balance >= 0 ? "+" : "-"}
+              {formatCurrency(Math.abs(balance))}
             </p>
             <p className="text-xs text-white/70 mt-2">
               {transactions.length} transacción
@@ -425,21 +453,6 @@ export default function CardDetailPage() {
       <DeleteTransactionDialog
         transaction={deletingTx}
         onClose={() => setDeletingTx(null)}
-      />
-
-      {/* Transaction Detail Sheet */}
-      <TransactionSheet
-        transaction={selectedTx}
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-        onEdit={(tx) => {
-          setDetailOpen(false);
-          setEditingTx(tx);
-        }}
-        onDelete={(tx) => {
-          setDetailOpen(false);
-          setDeletingTx(tx);
-        }}
       />
     </div>
   );

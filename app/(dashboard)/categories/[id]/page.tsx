@@ -60,7 +60,10 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useCategory } from "../hooks";
-import { useTransactions, useUpdateTransaction } from "../../transactions/hooks";
+import {
+  useTransactions,
+  useUpdateTransaction,
+} from "../../transactions/hooks";
 import { useCategories } from "../hooks";
 import { useCards } from "../../cards/hooks";
 import { useBanks } from "../../banks/hooks";
@@ -76,7 +79,6 @@ import {
   EmptyState,
   EditTransactionSheet,
   DeleteTransactionDialog,
-  TransactionSheet,
 } from "../../transactions/components";
 
 // Icon mapping (same as in page.tsx)
@@ -207,14 +209,9 @@ export default function CategoryDetailPage() {
   const [deletingTx, setDeletingTx] = useState<TransactionWithRelations | null>(
     null,
   );
-  const [selectedTx, setSelectedTx] = useState<TransactionWithRelations | null>(
-    null,
-  );
-  const [detailOpen, setDetailOpen] = useState(false);
 
   const handleRowClick = (tx: TransactionWithRelations) => {
-    setSelectedTx(tx);
-    setDetailOpen(true);
+    setEditingTx(tx);
   };
 
   const handleQuickUpdate = async (
@@ -276,34 +273,37 @@ export default function CategoryDetailPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <Button
             variant="ghost"
             size="icon"
+            className="shrink-0"
             onClick={() => router.push("/categories")}
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div
-            className="h-12 w-12 rounded-xl flex items-center justify-center shadow-lg"
+            className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl flex items-center justify-center shadow-lg shrink-0"
             style={{
               background: `linear-gradient(135deg, ${categoryColor} 0%, ${categoryColor}dd 100%)`,
               color: useDarkText ? DARK_TEXT_COLOR : "white",
             }}
           >
-            <IconComponent className="h-6 w-6" />
+            <IconComponent className="h-5 w-5 sm:h-6 sm:w-6" />
           </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-2xl font-bold tracking-tight truncate">
               {category.name}
             </h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               Transacciones de esta categoría
             </p>
           </div>
         </div>
-        <MonthPicker value={selectedMonth} onChange={setSelectedMonth} />
+        <div className="flex items-center gap-2 shrink-0">
+          <MonthPicker value={selectedMonth} onChange={setSelectedMonth} />
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -448,21 +448,6 @@ export default function CategoryDetailPage() {
       <DeleteTransactionDialog
         transaction={deletingTx}
         onClose={() => setDeletingTx(null)}
-      />
-
-      {/* Transaction Detail Sheet */}
-      <TransactionSheet
-        transaction={selectedTx}
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-        onEdit={(tx) => {
-          setDetailOpen(false);
-          setEditingTx(tx);
-        }}
-        onDelete={(tx) => {
-          setDetailOpen(false);
-          setDeletingTx(tx);
-        }}
       />
     </div>
   );

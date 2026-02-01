@@ -281,14 +281,18 @@ export default function HomePage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-sm text-muted-foreground capitalize">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
+            Dashboard
+          </h1>
+          <p className="text-sm text-muted-foreground capitalize truncate">
             Resumen de {currentMonth}
           </p>
         </div>
-        <MonthPicker value={selectedMonth} onChange={setSelectedMonth} />
+        <div className="shrink-0">
+          <MonthPicker value={selectedMonth} onChange={setSelectedMonth} />
+        </div>
       </div>
 
       {/* Summary Cards: Gastos → Ingresos → Balance (igual que Transacciones) */}
@@ -303,7 +307,7 @@ export default function HomePage() {
             {loading ? (
               <Skeleton className="h-9 w-32 bg-white/20 mt-1" />
             ) : (
-              <p className="text-3xl font-bold tracking-tight mt-1">
+              <p className="text-2xl sm:text-3xl font-bold tracking-tight mt-1 truncate">
                 {formatCurrency(totalExpenses)}
               </p>
             )}
@@ -323,7 +327,7 @@ export default function HomePage() {
             {loading ? (
               <Skeleton className="h-9 w-32 bg-white/20 mt-1" />
             ) : (
-              <p className="text-3xl font-bold tracking-tight mt-1">
+              <p className="text-2xl sm:text-3xl font-bold tracking-tight mt-1 truncate">
                 {formatCurrency(totalIncome)}
               </p>
             )}
@@ -349,7 +353,7 @@ export default function HomePage() {
             {loading ? (
               <Skeleton className="h-9 w-32 bg-white/20 mt-1" />
             ) : (
-              <p className="text-3xl font-bold tracking-tight mt-1">
+              <p className="text-2xl sm:text-3xl font-bold tracking-tight mt-1 truncate">
                 {balance >= 0 ? "+" : ""}
                 {formatCurrency(Math.abs(balance))}
               </p>
@@ -366,14 +370,16 @@ export default function HomePage() {
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Recent Transactions - Full Width */}
         <Card className="lg:col-span-2 py-0 gap-0 overflow-hidden">
-          <CardHeader className="flex flex-row items-center justify-between py-3 px-4 border-b bg-muted/40">
-            <div>
-              <CardTitle className="text-base">Últimas Transacciones</CardTitle>
+          <CardHeader className="flex flex-wrap items-center justify-between gap-2 py-3 px-4 border-b bg-muted/40">
+            <div className="min-w-0">
+              <CardTitle className="text-base truncate">
+                Últimas Transacciones
+              </CardTitle>
               <CardDescription className="text-xs">
                 Las 10 más recientes
               </CardDescription>
             </div>
-            <Button variant="ghost" size="sm" asChild>
+            <Button variant="ghost" size="sm" asChild className="shrink-0">
               <Link href="/transactions">
                 Ver todas
                 <ArrowRight className="ml-1 h-4 w-4" />
@@ -424,12 +430,16 @@ export default function HomePage() {
 
         {/* Budgets Progress - Full Width */}
         <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <div>
-              <CardTitle className="text-lg">Presupuestos</CardTitle>
-              <CardDescription>Seguimiento de gastos del mes</CardDescription>
+          <CardHeader className="flex flex-wrap items-center justify-between gap-2 pb-2">
+            <div className="min-w-0">
+              <CardTitle className="text-base sm:text-lg truncate">
+                Presupuestos
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Seguimiento de gastos del mes
+              </CardDescription>
             </div>
-            <Button variant="ghost" size="sm" asChild>
+            <Button variant="ghost" size="sm" asChild className="shrink-0">
               <Link href="/budgets">
                 Gestionar
                 <ArrowRight className="ml-1 h-4 w-4" />
@@ -580,12 +590,16 @@ export default function HomePage() {
 
         {/* Category Spending - Horizontal Bars */}
         <Card className="lg:col-span-1">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <div>
-              <CardTitle className="text-lg">Por Categoría</CardTitle>
-              <CardDescription>Distribución de gastos</CardDescription>
+          <CardHeader className="flex flex-wrap items-center justify-between gap-2 pb-2">
+            <div className="min-w-0">
+              <CardTitle className="text-base sm:text-lg truncate">
+                Por Categoría
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Distribución de gastos
+              </CardDescription>
             </div>
-            <Button variant="ghost" size="sm" asChild>
+            <Button variant="ghost" size="sm" asChild className="shrink-0">
               <Link href="/categories">
                 <ArrowRight className="h-4 w-4" />
               </Link>
@@ -653,12 +667,16 @@ export default function HomePage() {
 
         {/* Bank Spending - Horizontal Bars */}
         <Card className="lg:col-span-1">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <div>
-              <CardTitle className="text-lg">Por Banco</CardTitle>
-              <CardDescription>Distribución de gastos</CardDescription>
+          <CardHeader className="flex flex-wrap items-center justify-between gap-2 pb-2">
+            <div className="min-w-0">
+              <CardTitle className="text-base sm:text-lg truncate">
+                Por Banco
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Distribución de gastos
+              </CardDescription>
             </div>
-            <Button variant="ghost" size="sm" asChild>
+            <Button variant="ghost" size="sm" asChild className="shrink-0">
               <Link href="/banks">
                 <ArrowRight className="h-4 w-4" />
               </Link>
@@ -735,12 +753,16 @@ export default function HomePage() {
 
         {/* Card Spending - Horizontal Bars */}
         <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <div>
-              <CardTitle className="text-lg">Por Tarjeta</CardTitle>
-              <CardDescription>Distribución de gastos</CardDescription>
+          <CardHeader className="flex flex-wrap items-center justify-between gap-2 pb-2">
+            <div className="min-w-0">
+              <CardTitle className="text-base sm:text-lg truncate">
+                Por Tarjeta
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Distribución de gastos
+              </CardDescription>
             </div>
-            <Button variant="ghost" size="sm" asChild>
+            <Button variant="ghost" size="sm" asChild className="shrink-0">
               <Link href="/cards">
                 <ArrowRight className="h-4 w-4" />
               </Link>

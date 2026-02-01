@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import {
@@ -16,16 +15,11 @@ import {
   Building2,
   PiggyBank,
   Plus,
-  Camera,
   X,
   List,
   BarChart3,
 } from "lucide-react";
-import {
-  useTransactions,
-  useUpdateTransaction,
-  useExtractFromImage,
-} from "./hooks";
+import { useTransactions, useUpdateTransaction } from "./hooks";
 import { getEcuadorDate } from "@/utils/ecuador-time";
 import { useCategories } from "../categories/hooks";
 import { useCards } from "../cards/hooks";
@@ -65,13 +59,10 @@ import {
   TransactionRow,
   TransactionRowSkeleton,
   EmptyState,
-  TransactionSheet,
   CreateTransactionSheet,
   EditTransactionSheet,
   DeleteTransactionDialog,
-  ImageCaptureDialog,
 } from "./components";
-import type { TransactionInsert, ImageExtractionHints } from "./service";
 
 export default function TransactionsPage() {
   const [selectedMonth, setSelectedMonth] = useState(new Date());
@@ -109,7 +100,6 @@ export default function TransactionsPage() {
   const { data: budgets = [], isLoading: loadingBudgets } = useBudgets();
 
   const updateTransaction = useUpdateTransaction();
-  const extractFromImage = useExtractFromImage();
 
   const loading =
     loadingTx || loadingCat || loadingCards || loadingBanks || loadingBudgets;
@@ -188,55 +178,9 @@ export default function TransactionsPage() {
   const [deletingTx, setDeletingTx] = useState<TransactionWithRelations | null>(
     null,
   );
-  const [selectedTx, setSelectedTx] = useState<TransactionWithRelations | null>(
-    null,
-  );
-  const [detailOpen, setDetailOpen] = useState(false);
-
-  // Image capture states
-  const [imageDialogOpen, setImageDialogOpen] = useState(false);
-  const [extractedData, setExtractedData] = useState<TransactionInsert | null>(
-    null,
-  );
-
-  const handleImageCaptured = async (
-    imageBase64: string,
-    mimeType: string,
-    hints: ImageExtractionHints,
-  ) => {
-    try {
-      const result = await extractFromImage.mutateAsync({
-        image: imageBase64,
-        mimeType,
-        hints,
-      });
-      setExtractedData({
-        type: result.type,
-        description: result.description,
-        amount: result.amount,
-        occurred_at: result.occurred_at,
-        bank_id: result.bank_id,
-        card_id: result.card_id,
-        category_id: result.category_id,
-        budget_id: hints.preselectedBudgetId || null,
-      });
-      setImageDialogOpen(false);
-      setCreateOpen(true);
-    } catch (error) {
-      console.error("Failed to extract transaction from image:", error);
-    }
-  };
-
-  const handleCreateSheetClose = (open: boolean) => {
-    setCreateOpen(open);
-    if (!open) {
-      setExtractedData(null);
-    }
-  };
 
   const handleRowClick = (tx: TransactionWithRelations) => {
-    setSelectedTx(tx);
-    setDetailOpen(true);
+    setEditingTx(tx);
   };
 
   const handleQuickUpdate = async (
@@ -275,14 +219,18 @@ export default function TransactionsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Transactions</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">
+            Transacciones
+          </h1>
           <p className="text-sm text-muted-foreground">
-            Manage and track your financial activity
+            Gestiona y revisa tu actividad
           </p>
         </div>
-        <MonthPicker value={selectedMonth} onChange={setSelectedMonth} />
+        <div className="shrink-0">
+          <MonthPicker value={selectedMonth} onChange={setSelectedMonth} />
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -294,7 +242,7 @@ export default function TransactionsPage() {
           </div>
           <div className="relative">
             <p className="text-sm font-medium text-white/80">Total Gastos</p>
-            <p className="text-3xl font-bold tracking-tight mt-1">
+            <p className="text-2xl sm:text-3xl font-bold tracking-tight mt-1 truncate">
               ${totalExpenses.toFixed(2)}
             </p>
             <p className="text-xs text-white/70 mt-2">
@@ -310,7 +258,7 @@ export default function TransactionsPage() {
           </div>
           <div className="relative">
             <p className="text-sm font-medium text-white/80">Total Ingresos</p>
-            <p className="text-3xl font-bold tracking-tight mt-1">
+            <p className="text-2xl sm:text-3xl font-bold tracking-tight mt-1 truncate">
               ${totalIncomes.toFixed(2)}
             </p>
             <p className="text-xs text-white/70 mt-2">
@@ -332,7 +280,7 @@ export default function TransactionsPage() {
           </div>
           <div className="relative">
             <p className="text-sm font-medium text-white/80">Balance</p>
-            <p className="text-3xl font-bold tracking-tight mt-1">
+            <p className="text-2xl sm:text-3xl font-bold tracking-tight mt-1 truncate">
               {balance >= 0 ? "+" : "-"}${Math.abs(balance).toFixed(2)}
             </p>
             <p className="text-xs text-white/70 mt-2">
@@ -346,8 +294,8 @@ export default function TransactionsPage() {
       {/* Filters Section */}
       <div className="space-y-3">
         {/* View Controls Row */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {/* View Mode Tabs */}
             <Tabs
               value={viewMode}
@@ -552,21 +500,6 @@ export default function TransactionsPage() {
         <div className="flex items-center justify-between px-4 py-3 bg-muted/40">
           <span className="text-sm font-medium">Transacciones</span>
           <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 text-xs"
-              onClick={() => setImageDialogOpen(true)}
-            >
-              <Camera className="h-3.5 w-3.5 mr-1" />
-              Desde imagen
-            </Button>
-            <Button size="sm" variant="outline" className="h-7 text-xs" asChild>
-              <Link href="/transactions/from-image">
-                <Camera className="h-3.5 w-3.5 mr-1" />
-                Extraer varios
-              </Link>
-            </Button>
             <Button
               size="sm"
               className="h-7 text-xs"
@@ -885,27 +818,14 @@ export default function TransactionsPage() {
         </CardContent>
       </CardUI>
 
-      {/* Image Capture Dialog */}
-      <ImageCaptureDialog
-        open={imageDialogOpen}
-        onOpenChange={setImageDialogOpen}
-        onImageCaptured={handleImageCaptured}
-        isProcessing={extractFromImage.isPending}
-        banks={banks}
-        cards={cards}
-        categories={categories}
-        budgets={budgets}
-      />
-
       {/* Create Transaction Sheet */}
       <CreateTransactionSheet
         open={createOpen}
-        onOpenChange={handleCreateSheetClose}
+        onOpenChange={setCreateOpen}
         categories={categories}
         cards={cards}
         banks={banks}
         budgets={budgets}
-        initialData={extractedData}
       />
 
       {/* Edit Transaction Sheet */}
@@ -926,21 +846,6 @@ export default function TransactionsPage() {
       <DeleteTransactionDialog
         transaction={deletingTx}
         onClose={() => setDeletingTx(null)}
-      />
-
-      {/* Transaction Detail Sheet */}
-      <TransactionSheet
-        transaction={selectedTx}
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-        onEdit={(tx) => {
-          setDetailOpen(false);
-          setEditingTx(tx);
-        }}
-        onDelete={(tx) => {
-          setDetailOpen(false);
-          setDeletingTx(tx);
-        }}
       />
     </div>
   );

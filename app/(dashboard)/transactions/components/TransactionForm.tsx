@@ -66,12 +66,18 @@ export function TransactionForm({
           value={watch("type")}
           onValueChange={(v) => setValue("type", v as "expense" | "income")}
         >
-          <TabsList className="w-full">
-            <TabsTrigger value="expense" className="flex-1 gap-2">
+          <TabsList className="w-full h-11 p-1">
+            <TabsTrigger
+              value="expense"
+              className="flex-1 gap-2 data-[state=active]:bg-red-50 data-[state=active]:text-red-700 data-[state=active]:border data-[state=active]:border-red-200 data-[state=active]:shadow-sm dark:data-[state=active]:bg-red-950/50 dark:data-[state=active]:text-red-300 dark:data-[state=active]:border-red-800"
+            >
               <TrendingDown className="h-4 w-4" />
               Gasto
             </TabsTrigger>
-            <TabsTrigger value="income" className="flex-1 gap-2">
+            <TabsTrigger
+              value="income"
+              className="flex-1 gap-2 data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-700 data-[state=active]:border data-[state=active]:border-emerald-200 data-[state=active]:shadow-sm dark:data-[state=active]:bg-emerald-950/50 dark:data-[state=active]:text-emerald-300 dark:data-[state=active]:border-emerald-800"
+            >
               <TrendingUp className="h-4 w-4" />
               Ingreso
             </TabsTrigger>
