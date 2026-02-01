@@ -6,7 +6,7 @@ import { es } from "date-fns/locale";
 import Link from "next/link";
 import Image from "next/image";
 import { useTransactionsForMonth } from "./transactions/hooks";
-import { MonthPicker } from "@/components/month-picker";
+import { useMonthInUrl } from "@/lib/use-month-url";
 import { useCategories } from "./categories/hooks";
 import { useBudgets } from "./budgets/hooks";
 import { useBanks } from "./banks/hooks";
@@ -153,7 +153,7 @@ const formatCurrency = (amount: number) => {
 };
 
 export default function HomePage() {
-  const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const [selectedMonth] = useMonthInUrl();
 
   const { data: transactions = [], isLoading: loadingTx } =
     useTransactionsForMonth(selectedMonth);
@@ -289,9 +289,6 @@ export default function HomePage() {
           <p className="text-sm text-muted-foreground capitalize truncate">
             Resumen de {currentMonth}
           </p>
-        </div>
-        <div className="shrink-0">
-          <MonthPicker value={selectedMonth} onChange={setSelectedMonth} />
         </div>
       </div>
 
@@ -491,7 +488,7 @@ export default function HomePage() {
                     return (
                       <Link
                         key={budget.id}
-                        href={`/budgets/${budget.id}`}
+                        href={`/budgets/${budget.id}?month=${format(selectedMonth, "yyyy-MM")}`}
                         className="relative block p-4 rounded-xl border hover:shadow-md transition-all overflow-hidden cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                       >
                         {/* Background accent */}
@@ -631,7 +628,7 @@ export default function HomePage() {
                   return (
                     <Link
                       key={category.id}
-                      href={`/categories/${category.id}`}
+                      href={`/categories/${category.id}?month=${format(selectedMonth, "yyyy-MM")}`}
                       className="block group"
                     >
                       <div className="flex items-center justify-between mb-1">
@@ -707,7 +704,7 @@ export default function HomePage() {
                   return (
                     <Link
                       key={bank.id}
-                      href={`/banks/${bank.id}`}
+                      href={`/banks/${bank.id}?month=${format(selectedMonth, "yyyy-MM")}`}
                       className="block group"
                     >
                       <div className="flex items-center justify-between mb-1">

@@ -24,7 +24,7 @@ import { useCards } from "../hooks";
 import { useBanks } from "../../banks/hooks";
 import { useBudgets } from "../../budgets/hooks";
 import { type TransactionWithRelations } from "../../transactions/service";
-import { MonthPicker } from "@/components/month-picker";
+import { useMonthInUrl } from "@/lib/use-month-url";
 import { Button } from "@/components/ui/button";
 import { Card as CardUI, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -48,7 +48,7 @@ export default function CardDetailPage() {
   const router = useRouter();
   const cardId = params.id as string;
 
-  const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const [selectedMonth] = useMonthInUrl();
 
   // Fetch card details
   const { data: card, isLoading: loadingCard } = useCard(cardId);
@@ -200,7 +200,6 @@ export default function CardDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <MonthPicker value={selectedMonth} onChange={setSelectedMonth} />
           <Button
             variant="outline"
             size="sm"

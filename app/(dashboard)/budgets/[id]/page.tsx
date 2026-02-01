@@ -16,7 +16,7 @@ import { useCards } from "../../cards/hooks";
 import { useBanks } from "../../banks/hooks";
 import { useBudgets } from "../hooks";
 import { type TransactionWithRelations } from "../../transactions/service";
-import { MonthPicker } from "@/components/month-picker";
+import { useMonthInUrl } from "@/lib/use-month-url";
 import { Button } from "@/components/ui/button";
 import { Card as CardUI, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -43,7 +43,7 @@ export default function BudgetDetailPage() {
   const router = useRouter();
   const budgetId = params.id as string;
 
-  const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const [selectedMonth] = useMonthInUrl();
 
   const { data: budget, isLoading: loadingBudget } = useBudget(budgetId);
 
@@ -177,7 +177,6 @@ export default function BudgetDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <MonthPicker value={selectedMonth} onChange={setSelectedMonth} />
           <Button
             variant="outline"
             size="sm"

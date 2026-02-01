@@ -69,7 +69,7 @@ import { useCards } from "../../cards/hooks";
 import { useBanks } from "../../banks/hooks";
 import { useBudgets } from "../../budgets/hooks";
 import { type TransactionWithRelations } from "../../transactions/service";
-import { MonthPicker } from "@/components/month-picker";
+import { useMonthInUrl } from "@/lib/use-month-url";
 import { Button } from "@/components/ui/button";
 import { Card as CardUI, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -154,7 +154,7 @@ export default function CategoryDetailPage() {
   const router = useRouter();
   const categoryId = params.id as string;
 
-  const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const [selectedMonth] = useMonthInUrl();
 
   // Fetch category details
   const { data: category, isLoading: loadingCategory } =
@@ -300,9 +300,6 @@ export default function CategoryDetailPage() {
               Transacciones de esta categoría
             </p>
           </div>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <MonthPicker value={selectedMonth} onChange={setSelectedMonth} />
         </div>
       </div>
 

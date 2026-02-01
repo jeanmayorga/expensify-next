@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useQueryState, parseAsString } from "nuqs";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Home,
@@ -27,8 +28,12 @@ const navigation = [
 
 export function Navigation() {
   const pathname = usePathname();
+  const [monthStr] = useQueryState("month", parseAsString);
 
-  // Map pathname to tab value
+  // Preserve month in URL when navigating between tabs
+  const hrefWithMonth = (path: string) =>
+    monthStr ? `${path}?month=${monthStr}` : path;
+
   const currentTab =
     navigation.find((item) => item.href === pathname)?.href || "/";
 
@@ -45,7 +50,7 @@ export function Navigation() {
               className="shrink-0 flex-1 min-w-0 sm:min-w-0"
             >
               <Link
-                href={item.href}
+                href={hrefWithMonth(item.href)}
                 className="flex items-center justify-center gap-1.5 px-2 py-2 sm:px-3"
               >
                 <Icon className="h-4 w-4 shrink-0" />

@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { MonthPicker } from "@/components/month-picker";
+import { useMonthInUrl } from "@/lib/use-month-url";
 import { Wallet, Plus } from "lucide-react";
 
 function formatCurrency(amount: number, currency = "USD") {
@@ -51,7 +51,13 @@ type BudgetCardData = {
   isOverBudget: boolean;
 };
 
-function BudgetCard({ data, onClick }: { data: BudgetCardData; onClick: () => void }) {
+function BudgetCard({
+  data,
+  onClick,
+}: {
+  data: BudgetCardData;
+  onClick: () => void;
+}) {
   const { budget, spent, remaining, percentage, isOverBudget } = data;
   const statusBg = isOverBudget
     ? "from-red-500 to-red-600"
@@ -93,7 +99,9 @@ function BudgetCard({ data, onClick }: { data: BudgetCardData; onClick: () => vo
               />
             </div>
             <div>
-              <p className="font-semibold text-sm text-foreground">{budget.name}</p>
+              <p className="font-semibold text-sm text-foreground">
+                {budget.name}
+              </p>
               <p className="text-xs text-muted-foreground">{budget.currency}</p>
             </div>
           </div>
@@ -139,7 +147,9 @@ function BudgetCard({ data, onClick }: { data: BudgetCardData; onClick: () => vo
           </span>
           <span
             className={`font-semibold ${
-              isOverBudget ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"
+              isOverBudget
+                ? "text-red-600 dark:text-red-400"
+                : "text-emerald-600 dark:text-emerald-400"
             }`}
           >
             {isOverBudget && "-"}
@@ -182,7 +192,7 @@ function BudgetCardSkeleton() {
 
 export default function BudgetsPage() {
   const router = useRouter();
-  const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const [selectedMonth] = useMonthInUrl();
   const { data: budgets = [], isLoading } = useBudgets();
   const createBudget = useCreateBudget();
 
@@ -193,7 +203,8 @@ export default function BudgetsPage() {
     }),
     [selectedMonth],
   );
-  const { data: transactions = [], isLoading: loadingTx } = useTransactions(filters);
+  const { data: transactions = [], isLoading: loadingTx } =
+    useTransactions(filters);
 
   const budgetSpending = useMemo(() => {
     return budgets.map((budget) => {
@@ -289,7 +300,6 @@ export default function BudgetsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <MonthPicker value={selectedMonth} onChange={setSelectedMonth} />
           <Button onClick={openCreate} size="sm">
             <Plus className="h-4 w-4 mr-1" />
             Agregar
@@ -304,7 +314,8 @@ export default function BudgetsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">
-                  Total presupuestado · {format(selectedMonth, "MMMM yyyy", { locale: es })}
+                  Total presupuestado ·{" "}
+                  {format(selectedMonth, "MMMM yyyy", { locale: es })}
                 </p>
                 <p className="text-2xl font-bold tracking-tight mt-1">
                   {formatCurrency(totalBudget)}

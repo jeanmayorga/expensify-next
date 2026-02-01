@@ -1,9 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import { useForm } from "react-hook-form";
 import { useCategories, useCreateCategory } from "./hooks";
+import { useTransactions } from "../transactions/hooks";
+import { useMonthInUrl } from "@/lib/use-month-url";
 import { type Category } from "./service";
 import { Button } from "@/components/ui/button";
 import {
@@ -174,12 +178,23 @@ const defaultFormValues: CategoryFormData = {
   icon: "Tag",
 };
 
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat("es-EC", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
 function CategoryCard({
   category,
+  totalSpent,
   onClick,
   onEdit,
 }: {
   category: Category;
+  totalSpent: number;
   onClick: () => void;
   onEdit: () => void;
 }) {
@@ -211,9 +226,9 @@ function CategoryCard({
           />
 
           <div className="relative">
-            <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center justify-between gap-2 mb-3">
               <div
-                className="h-10 w-10 rounded-xl flex items-center justify-center"
+                className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0"
                 style={{
                   backgroundColor: useDarkText
                     ? "rgba(0,0,0,0.1)"
@@ -224,9 +239,14 @@ function CategoryCard({
               </div>
             </div>
 
-            <h3 className="text-xl font-bold tracking-tight">{category.name}</h3>
+            <h3 className="text-xl font-bold tracking-tight truncate pr-8">
+              {category.name}
+            </h3>
 
-            <p className="text-sm opacity-70 mt-2 font-mono">{categoryColor}</p>
+            <p className="text-sm opacity-90 mt-2 font-semibold">
+              {formatCurrency(totalSpent)}
+            </p>
+            <p className="text-xs opacity-70 mt-0.5">gastado este mes</p>
           </div>
         </div>
       </button>
@@ -252,8 +272,30 @@ function CategoryCardSkeleton() {
 
 export default function CategoriesPage() {
   const router = useRouter();
+  const [selectedMonth] = useMonthInUrl();
   const { data: categories = [], isLoading } = useCategories();
   const createCategory = useCreateCategory();
+
+  const filters = useMemo(
+    () => ({
+      date: format(selectedMonth, "yyyy-MM"),
+      timezone: "America/Guayaquil",
+    }),
+    [selectedMonth],
+  );
+  const { data: transactions = [], isLoading: loadingTx } =
+    useTransactions(filters);
+
+  const spendingByCategory = useMemo(() => {
+    const map: Record<string, number> = {};
+    transactions
+      .filter((tx) => tx.type === "expense" && tx.category_id != null)
+      .forEach((tx) => {
+        const id = String(tx.category_id);
+        map[id] = (map[id] ?? 0) + Math.abs(tx.amount);
+      });
+    return map;
+  }, [transactions]);
 
   const [isCreating, setIsCreating] = useState(false);
   const [iconPopoverOpen, setIconPopoverOpen] = useState(false);
@@ -280,7 +322,8 @@ export default function CategoriesPage() {
   };
 
   const handleCategoryClick = (category: Category) => {
-    router.push(`/categories/${category.id}`);
+    const monthStr = format(selectedMonth, "yyyy-MM");
+    router.push(`/categories/${category.id}?month=${monthStr}`);
   };
 
   const handleEditClick = (category: Category) => {
@@ -292,19 +335,20 @@ export default function CategoriesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Categories</h1>
-          <p className="text-sm text-muted-foreground">
-            Organize your transactions with custom categories
+          <h1 className="text-2xl font-bold tracking-tight">Categorías</h1>
+          <p className="text-sm text-muted-foreground capitalize">
+            Gastos por categoría ·{" "}
+            {format(selectedMonth, "MMMM yyyy", { locale: es })}
           </p>
         </div>
         <Button onClick={openCreate} size="sm">
           <Plus className="h-4 w-4 mr-1" />
-          Add
+          Agregar
         </Button>
       </div>
 
       {/* Categories Grid */}
-      {isLoading ? (
+      {isLoading || loadingTx ? (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <CategoryCardSkeleton key={i} />
@@ -315,10 +359,10 @@ export default function CategoriesPage() {
           <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center mb-4">
             <Tag className="h-7 w-7 text-muted-foreground" />
           </div>
-          <p className="text-muted-foreground mb-4">No categories yet</p>
+          <p className="text-muted-foreground mb-4">Aún no hay categorías</p>
           <Button onClick={openCreate} size="sm">
             <Plus className="h-4 w-4 mr-1" />
-            Add category
+            Agregar categoría
           </Button>
         </div>
       ) : (
@@ -327,6 +371,7 @@ export default function CategoriesPage() {
             <CategoryCard
               key={category.id}
               category={category}
+              totalSpent={spendingByCategory[String(category.id)] ?? 0}
               onClick={() => handleCategoryClick(category)}
               onEdit={() => handleEditClick(category)}
             />
@@ -338,7 +383,7 @@ export default function CategoriesPage() {
       <Sheet open={isCreating} onOpenChange={setIsCreating}>
         <SheetContent className="sm:max-w-md">
           <SheetHeader>
-            <SheetTitle>New Category</SheetTitle>
+            <SheetTitle>Nueva categoría</SheetTitle>
           </SheetHeader>
           <form
             onSubmit={handleSubmit(onCreateSubmit)}
@@ -347,14 +392,17 @@ export default function CategoriesPage() {
             <div className="flex-1 px-4 pb-4 overflow-y-auto space-y-4">
               {/* Name */}
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Name *</label>
-                <Input {...register("name")} placeholder="Food & Drinks" />
+                <label className="text-sm font-medium">Nombre *</label>
+                <Input {...register("name")} placeholder="Comida, Netflix..." />
               </div>
 
               {/* Icon Selector */}
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Icon</label>
-                <Popover open={iconPopoverOpen} onOpenChange={setIconPopoverOpen}>
+                <label className="text-sm font-medium">Icono</label>
+                <Popover
+                  open={iconPopoverOpen}
+                  onOpenChange={setIconPopoverOpen}
+                >
                   <PopoverTrigger asChild>
                     <Button
                       type="button"
@@ -415,7 +463,7 @@ export default function CategoriesPage() {
 
               {/* Preview */}
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Preview</label>
+                <label className="text-sm font-medium">Vista previa</label>
                 <div
                   className="rounded-xl p-4 transition-colors"
                   style={{
@@ -435,7 +483,7 @@ export default function CategoriesPage() {
                       <SelectedIconComponent className="h-4 w-4" />
                     </div>
                     <span className="font-semibold">
-                      {watch("name") || "Category Name"}
+                      {watch("name") || "Nombre de la categoría"}
                     </span>
                   </div>
                 </div>
@@ -447,13 +495,13 @@ export default function CategoriesPage() {
                 variant="outline"
                 onClick={() => setIsCreating(false)}
               >
-                Cancel
+                Cancelar
               </Button>
               <Button
                 type="submit"
                 disabled={createCategory.isPending || !watch("name")}
               >
-                {createCategory.isPending ? "Creating..." : "Create"}
+                {createCategory.isPending ? "Creando..." : "Crear"}
               </Button>
             </SheetFooter>
           </form>

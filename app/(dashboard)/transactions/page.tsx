@@ -26,7 +26,7 @@ import { useCards } from "../cards/hooks";
 import { useBanks } from "../banks/hooks";
 import { useBudgets } from "../budgets/hooks";
 import { type TransactionWithRelations } from "./service";
-import { MonthPicker } from "@/components/month-picker";
+import { useMonthInUrl } from "@/lib/use-month-url";
 import { Button } from "@/components/ui/button";
 import { Card as CardUI, CardContent } from "@/components/ui/card";
 import {
@@ -65,7 +65,7 @@ import {
 } from "./components";
 
 export default function TransactionsPage() {
-  const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const [selectedMonth] = useMonthInUrl();
   const [typeFilter, setTypeFilter] = useState<"all" | "expense" | "income">(
     "all",
   );
@@ -227,9 +227,6 @@ export default function TransactionsPage() {
           <p className="text-sm text-muted-foreground">
             Gestiona y revisa tu actividad
           </p>
-        </div>
-        <div className="shrink-0">
-          <MonthPicker value={selectedMonth} onChange={setSelectedMonth} />
         </div>
       </div>
 
