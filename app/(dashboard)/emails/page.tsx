@@ -42,10 +42,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Get today's date in YYYY-MM-DD format
+// Get today's date in YYYY-MM-DD format (using local timezone)
 const getTodayDate = () => {
-  const today = new Date();
-  return today.toISOString().split("T")[0];
+  return format(new Date(), "yyyy-MM-dd");
 };
 
 function EmailsPageContent() {

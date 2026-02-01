@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
+import { getEcuadorDate } from "@/utils/ecuador-time";
 import {
   TrendingDown,
   TrendingUp,
@@ -43,9 +44,11 @@ interface TransactionSheetProps {
 
 function parseDate(date: string | Date): Date {
   if (typeof date === "string") {
-    return parseISO(date);
+    // Parse as UTC then convert to Ecuador timezone for display
+    const utcDate = parseISO(date);
+    return getEcuadorDate(utcDate);
   }
-  return date;
+  return getEcuadorDate(date);
 }
 
 export function TransactionSheet({

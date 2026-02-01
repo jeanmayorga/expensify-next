@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, DragEvent } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { getEcuadorDate } from "@/utils/ecuador-time";
 import {
   Camera,
   Upload,
@@ -674,7 +675,10 @@ function TransactionItem({
 
   const formatDate = (dateStr: string) => {
     try {
-      return format(new Date(dateStr), "d MMM yyyy", { locale: es });
+      // Parse as UTC then convert to Ecuador timezone for display
+      const utcDate = new Date(dateStr);
+      const ecuadorDate = getEcuadorDate(utcDate);
+      return format(ecuadorDate, "d MMM yyyy", { locale: es });
     } catch {
       return dateStr;
     }

@@ -1,14 +1,14 @@
 import Image from "next/image";
+import Link from "next/link";
 import { CreditCard, Wifi } from "lucide-react";
 import { type CardWithBank } from "../service";
 import { isLightColor, formatCurrency, CARD_TYPES, CARD_KINDS, DARK_TEXT_COLOR } from "../utils";
 
 interface CreditCardVisualProps {
   card: CardWithBank;
-  onClick: () => void;
 }
 
-export function CreditCardVisual({ card, onClick }: CreditCardVisualProps) {
+export function CreditCardVisual({ card }: CreditCardVisualProps) {
   const cardColor = card.color || "#1e293b";
   const useDarkText = isLightColor(cardColor);
 
@@ -16,9 +16,9 @@ export function CreditCardVisual({ card, onClick }: CreditCardVisualProps) {
   const cardKindLabel = CARD_KINDS.find((k) => k.value === card.card_kind)?.label;
 
   return (
-    <button
-      onClick={onClick}
-      className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-2xl"
+    <Link
+      href={`/cards/${card.id}`}
+      className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-2xl block"
     >
       <div
         className="relative w-full aspect-[1.75/1] rounded-2xl p-4 overflow-hidden shadow-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl active:scale-[0.98]"
@@ -105,6 +105,6 @@ export function CreditCardVisual({ card, onClick }: CreditCardVisualProps) {
         {/* Card name */}
         <p className="text-[11px] font-medium opacity-70 truncate">{card.name}</p>
       </div>
-    </button>
+    </Link>
   );
 }

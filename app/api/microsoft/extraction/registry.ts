@@ -3,6 +3,7 @@ import type { ExtractedTransactionData } from "./types";
 import {
   extractPacifiCardConsumos,
   extractPacifiCardConfirmacionPago,
+  extractPacifiCardSolicitudDevolucion,
 } from "./extractors/pacifico";
 import {
   extractProdubancoConsumoTarjeta,
@@ -51,6 +52,11 @@ const REGISTRY: RegistryEntry[] = [
     bankSlug: "pacifico",
     subjectContains: "PacifiCard: Consumos",
     extractor: extractPacifiCardConsumos,
+  },
+  {
+    bankSlug: "pacifico",
+    subjectContains: "Solicitud de Transaccion de Devolucion",
+    extractor: extractPacifiCardSolicitudDevolucion,
   },
   {
     bankSlug: "produbanco",

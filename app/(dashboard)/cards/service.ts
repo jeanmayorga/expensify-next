@@ -13,6 +13,11 @@ export async function getCards() {
   return data.data;
 }
 
+export async function getCard(id: string) {
+  const { data } = await api.get<{ data: CardWithBank }>(`/cards/${id}`);
+  return data.data;
+}
+
 export async function createCard(payload: CardInsert) {
   const { data } = await api.post<{ data: Card }>("/cards", payload);
   return data.data;

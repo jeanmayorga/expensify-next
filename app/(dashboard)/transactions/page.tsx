@@ -9,16 +9,24 @@ import {
   TrendingDown,
   TrendingUp,
   Wallet,
-  X,
+  RefreshCw,
+  ArrowLeft,
   Tag,
   CreditCard,
   Building2,
-  RefreshCw,
+  PiggyBank,
   Plus,
   Camera,
-  Images,
+  X,
+  List,
+  BarChart3,
 } from "lucide-react";
-import { useTransactions, useUpdateTransaction, useExtractFromImage } from "./hooks";
+import {
+  useTransactions,
+  useUpdateTransaction,
+  useExtractFromImage,
+} from "./hooks";
+import { getEcuadorDate } from "@/utils/ecuador-time";
 import { useCategories } from "../categories/hooks";
 import { useCards } from "../cards/hooks";
 import { useBanks } from "../banks/hooks";
@@ -35,6 +43,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  ResponsiveContainer,
+} from "recharts";
+
+function formatChartCurrency(amount: number) {
+  return new Intl.NumberFormat("es-EC", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
 import {
   TransactionRow,
   TransactionRowSkeleton,
@@ -52,6 +78,7 @@ export default function TransactionsPage() {
   const [typeFilter, setTypeFilter] = useState<"all" | "expense" | "income">(
     "all",
   );
+  const [viewMode, setViewMode] = useState<"list" | "chart">("list");
 
   // Filters
   const [categoryFilter, setCategoryFilter] = useState<string>("__all__");
@@ -62,6 +89,7 @@ export default function TransactionsPage() {
   // Build filters
   const filters: Record<string, string> = {
     date: format(selectedMonth, "yyyy-MM"),
+    timezone: "America/Guayaquil",
   };
   if (categoryFilter !== "__all__") filters.category_id = categoryFilter;
   if (cardFilter !== "__all__") filters.card_id = cardFilter;
@@ -92,24 +120,65 @@ export default function TransactionsPage() {
     return transactions.filter((t) => t.type === typeFilter);
   }, [transactions, typeFilter]);
 
-  // Helper to parse date without timezone issues
+  // Helper to parse date correctly for Ecuador timezone
   const parseDate = (date: string | Date): Date => {
     if (typeof date === "string") {
-      return parseISO(date);
+      // Parse as UTC then convert to Ecuador timezone for display
+      const utcDate = parseISO(date);
+      return getEcuadorDate(utcDate);
     }
-    return date;
+    return getEcuadorDate(date);
   };
 
-  // Group transactions by date
+  // Group transactions by date (Ecuador timezone)
   const groupedTransactions = useMemo(() => {
     const groups: Record<string, TransactionWithRelations[]> = {};
     filteredTransactions.forEach((tx) => {
-      const dateKey = format(parseDate(tx.occurred_at), "yyyy-MM-dd");
+      // Convert UTC date to Ecuador timezone, then format as date key
+      const ecuadorDate = parseDate(tx.occurred_at);
+      const dateKey = format(ecuadorDate, "yyyy-MM-dd");
       if (!groups[dateKey]) groups[dateKey] = [];
       groups[dateKey].push(tx);
     });
     return Object.entries(groups).sort(([a], [b]) => b.localeCompare(a));
   }, [filteredTransactions]);
+
+  // Prepare data for charts (daily expenses and income)
+  const chartData = useMemo(() => {
+    // Get all days in the selected month
+    const year = format(selectedMonth, "yyyy");
+    const month = format(selectedMonth, "MM");
+    const daysInMonth = new Date(parseInt(year), parseInt(month), 0).getDate();
+
+    const data = [];
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${year}-${month}-${day.toString().padStart(2, "0")}`;
+
+      // Calculate expenses and income for this day
+      const dayTransactions = filteredTransactions.filter((tx) => {
+        const ecuadorDate = parseDate(tx.occurred_at);
+        return format(ecuadorDate, "yyyy-MM-dd") === dateStr;
+      });
+
+      const dayExpenses = dayTransactions
+        .filter((tx) => tx.type === "expense")
+        .reduce((sum, tx) => sum + tx.amount, 0);
+
+      const dayIncome = dayTransactions
+        .filter((tx) => tx.type === "income")
+        .reduce((sum, tx) => sum + tx.amount, 0);
+
+      data.push({
+        day: day.toString(),
+        date: dateStr,
+        expenses: dayExpenses,
+        income: dayIncome,
+        transactions: dayTransactions.length,
+      });
+    }
+
+    return data;
+  }, [filteredTransactions, selectedMonth]);
 
   // Sheet states
   const [createOpen, setCreateOpen] = useState(false);
@@ -126,7 +195,9 @@ export default function TransactionsPage() {
 
   // Image capture states
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
-  const [extractedData, setExtractedData] = useState<TransactionInsert | null>(null);
+  const [extractedData, setExtractedData] = useState<TransactionInsert | null>(
+    null,
+  );
 
   const handleImageCaptured = async (
     imageBase64: string,
@@ -274,35 +345,26 @@ export default function TransactionsPage() {
 
       {/* Filters Section */}
       <div className="space-y-3">
-        {/* Type Tabs Row */}
+        {/* View Controls Row */}
         <div className="flex items-center justify-between">
-          <Tabs
-            value={typeFilter}
-            onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}
-          >
-            <TabsList>
-              <TabsTrigger value="all" className="gap-1.5 text-xs">
-                Todas
-                <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">
-                  {transactions.length}
-                </span>
-              </TabsTrigger>
-              <TabsTrigger value="expense" className="gap-1.5 text-xs">
-                <TrendingDown className="h-3.5 w-3.5" />
-                Gastos
-                <span className="ml-1 rounded-full bg-red-100 text-red-700 px-1.5 py-0.5 text-[10px] font-medium">
-                  {expenseCount}
-                </span>
-              </TabsTrigger>
-              <TabsTrigger value="income" className="gap-1.5 text-xs">
-                <TrendingUp className="h-3.5 w-3.5" />
-                Ingresos
-                <span className="ml-1 rounded-full bg-emerald-100 text-emerald-700 px-1.5 py-0.5 text-[10px] font-medium">
-                  {incomeCount}
-                </span>
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div className="flex items-center gap-2">
+            {/* View Mode Tabs */}
+            <Tabs
+              value={viewMode}
+              onValueChange={(v) => setViewMode(v as "list" | "chart")}
+            >
+              <TabsList className="h-8">
+                <TabsTrigger value="list" className="gap-1.5 text-xs">
+                  <List className="h-3.5 w-3.5" />
+                  Lista
+                </TabsTrigger>
+                <TabsTrigger value="chart" className="gap-1.5 text-xs">
+                  <BarChart3 className="h-3.5 w-3.5" />
+                  Gráfico
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
 
           {hasActiveFilters && (
             <Button
@@ -319,6 +381,49 @@ export default function TransactionsPage() {
 
         {/* Filter Dropdowns Row */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          {/* Type Filter */}
+          <Select
+            value={typeFilter}
+            onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}
+          >
+            <SelectTrigger
+              className={`h-8 text-xs shrink-0 min-w-[180px] ${
+                typeFilter !== "all"
+                  ? "bg-primary/10 border-primary/30"
+                  : "bg-background"
+              }`}
+            >
+              <SelectValue placeholder="Todas las transacciones" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">
+                <div className="flex items-center gap-2">
+                  <span>Todas las transacciones</span>
+                  <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+                    {transactions.length}
+                  </span>
+                </div>
+              </SelectItem>
+              <SelectItem value="expense">
+                <div className="flex items-center gap-2">
+                  <TrendingDown className="h-3.5 w-3.5" />
+                  <span>Gastos</span>
+                  <span className="rounded-full bg-red-100 text-red-700 px-1.5 py-0.5 text-[10px] font-medium">
+                    {expenseCount}
+                  </span>
+                </div>
+              </SelectItem>
+              <SelectItem value="income">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-3.5 w-3.5" />
+                  <span>Ingresos</span>
+                  <span className="rounded-full bg-emerald-100 text-emerald-700 px-1.5 py-0.5 text-[10px] font-medium">
+                    {incomeCount}
+                  </span>
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
           {/* Category Filter */}
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
             <SelectTrigger
@@ -444,7 +549,7 @@ export default function TransactionsPage() {
 
       {/* Transactions List */}
       <CardUI className="overflow-hidden py-0 gap-0">
-        <div className="flex items-center justify-between px-4 py-3 bg-muted/40 border-b">
+        <div className="flex items-center justify-between px-4 py-3 bg-muted/40">
           <span className="text-sm font-medium">Transacciones</span>
           <div className="flex items-center gap-2">
             <Button
@@ -456,14 +561,9 @@ export default function TransactionsPage() {
               <Camera className="h-3.5 w-3.5 mr-1" />
               Desde imagen
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 text-xs"
-              asChild
-            >
+            <Button size="sm" variant="outline" className="h-7 text-xs" asChild>
               <Link href="/transactions/from-image">
-                <Images className="h-3.5 w-3.5 mr-1" />
+                <Camera className="h-3.5 w-3.5 mr-1" />
                 Extraer varios
               </Link>
             </Button>
@@ -508,12 +608,12 @@ export default function TransactionsPage() {
                   : "Your transactions for this month will appear here."
               }
             />
-          ) : (
+          ) : viewMode === "list" ? (
             <div>
               {groupedTransactions.map(([dateKey, txs]) => (
                 <div key={dateKey}>
                   {/* Date Header */}
-                  <div className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm px-4 py-2 border-b">
+                  <div className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm px-4 py-2 border-y">
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       {format(
                         parseISO(dateKey),
@@ -541,6 +641,245 @@ export default function TransactionsPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          ) : (
+            // Chart View - Two separate cards
+            <div className="space-y-6 p-4">
+              {/* Expenses Chart */}
+              <CardUI className="overflow-hidden">
+                <div className="p-6 pb-2">
+                  <h3 className="text-lg font-semibold mb-1 text-red-600 dark:text-red-400">
+                    Gastos diarios
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {format(selectedMonth, "MMMM 'de' yyyy", { locale: es })}
+                  </p>
+                  <ChartContainer
+                    config={{
+                      expenses: {
+                        label: "Gastos",
+                        color: "hsl(0 84% 60%)",
+                      },
+                    }}
+                    className="h-[280px] w-full"
+                  >
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart
+                        data={chartData}
+                        margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                      >
+                        <defs>
+                          <linearGradient
+                            id="fillExpensesChart"
+                            x1="0"
+                            y1="0"
+                            x2="0"
+                            y2="1"
+                          >
+                            <stop
+                              offset="0%"
+                              stopColor="hsl(0 84% 60%)"
+                              stopOpacity={0.35}
+                            />
+                            <stop
+                              offset="100%"
+                              stopColor="hsl(0 84% 60%)"
+                              stopOpacity={0}
+                            />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          className="stroke-muted opacity-50"
+                          vertical={false}
+                        />
+                        <XAxis
+                          dataKey="day"
+                          tick={{
+                            fontSize: 11,
+                            fill: "hsl(var(--muted-foreground))",
+                          }}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <YAxis
+                          tick={{
+                            fontSize: 11,
+                            fill: "hsl(var(--muted-foreground))",
+                          }}
+                          tickFormatter={(value) => formatChartCurrency(value)}
+                          tickLine={false}
+                          axisLine={false}
+                          width={56}
+                        />
+                        <ChartTooltip
+                          cursor={{
+                            stroke: "hsl(var(--border))",
+                            strokeWidth: 1,
+                          }}
+                          content={({ active, payload, label }) => {
+                            if (!active || !payload?.length) return null;
+                            const data = payload[0].payload;
+                            const total = data.expenses;
+                            return (
+                              <div className="rounded-lg border border-border bg-background px-3 py-2.5 shadow-lg">
+                                <p className="text-xs font-medium text-muted-foreground">
+                                  Día {label} ·{" "}
+                                  {format(selectedMonth, "MMMM", {
+                                    locale: es,
+                                  })}
+                                </p>
+                                <p className="mt-1 text-base font-semibold text-red-600 dark:text-red-400">
+                                  Total: {formatChartCurrency(total)}
+                                </p>
+                                {data.transactions > 0 && (
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    {data.transactions} transacción
+                                    {data.transactions !== 1 ? "es" : ""}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          }}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="expenses"
+                          stroke="hsl(0 84% 60%)"
+                          strokeWidth={2}
+                          fill="url(#fillExpensesChart)"
+                          dot={{ fill: "hsl(0 84% 60%)", strokeWidth: 0, r: 3 }}
+                          activeDot={{
+                            r: 5,
+                            strokeWidth: 2,
+                            stroke: "hsl(var(--background))",
+                          }}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                </div>
+              </CardUI>
+
+              {/* Income Chart */}
+              <CardUI className="overflow-hidden">
+                <div className="p-6 pb-2">
+                  <h3 className="text-lg font-semibold mb-1 text-emerald-600 dark:text-emerald-400">
+                    Ingresos diarios
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {format(selectedMonth, "MMMM 'de' yyyy", { locale: es })}
+                  </p>
+                  <ChartContainer
+                    config={{
+                      income: {
+                        label: "Ingresos",
+                        color: "hsl(160 84% 39%)",
+                      },
+                    }}
+                    className="h-[280px] w-full"
+                  >
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart
+                        data={chartData}
+                        margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                      >
+                        <defs>
+                          <linearGradient
+                            id="fillIncomeChart"
+                            x1="0"
+                            y1="0"
+                            x2="0"
+                            y2="1"
+                          >
+                            <stop
+                              offset="0%"
+                              stopColor="hsl(160 84% 39%)"
+                              stopOpacity={0.35}
+                            />
+                            <stop
+                              offset="100%"
+                              stopColor="hsl(160 84% 39%)"
+                              stopOpacity={0}
+                            />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          className="stroke-muted opacity-50"
+                          vertical={false}
+                        />
+                        <XAxis
+                          dataKey="day"
+                          tick={{
+                            fontSize: 11,
+                            fill: "hsl(var(--muted-foreground))",
+                          }}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <YAxis
+                          tick={{
+                            fontSize: 11,
+                            fill: "hsl(var(--muted-foreground))",
+                          }}
+                          tickFormatter={(value) => formatChartCurrency(value)}
+                          tickLine={false}
+                          axisLine={false}
+                          width={56}
+                        />
+                        <ChartTooltip
+                          cursor={{
+                            stroke: "hsl(var(--border))",
+                            strokeWidth: 1,
+                          }}
+                          content={({ active, payload, label }) => {
+                            if (!active || !payload?.length) return null;
+                            const data = payload[0].payload;
+                            const total = data.income;
+                            return (
+                              <div className="rounded-lg border border-border bg-background px-3 py-2.5 shadow-lg">
+                                <p className="text-xs font-medium text-muted-foreground">
+                                  Día {label} ·{" "}
+                                  {format(selectedMonth, "MMMM", {
+                                    locale: es,
+                                  })}
+                                </p>
+                                <p className="mt-1 text-base font-semibold text-emerald-600 dark:text-emerald-400">
+                                  Total: {formatChartCurrency(total)}
+                                </p>
+                                {data.transactions > 0 && (
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    {data.transactions} transacción
+                                    {data.transactions !== 1 ? "es" : ""}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          }}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="income"
+                          stroke="hsl(160 84% 39%)"
+                          strokeWidth={2}
+                          fill="url(#fillIncomeChart)"
+                          dot={{
+                            fill: "hsl(160 84% 39%)",
+                            strokeWidth: 0,
+                            r: 3,
+                          }}
+                          activeDot={{
+                            r: 5,
+                            strokeWidth: 2,
+                            stroke: "hsl(var(--background))",
+                          }}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                </div>
+              </CardUI>
             </div>
           )}
         </CardContent>

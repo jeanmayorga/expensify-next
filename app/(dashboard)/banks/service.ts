@@ -8,6 +8,11 @@ export async function getBanks() {
   return data.data;
 }
 
+export async function getBank(id: string) {
+  const { data } = await api.get<{ data: Bank }>(`/banks/${id}`);
+  return data.data;
+}
+
 export async function createBank(payload: BankInsert) {
   const { data } = await api.post<{ data: Bank }>("/banks", payload);
   return data.data;

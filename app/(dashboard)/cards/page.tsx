@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { useCards, useCreateCard, useUpdateCard, useDeleteCard } from "./hooks";
+import { useCards, useCreateCard } from "./hooks";
 import { useBanks } from "../banks/hooks";
-import { type CardWithBank } from "./service";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -13,30 +12,10 @@ import {
   SheetTitle,
   SheetFooter,
 } from "@/components/ui/sheet";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, CreditCard, Trash2 } from "lucide-react";
+import { Plus, CreditCard } from "lucide-react";
+import { type CardWithBank } from "./service";
 import { CreditCardVisual, CardForm, defaultCardFormValues, type CardFormData } from "./components";
-
-function cardToForm(card: CardWithBank): CardFormData {
-  return {
-    name: card.name,
-    last4: card.last4 || "",
-    bank_id: card.bank_id || "",
-    color: card.color || "#1e293b",
-    card_type: card.card_type || "",
-    card_kind: card.card_kind || "",
-    cardholder_name: card.cardholder_name || "",
-    expiration_date: card.expiration_date || "",
-    outstanding_balance: card.outstanding_balance?.toString() || "",
-  };
-}
 
 function formToPayload(form: CardFormData) {
   return {
@@ -60,45 +39,17 @@ export default function CardsPage() {
   const { data: cards = [], isLoading: loadingCards } = useCards();
   const { data: banks = [], isLoading: loadingBanks } = useBanks();
   const createCard = useCreateCard();
-  const updateCard = useUpdateCard();
-  const deleteCard = useDeleteCard();
 
   const isLoading = loadingCards || loadingBanks;
 
-  const [editingCard, setEditingCard] = useState<CardWithBank | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const form = useForm<CardFormData>({ defaultValues: defaultCardFormValues });
   const { reset, watch, handleSubmit } = form;
 
-  useEffect(() => {
-    if (editingCard) {
-      reset(cardToForm(editingCard));
-    }
-  }, [editingCard, reset]);
-
   const onCreateSubmit = async (data: CardFormData) => {
     await createCard.mutateAsync(formToPayload(data));
     setIsCreating(false);
-    reset(defaultCardFormValues);
-  };
-
-  const onEditSubmit = async (data: CardFormData) => {
-    if (!editingCard) return;
-    await updateCard.mutateAsync({
-      id: editingCard.id,
-      data: formToPayload(data),
-    });
-    setEditingCard(null);
-    reset(defaultCardFormValues);
-  };
-
-  const handleDelete = async () => {
-    if (!editingCard) return;
-    await deleteCard.mutateAsync(editingCard.id);
-    setShowDeleteConfirm(false);
-    setEditingCard(null);
     reset(defaultCardFormValues);
   };
 
@@ -147,7 +98,6 @@ export default function CardsPage() {
             <CreditCardVisual
               key={card.id}
               card={card}
-              onClick={() => setEditingCard(card)}
             />
           ))}
         </div>
@@ -174,57 +124,6 @@ export default function CardsPage() {
           </form>
         </SheetContent>
       </Sheet>
-
-      {/* Edit Sheet */}
-      <Sheet open={!!editingCard && !showDeleteConfirm} onOpenChange={() => setEditingCard(null)}>
-        <SheetContent className="sm:max-w-xl">
-          <SheetHeader>
-            <SheetTitle>Edit Card</SheetTitle>
-          </SheetHeader>
-          <form onSubmit={handleSubmit(onEditSubmit)} className="flex flex-col flex-1 overflow-hidden">
-            <div className="flex-1 px-4 pb-4 overflow-y-auto">
-              <CardForm form={form} banks={banks} />
-            </div>
-            <SheetFooter className="flex-col sm:flex-row">
-              <Button
-                type="button"
-                variant="ghost"
-                className="text-destructive hover:text-destructive hover:bg-destructive/10 sm:mr-auto"
-                onClick={() => setShowDeleteConfirm(true)}
-              >
-                <Trash2 className="h-4 w-4 mr-1" />
-                Delete
-              </Button>
-              <Button type="button" variant="outline" onClick={() => setEditingCard(null)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={updateCard.isPending || !watch("name")}>
-                {updateCard.isPending ? "Saving..." : "Save"}
-              </Button>
-            </SheetFooter>
-          </form>
-        </SheetContent>
-      </Sheet>
-
-      {/* Delete Confirmation */}
-      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Delete Card</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground py-2">
-            Are you sure you want to delete <span className="font-medium text-foreground">{editingCard?.name}</span>?
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={deleteCard.isPending}>
-              {deleteCard.isPending ? "Deleting..." : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

@@ -12,6 +12,11 @@ export async function getCategories() {
   return data.data;
 }
 
+export async function getCategory(id: string) {
+  const { data } = await api.get<{ data: Category }>(`/categories/${id}`);
+  return data.data;
+}
+
 export async function createCategory(payload: CategoryInsert) {
   const { data } = await api.post<{ data: Category }>("/categories", payload);
   return data.data;

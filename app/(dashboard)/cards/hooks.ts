@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getCards,
+  getCard,
   createCard,
   updateCard,
   deleteCard,
@@ -16,6 +17,14 @@ export function useCards() {
   return useQuery({
     queryKey: cardKeys.all,
     queryFn: getCards,
+  });
+}
+
+export function useCard(id: string) {
+  return useQuery({
+    queryKey: [...cardKeys.all, id],
+    queryFn: () => getCard(id),
+    enabled: !!id,
   });
 }
 

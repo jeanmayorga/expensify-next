@@ -1,13 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import {
-  useCategories,
-  useCreateCategory,
-  useUpdateCategory,
-  useDeleteCategory,
-} from "./hooks";
+import { useCategories, useCreateCategory } from "./hooks";
 import { type Category } from "./service";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,33 +14,143 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tag, Plus, Trash2 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Tag,
+  Plus,
+  Pencil,
+  ShoppingCart,
+  Utensils,
+  Car,
+  Home,
+  Zap,
+  Wifi,
+  Phone,
+  Tv,
+  Music,
+  Gamepad2,
+  Dumbbell,
+  Heart,
+  Pill,
+  GraduationCap,
+  Briefcase,
+  Plane,
+  Bus,
+  Fuel,
+  ParkingCircle,
+  ShoppingBag,
+  Shirt,
+  Scissors,
+  Gift,
+  Baby,
+  PawPrint,
+  Coffee,
+  Beer,
+  Pizza,
+  IceCream,
+  Cake,
+  Apple,
+  Salad,
+  Sandwich,
+  Popcorn,
+  UtensilsCrossed,
+  Banknote,
+  Wallet,
+  PiggyBank,
+  TrendingUp,
+  Receipt,
+  CreditCard,
+  Building2,
+  Landmark,
+  HandCoins,
+  Coins,
+  DollarSign,
+  CircleDollarSign,
+  type LucideIcon,
+} from "lucide-react";
+
+// Icon options for categories
+const CATEGORY_ICONS: { name: string; icon: LucideIcon }[] = [
+  { name: "Tag", icon: Tag },
+  { name: "ShoppingCart", icon: ShoppingCart },
+  { name: "Utensils", icon: Utensils },
+  { name: "Car", icon: Car },
+  { name: "Home", icon: Home },
+  { name: "Zap", icon: Zap },
+  { name: "Wifi", icon: Wifi },
+  { name: "Phone", icon: Phone },
+  { name: "Tv", icon: Tv },
+  { name: "Music", icon: Music },
+  { name: "Gamepad2", icon: Gamepad2 },
+  { name: "Dumbbell", icon: Dumbbell },
+  { name: "Heart", icon: Heart },
+  { name: "Pill", icon: Pill },
+  { name: "GraduationCap", icon: GraduationCap },
+  { name: "Briefcase", icon: Briefcase },
+  { name: "Plane", icon: Plane },
+  { name: "Bus", icon: Bus },
+  { name: "Fuel", icon: Fuel },
+  { name: "ParkingCircle", icon: ParkingCircle },
+  { name: "ShoppingBag", icon: ShoppingBag },
+  { name: "Shirt", icon: Shirt },
+  { name: "Scissors", icon: Scissors },
+  { name: "Gift", icon: Gift },
+  { name: "Baby", icon: Baby },
+  { name: "PawPrint", icon: PawPrint },
+  { name: "Coffee", icon: Coffee },
+  { name: "Beer", icon: Beer },
+  { name: "Pizza", icon: Pizza },
+  { name: "IceCream", icon: IceCream },
+  { name: "Cake", icon: Cake },
+  { name: "Apple", icon: Apple },
+  { name: "Salad", icon: Salad },
+  { name: "Sandwich", icon: Sandwich },
+  { name: "Popcorn", icon: Popcorn },
+  { name: "UtensilsCrossed", icon: UtensilsCrossed },
+  { name: "Banknote", icon: Banknote },
+  { name: "Wallet", icon: Wallet },
+  { name: "PiggyBank", icon: PiggyBank },
+  { name: "TrendingUp", icon: TrendingUp },
+  { name: "Receipt", icon: Receipt },
+  { name: "CreditCard", icon: CreditCard },
+  { name: "Building2", icon: Building2 },
+  { name: "Landmark", icon: Landmark },
+  { name: "HandCoins", icon: HandCoins },
+  { name: "Coins", icon: Coins },
+  { name: "DollarSign", icon: DollarSign },
+  { name: "CircleDollarSign", icon: CircleDollarSign },
+];
+
+// Helper to get icon component by name
+function getIconComponent(iconName: string | null): LucideIcon {
+  if (!iconName) return Tag;
+  const found = CATEGORY_ICONS.find((i) => i.name === iconName);
+  return found?.icon ?? Tag;
+}
 
 const DARK_TEXT_COLOR = "#0f265c";
 
 const CATEGORY_COLORS = [
-  { value: "#ef4444", name: "Red" }, // Food, Bills
-  { value: "#f97316", name: "Orange" }, // Shopping
-  { value: "#f59e0b", name: "Amber" }, // Entertainment
-  { value: "#eab308", name: "Yellow" }, // Transport
-  { value: "#84cc16", name: "Lime" }, // Health
-  { value: "#22c55e", name: "Green" }, // Income, Savings
-  { value: "#14b8a6", name: "Teal" }, // Investments
-  { value: "#06b6d4", name: "Cyan" }, // Utilities
-  { value: "#3b82f6", name: "Blue" }, // Education
-  { value: "#6366f1", name: "Indigo" }, // General
-  { value: "#8b5cf6", name: "Violet" }, // Subscriptions
-  { value: "#a855f7", name: "Purple" }, // Personal
-  { value: "#ec4899", name: "Pink" }, // Gifts
-  { value: "#64748b", name: "Slate" }, // Other
+  { value: "#ef4444", name: "Red" },
+  { value: "#f97316", name: "Orange" },
+  { value: "#f59e0b", name: "Amber" },
+  { value: "#eab308", name: "Yellow" },
+  { value: "#84cc16", name: "Lime" },
+  { value: "#22c55e", name: "Green" },
+  { value: "#14b8a6", name: "Teal" },
+  { value: "#06b6d4", name: "Cyan" },
+  { value: "#3b82f6", name: "Blue" },
+  { value: "#6366f1", name: "Indigo" },
+  { value: "#8b5cf6", name: "Violet" },
+  { value: "#a855f7", name: "Purple" },
+  { value: "#ec4899", name: "Pink" },
+  { value: "#64748b", name: "Slate" },
 ] as const;
 
 function isLightColor(hex: string): boolean {
@@ -59,72 +165,84 @@ function isLightColor(hex: string): boolean {
 interface CategoryFormData {
   name: string;
   color: string;
+  icon: string;
 }
 
 const defaultFormValues: CategoryFormData = {
   name: "",
   color: "#6366f1",
+  icon: "Tag",
 };
-
-function categoryToForm(category: Category): CategoryFormData {
-  return {
-    name: category.name,
-    color: category.color || "#6366f1",
-  };
-}
 
 function CategoryCard({
   category,
   onClick,
+  onEdit,
 }: {
   category: Category;
   onClick: () => void;
+  onEdit: () => void;
 }) {
   const categoryColor = category.color || "#6366f1";
   const useDarkText = isLightColor(categoryColor);
+  const IconComponent = getIconComponent(category.icon);
 
   return (
-    <button
-      onClick={onClick}
-      className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-2xl"
-    >
-      <div
-        className="relative overflow-hidden rounded-2xl p-5 shadow-lg transition-all duration-300 hover:scale-[1.02] hover:shadow-xl active:scale-[0.98]"
-        style={{
-          background: `linear-gradient(135deg, ${categoryColor} 0%, ${categoryColor}dd 50%, ${categoryColor}aa 100%)`,
-          color: useDarkText ? DARK_TEXT_COLOR : "white",
+    <div className="relative group">
+      <button
+        onClick={onClick}
+        className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-2xl"
+      >
+        <div
+          className="relative overflow-hidden rounded-2xl p-5 shadow-lg transition-all duration-300 hover:scale-[1.02] hover:shadow-xl active:scale-[0.98]"
+          style={{
+            background: `linear-gradient(135deg, ${categoryColor} 0%, ${categoryColor}dd 50%, ${categoryColor}aa 100%)`,
+            color: useDarkText ? DARK_TEXT_COLOR : "white",
+          }}
+        >
+          {/* Decorative circles */}
+          <div
+            className="absolute -right-6 -top-6 w-24 h-24 rounded-full opacity-10"
+            style={{ backgroundColor: useDarkText ? DARK_TEXT_COLOR : "white" }}
+          />
+          <div
+            className="absolute -right-2 top-12 w-16 h-16 rounded-full opacity-10"
+            style={{ backgroundColor: useDarkText ? DARK_TEXT_COLOR : "white" }}
+          />
+
+          <div className="relative">
+            <div className="flex items-center gap-3 mb-4">
+              <div
+                className="h-10 w-10 rounded-xl flex items-center justify-center"
+                style={{
+                  backgroundColor: useDarkText
+                    ? "rgba(0,0,0,0.1)"
+                    : "rgba(255,255,255,0.2)",
+                }}
+              >
+                <IconComponent className="h-5 w-5" />
+              </div>
+            </div>
+
+            <h3 className="text-xl font-bold tracking-tight">{category.name}</h3>
+
+            <p className="text-sm opacity-70 mt-2 font-mono">{categoryColor}</p>
+          </div>
+        </div>
+      </button>
+      {/* Edit button overlay */}
+      <Button
+        size="icon"
+        variant="secondary"
+        className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+        onClick={(e) => {
+          e.stopPropagation();
+          onEdit();
         }}
       >
-        {/* Decorative circles */}
-        <div
-          className="absolute -right-6 -top-6 w-24 h-24 rounded-full opacity-10"
-          style={{ backgroundColor: useDarkText ? DARK_TEXT_COLOR : "white" }}
-        />
-        <div
-          className="absolute -right-2 top-12 w-16 h-16 rounded-full opacity-10"
-          style={{ backgroundColor: useDarkText ? DARK_TEXT_COLOR : "white" }}
-        />
-
-        <div className="relative">
-          <div className="flex items-center gap-3 mb-4">
-            <div
-              className="h-10 w-10 rounded-xl flex items-center justify-center"
-              style={{
-                backgroundColor: useDarkText
-                  ? "rgba(0,0,0,0.1)"
-                  : "rgba(255,255,255,0.2)",
-              }}
-            >
-              <Tag className="h-5 w-5" />
-            </div>
-          </div>
-
-          <h3 className="text-xl font-bold tracking-tight">{category.name}</h3>
-
-          <p className="text-sm opacity-70 mt-2 font-mono">{categoryColor}</p>
-        </div>
-      </div>
-    </button>
+        <Pencil className="h-4 w-4" />
+      </Button>
+    </div>
   );
 }
 
@@ -133,46 +251,26 @@ function CategoryCardSkeleton() {
 }
 
 export default function CategoriesPage() {
+  const router = useRouter();
   const { data: categories = [], isLoading } = useCategories();
   const createCategory = useCreateCategory();
-  const updateCategory = useUpdateCategory();
-  const deleteCategory = useDeleteCategory();
 
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [iconPopoverOpen, setIconPopoverOpen] = useState(false);
 
   const form = useForm<CategoryFormData>({ defaultValues: defaultFormValues });
   const { register, watch, setValue, reset, handleSubmit } = form;
   const color = watch("color") || "#6366f1";
-
-  useEffect(() => {
-    if (editingCategory) {
-      reset(categoryToForm(editingCategory));
-    }
-  }, [editingCategory, reset]);
+  const selectedIcon = watch("icon") || "Tag";
+  const SelectedIconComponent = getIconComponent(selectedIcon);
 
   const onCreateSubmit = async (data: CategoryFormData) => {
-    await createCategory.mutateAsync(data);
-    setIsCreating(false);
-    reset(defaultFormValues);
-  };
-
-  const onEditSubmit = async (data: CategoryFormData) => {
-    if (!editingCategory) return;
-    await updateCategory.mutateAsync({
-      id: editingCategory.id,
-      data,
+    await createCategory.mutateAsync({
+      name: data.name,
+      color: data.color,
+      icon: data.icon,
     });
-    setEditingCategory(null);
-    reset(defaultFormValues);
-  };
-
-  const handleDelete = async () => {
-    if (!editingCategory) return;
-    await deleteCategory.mutateAsync(editingCategory.id);
-    setShowDeleteConfirm(false);
-    setEditingCategory(null);
+    setIsCreating(false);
     reset(defaultFormValues);
   };
 
@@ -181,62 +279,13 @@ export default function CategoriesPage() {
     setIsCreating(true);
   };
 
-  const FormFields = () => (
-    <div className="space-y-4">
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium">Name *</label>
-        <Input {...register("name")} placeholder="Food & Drinks" />
-      </div>
+  const handleCategoryClick = (category: Category) => {
+    router.push(`/categories/${category.id}`);
+  };
 
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium">Color</label>
-        <div className="grid grid-cols-7 gap-2">
-          {CATEGORY_COLORS.map((c) => (
-            <button
-              key={c.value}
-              type="button"
-              onClick={() => setValue("color", c.value)}
-              className={`h-8 w-8 rounded-full transition-all hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary ${
-                color === c.value
-                  ? "ring-2 ring-offset-2 ring-primary scale-110"
-                  : ""
-              }`}
-              style={{ backgroundColor: c.value }}
-              title={c.name}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Preview */}
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium">Preview</label>
-        <div
-          className="rounded-xl p-4 transition-colors"
-          style={{
-            background: `linear-gradient(135deg, ${color} 0%, ${color}dd 50%, ${color}aa 100%)`,
-            color: isLightColor(color) ? DARK_TEXT_COLOR : "white",
-          }}
-        >
-          <div className="flex items-center gap-2">
-            <div
-              className="h-8 w-8 rounded-lg flex items-center justify-center"
-              style={{
-                backgroundColor: isLightColor(color)
-                  ? "rgba(0,0,0,0.1)"
-                  : "rgba(255,255,255,0.2)",
-              }}
-            >
-              <Tag className="h-4 w-4" />
-            </div>
-            <span className="font-semibold">
-              {watch("name") || "Category Name"}
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  const handleEditClick = (category: Category) => {
+    router.push(`/categories/${category.id}/edit`);
+  };
 
   return (
     <div className="space-y-6">
@@ -278,7 +327,8 @@ export default function CategoriesPage() {
             <CategoryCard
               key={category.id}
               category={category}
-              onClick={() => setEditingCategory(category)}
+              onClick={() => handleCategoryClick(category)}
+              onEdit={() => handleEditClick(category)}
             />
           ))}
         </div>
@@ -294,8 +344,102 @@ export default function CategoriesPage() {
             onSubmit={handleSubmit(onCreateSubmit)}
             className="flex flex-col flex-1 overflow-hidden"
           >
-            <div className="flex-1 px-4 pb-4 overflow-y-auto">
-              <FormFields />
+            <div className="flex-1 px-4 pb-4 overflow-y-auto space-y-4">
+              {/* Name */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Name *</label>
+                <Input {...register("name")} placeholder="Food & Drinks" />
+              </div>
+
+              {/* Icon Selector */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Icon</label>
+                <Popover open={iconPopoverOpen} onOpenChange={setIconPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-start gap-2"
+                    >
+                      <SelectedIconComponent className="h-4 w-4" />
+                      <span>{selectedIcon}</span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-2" align="start">
+                    <ScrollArea className="h-64">
+                      <div className="grid grid-cols-6 gap-1">
+                        {CATEGORY_ICONS.map(({ name, icon: Icon }) => (
+                          <button
+                            key={name}
+                            type="button"
+                            onClick={() => {
+                              setValue("icon", name);
+                              setIconPopoverOpen(false);
+                            }}
+                            className={`h-10 w-10 rounded-lg flex items-center justify-center transition-all hover:bg-muted ${
+                              selectedIcon === name
+                                ? "bg-primary text-primary-foreground"
+                                : ""
+                            }`}
+                            title={name}
+                          >
+                            <Icon className="h-5 w-5" />
+                          </button>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Color */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Color</label>
+                <div className="grid grid-cols-7 gap-2">
+                  {CATEGORY_COLORS.map((c) => (
+                    <button
+                      key={c.value}
+                      type="button"
+                      onClick={() => setValue("color", c.value)}
+                      className={`h-8 w-8 rounded-full transition-all hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary ${
+                        color === c.value
+                          ? "ring-2 ring-offset-2 ring-primary scale-110"
+                          : ""
+                      }`}
+                      style={{ backgroundColor: c.value }}
+                      title={c.name}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Preview */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Preview</label>
+                <div
+                  className="rounded-xl p-4 transition-colors"
+                  style={{
+                    background: `linear-gradient(135deg, ${color} 0%, ${color}dd 50%, ${color}aa 100%)`,
+                    color: isLightColor(color) ? DARK_TEXT_COLOR : "white",
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="h-8 w-8 rounded-lg flex items-center justify-center"
+                      style={{
+                        backgroundColor: isLightColor(color)
+                          ? "rgba(0,0,0,0.1)"
+                          : "rgba(255,255,255,0.2)",
+                      }}
+                    >
+                      <SelectedIconComponent className="h-4 w-4" />
+                    </div>
+                    <span className="font-semibold">
+                      {watch("name") || "Category Name"}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
             <SheetFooter>
               <Button
@@ -315,81 +459,6 @@ export default function CategoriesPage() {
           </form>
         </SheetContent>
       </Sheet>
-
-      {/* Edit Sheet */}
-      <Sheet
-        open={!!editingCategory && !showDeleteConfirm}
-        onOpenChange={() => setEditingCategory(null)}
-      >
-        <SheetContent className="sm:max-w-md">
-          <SheetHeader>
-            <SheetTitle>Edit Category</SheetTitle>
-          </SheetHeader>
-          <form
-            onSubmit={handleSubmit(onEditSubmit)}
-            className="flex flex-col flex-1 overflow-hidden"
-          >
-            <div className="flex-1 px-4 pb-4 overflow-y-auto">
-              <FormFields />
-            </div>
-            <SheetFooter className="flex-col sm:flex-row">
-              <Button
-                type="button"
-                variant="ghost"
-                className="text-destructive hover:text-destructive hover:bg-destructive/10 sm:mr-auto"
-                onClick={() => setShowDeleteConfirm(true)}
-              >
-                <Trash2 className="h-4 w-4 mr-1" />
-                Delete
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setEditingCategory(null)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={updateCategory.isPending || !watch("name")}
-              >
-                {updateCategory.isPending ? "Saving..." : "Save"}
-              </Button>
-            </SheetFooter>
-          </form>
-        </SheetContent>
-      </Sheet>
-
-      {/* Delete Confirmation */}
-      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Delete Category</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground py-2">
-            Are you sure you want to delete{" "}
-            <span className="font-medium text-foreground">
-              {editingCategory?.name}
-            </span>
-            ? This action cannot be undone.
-          </p>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowDeleteConfirm(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={deleteCategory.isPending}
-            >
-              {deleteCategory.isPending ? "Deleting..." : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

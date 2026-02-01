@@ -132,6 +132,8 @@ export class MessagesService {
       const messages = response.data?.value || [];
       const nextLink = response.data?.["@odata.nextLink"] || null;
 
+      console.log("MessagesService->getMessages()->messages", response);
+
       return {
         messages: messages.map(formatMessage),
         nextLink,
