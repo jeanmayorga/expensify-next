@@ -42,6 +42,7 @@ interface Card {
   name: string;
   last4: string | null;
   color: string | null;
+  card_kind: string | null;
 }
 
 interface Bank {
@@ -161,25 +162,30 @@ export function TransactionRow({
                 }}
               >
                 <CreditCard className="h-3 w-3" />
-                {tx.card.last4 ? `•••• ${tx.card.last4}` : tx.card.name}
+                {[
+                  tx.card.card_kind === "debit" ? "Debit" : tx.card.card_kind === "credit" ? "Credit" : null,
+                  tx.card.last4 || tx.card.name,
+                ].filter(Boolean).join(" ")}
               </Badge>
             )}
             {tx.category && (
               <Badge
-                variant="secondary"
-                className="text-xs h-5"
+                variant="outline"
+                className="text-xs h-5 gap-1"
                 style={{
-                  backgroundColor: tx.category.color ? `${tx.category.color}20` : undefined,
+                  borderColor: tx.category.color ? `${tx.category.color}60` : undefined,
+                  backgroundColor: tx.category.color ? `${tx.category.color}15` : undefined,
                   color: tx.category.color || undefined,
                 }}
               >
+                <Tag className="h-3 w-3" />
                 {tx.category.name}
               </Badge>
             )}
             {tx.budget && (
               <Badge
                 variant="outline"
-                className="text-xs h-5 gap-1 border-blue-300 bg-blue-50 text-blue-700"
+                className="text-xs h-5 gap-1 border-emerald-400 bg-emerald-50 text-emerald-700"
               >
                 <Wallet className="h-3 w-3" />
                 {tx.budget.name}
