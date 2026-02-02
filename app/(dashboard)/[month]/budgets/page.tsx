@@ -8,6 +8,7 @@ import { es } from "date-fns/locale";
 import { useBudgets, useCreateBudget } from "./hooks";
 import { useTransactions } from "../transactions/hooks";
 import { type Budget } from "./service";
+import { useAuth, useCanEdit } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -193,6 +194,8 @@ function BudgetCardSkeleton() {
 export default function BudgetsPage() {
   const router = useRouter();
   const { selectedMonth } = useMonth();
+  const { budgetId, accessMode } = useAuth();
+  const canEdit = useCanEdit();
   const { data: budgets = [], isLoading } = useBudgets();
   const createBudget = useCreateBudget();
 
@@ -206,8 +209,16 @@ export default function BudgetsPage() {
   const { data: transactions = [], isLoading: loadingTx } =
     useTransactions(filters);
 
+  // In readonly mode, filter to only show the assigned budget
+  const filteredBudgets = useMemo(() => {
+    if (accessMode === "readonly" && budgetId) {
+      return budgets.filter((b) => b.id === budgetId);
+    }
+    return budgets;
+  }, [budgets, accessMode, budgetId]);
+
   const budgetSpending = useMemo(() => {
-    return budgets.map((budget) => {
+    return filteredBudgets.map((budget) => {
       const spent = transactions
         .filter((tx) => tx.type === "expense" && tx.budget_id === budget.id)
         .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
@@ -220,7 +231,7 @@ export default function BudgetsPage() {
         isOverBudget: spent > budget.amount,
       };
     });
-  }, [budgets, transactions]);
+  }, [filteredBudgets, transactions]);
 
   const [isCreating, setIsCreating] = useState(false);
 
@@ -228,7 +239,7 @@ export default function BudgetsPage() {
   const { register, watch, reset, handleSubmit } = form;
   const amount = watch("amount") || 0;
 
-  const totalBudget = budgets.reduce((sum, b) => sum + b.amount, 0);
+  const totalBudget = filteredBudgets.reduce((sum, b) => sum + b.amount, 0);
   const loading = isLoading || loadingTx;
 
   const onCreateSubmit = async (data: BudgetFormData) => {
@@ -296,19 +307,21 @@ export default function BudgetsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Presupuestos</h1>
           <p className="text-sm text-muted-foreground">
-            Toca un presupuesto para ver gastos y transacciones del mes
+            {canEdit ? "Toca un presupuesto para ver gastos y transacciones del mes" : "Tu presupuesto"}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={openCreate} size="sm">
-            <Plus className="h-4 w-4 mr-1" />
-            Agregar
-          </Button>
-        </div>
+        {canEdit && (
+          <div className="flex items-center gap-2">
+            <Button onClick={openCreate} size="sm">
+              <Plus className="h-4 w-4 mr-1" />
+              Agregar
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Summary */}
-      {budgets.length > 0 && (
+      {filteredBudgets.length > 0 && (
         <Card>
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
@@ -323,7 +336,7 @@ export default function BudgetsPage() {
               </div>
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">
-                  {budgets.length} presupuesto{budgets.length !== 1 ? "s" : ""}
+                  {filteredBudgets.length} presupuesto{filteredBudgets.length !== 1 ? "s" : ""}
                 </p>
               </div>
             </div>
@@ -338,16 +351,18 @@ export default function BudgetsPage() {
             <BudgetCardSkeleton key={i} />
           ))}
         </div>
-      ) : budgets.length === 0 ? (
+      ) : filteredBudgets.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20">
           <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center mb-4">
             <Wallet className="h-7 w-7 text-muted-foreground" />
           </div>
           <p className="text-muted-foreground mb-4">No hay presupuestos</p>
-          <Button onClick={openCreate} size="sm">
-            <Plus className="h-4 w-4 mr-1" />
-            Agregar presupuesto
-          </Button>
+          {canEdit && (
+            <Button onClick={openCreate} size="sm">
+              <Plus className="h-4 w-4 mr-1" />
+              Agregar presupuesto
+            </Button>
+          )}
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -361,37 +376,39 @@ export default function BudgetsPage() {
         </div>
       )}
 
-      {/* Create Sheet */}
-      <Sheet open={isCreating} onOpenChange={setIsCreating}>
-        <SheetContent className="sm:max-w-md">
-          <SheetHeader>
-            <SheetTitle>New Budget</SheetTitle>
-          </SheetHeader>
-          <form
-            onSubmit={handleSubmit(onCreateSubmit)}
-            className="flex flex-col flex-1 overflow-hidden"
-          >
-            <div className="flex-1 px-4 pb-4 overflow-y-auto">
-              <FormFields />
-            </div>
-            <SheetFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsCreating(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={createBudget.isPending || !watch("name")}
-              >
-                {createBudget.isPending ? "Creating..." : "Create"}
-              </Button>
-            </SheetFooter>
-          </form>
-        </SheetContent>
-      </Sheet>
+      {/* Create Sheet - only in edit mode */}
+      {canEdit && (
+        <Sheet open={isCreating} onOpenChange={setIsCreating}>
+          <SheetContent className="sm:max-w-md">
+            <SheetHeader>
+              <SheetTitle>New Budget</SheetTitle>
+            </SheetHeader>
+            <form
+              onSubmit={handleSubmit(onCreateSubmit)}
+              className="flex flex-col flex-1 overflow-hidden"
+            >
+              <div className="flex-1 px-4 pb-4 overflow-y-auto">
+                <FormFields />
+              </div>
+              <SheetFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsCreating(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={createBudget.isPending || !watch("name")}
+                >
+                  {createBudget.isPending ? "Creating..." : "Create"}
+                </Button>
+              </SheetFooter>
+            </form>
+          </SheetContent>
+        </Sheet>
+      )}
     </div>
   );
 }

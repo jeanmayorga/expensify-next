@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import { useCategories, useCreateCategory } from "./hooks";
 import { useTransactions } from "../transactions/hooks";
 import { useMonth } from "@/lib/month-context";
+import { useCanEdit } from "@/lib/auth-context";
 import { type Category } from "./service";
 import { Button } from "@/components/ui/button";
 import {
@@ -196,7 +197,7 @@ function CategoryCard({
   category: Category;
   totalSpent: number;
   onClick: () => void;
-  onEdit: () => void;
+  onEdit?: () => void;
 }) {
   const categoryColor = category.color || "#6366f1";
   const useDarkText = isLightColor(categoryColor);
@@ -250,18 +251,20 @@ function CategoryCard({
           </div>
         </div>
       </button>
-      {/* Edit button overlay */}
-      <Button
-        size="icon"
-        variant="secondary"
-        className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
-        onClick={(e) => {
-          e.stopPropagation();
-          onEdit();
-        }}
-      >
-        <Pencil className="h-4 w-4" />
-      </Button>
+      {/* Edit button overlay - only show if onEdit provided */}
+      {onEdit && (
+        <Button
+          size="icon"
+          variant="secondary"
+          className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit();
+          }}
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+      )}
     </div>
   );
 }
@@ -273,6 +276,7 @@ function CategoryCardSkeleton() {
 export default function CategoriesPage() {
   const router = useRouter();
   const { selectedMonth } = useMonth();
+  const canEdit = useCanEdit();
   const { data: categories = [], isLoading } = useCategories();
   const createCategory = useCreateCategory();
 
@@ -340,10 +344,12 @@ export default function CategoriesPage() {
             {format(selectedMonth, "MMMM yyyy", { locale: es })}
           </p>
         </div>
-        <Button onClick={openCreate} size="sm">
-          <Plus className="h-4 w-4 mr-1" />
-          Agregar
-        </Button>
+        {canEdit && (
+          <Button onClick={openCreate} size="sm">
+            <Plus className="h-4 w-4 mr-1" />
+            Agregar
+          </Button>
+        )}
       </div>
 
       {/* Categories Grid */}
@@ -359,10 +365,12 @@ export default function CategoriesPage() {
             <Tag className="h-7 w-7 text-muted-foreground" />
           </div>
           <p className="text-muted-foreground mb-4">Aún no hay categorías</p>
-          <Button onClick={openCreate} size="sm">
-            <Plus className="h-4 w-4 mr-1" />
-            Agregar categoría
-          </Button>
+          {canEdit && (
+            <Button onClick={openCreate} size="sm">
+              <Plus className="h-4 w-4 mr-1" />
+              Agregar categoría
+            </Button>
+          )}
         </div>
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -372,140 +380,142 @@ export default function CategoriesPage() {
               category={category}
               totalSpent={spendingByCategory[String(category.id)] ?? 0}
               onClick={() => handleCategoryClick(category)}
-              onEdit={() => handleEditClick(category)}
+              onEdit={canEdit ? () => handleEditClick(category) : undefined}
             />
           ))}
         </div>
       )}
 
-      {/* Create Sheet */}
-      <Sheet open={isCreating} onOpenChange={setIsCreating}>
-        <SheetContent className="sm:max-w-md">
-          <SheetHeader>
-            <SheetTitle>Nueva categoría</SheetTitle>
-          </SheetHeader>
-          <form
-            onSubmit={handleSubmit(onCreateSubmit)}
-            className="flex flex-col flex-1 overflow-hidden"
-          >
-            <div className="flex-1 px-4 pb-4 overflow-y-auto space-y-4">
-              {/* Name */}
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Nombre *</label>
-                <Input {...register("name")} placeholder="Comida, Netflix..." />
-              </div>
-
-              {/* Icon Selector */}
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Icono</label>
-                <Popover
-                  open={iconPopoverOpen}
-                  onOpenChange={setIconPopoverOpen}
-                >
-                  <PopoverTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full justify-start gap-2"
-                    >
-                      <SelectedIconComponent className="h-4 w-4" />
-                      <span>{selectedIcon}</span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-80 p-2" align="start">
-                    <ScrollArea className="h-64">
-                      <div className="grid grid-cols-6 gap-1">
-                        {CATEGORY_ICONS.map(({ name, icon: Icon }) => (
-                          <button
-                            key={name}
-                            type="button"
-                            onClick={() => {
-                              setValue("icon", name);
-                              setIconPopoverOpen(false);
-                            }}
-                            className={`h-10 w-10 rounded-lg flex items-center justify-center transition-all hover:bg-muted ${
-                              selectedIcon === name
-                                ? "bg-primary text-primary-foreground"
-                                : ""
-                            }`}
-                            title={name}
-                          >
-                            <Icon className="h-5 w-5" />
-                          </button>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              {/* Color */}
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Color</label>
-                <div className="grid grid-cols-7 gap-2">
-                  {CATEGORY_COLORS.map((c) => (
-                    <button
-                      key={c.value}
-                      type="button"
-                      onClick={() => setValue("color", c.value)}
-                      className={`h-8 w-8 rounded-full transition-all hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary ${
-                        color === c.value
-                          ? "ring-2 ring-offset-2 ring-primary scale-110"
-                          : ""
-                      }`}
-                      style={{ backgroundColor: c.value }}
-                      title={c.name}
-                    />
-                  ))}
+      {/* Create Sheet - only in edit mode */}
+      {canEdit && (
+        <Sheet open={isCreating} onOpenChange={setIsCreating}>
+          <SheetContent className="sm:max-w-md">
+            <SheetHeader>
+              <SheetTitle>Nueva categoría</SheetTitle>
+            </SheetHeader>
+            <form
+              onSubmit={handleSubmit(onCreateSubmit)}
+              className="flex flex-col flex-1 overflow-hidden"
+            >
+              <div className="flex-1 px-4 pb-4 overflow-y-auto space-y-4">
+                {/* Name */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Nombre *</label>
+                  <Input {...register("name")} placeholder="Comida, Netflix..." />
                 </div>
-              </div>
 
-              {/* Preview */}
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Vista previa</label>
-                <div
-                  className="rounded-xl p-4 transition-colors"
-                  style={{
-                    background: `linear-gradient(135deg, ${color} 0%, ${color}dd 50%, ${color}aa 100%)`,
-                    color: isLightColor(color) ? DARK_TEXT_COLOR : "white",
-                  }}
-                >
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="h-8 w-8 rounded-lg flex items-center justify-center"
-                      style={{
-                        backgroundColor: isLightColor(color)
-                          ? "rgba(0,0,0,0.1)"
-                          : "rgba(255,255,255,0.2)",
-                      }}
-                    >
-                      <SelectedIconComponent className="h-4 w-4" />
+                {/* Icon Selector */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Icono</label>
+                  <Popover
+                    open={iconPopoverOpen}
+                    onOpenChange={setIconPopoverOpen}
+                  >
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full justify-start gap-2"
+                      >
+                        <SelectedIconComponent className="h-4 w-4" />
+                        <span>{selectedIcon}</span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 p-2" align="start">
+                      <ScrollArea className="h-64">
+                        <div className="grid grid-cols-6 gap-1">
+                          {CATEGORY_ICONS.map(({ name, icon: Icon }) => (
+                            <button
+                              key={name}
+                              type="button"
+                              onClick={() => {
+                                setValue("icon", name);
+                                setIconPopoverOpen(false);
+                              }}
+                              className={`h-10 w-10 rounded-lg flex items-center justify-center transition-all hover:bg-muted ${
+                                selectedIcon === name
+                                  ? "bg-primary text-primary-foreground"
+                                  : ""
+                              }`}
+                              title={name}
+                            >
+                              <Icon className="h-5 w-5" />
+                            </button>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {/* Color */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Color</label>
+                  <div className="grid grid-cols-7 gap-2">
+                    {CATEGORY_COLORS.map((c) => (
+                      <button
+                        key={c.value}
+                        type="button"
+                        onClick={() => setValue("color", c.value)}
+                        className={`h-8 w-8 rounded-full transition-all hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary ${
+                          color === c.value
+                            ? "ring-2 ring-offset-2 ring-primary scale-110"
+                            : ""
+                        }`}
+                        style={{ backgroundColor: c.value }}
+                        title={c.name}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Preview */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Vista previa</label>
+                  <div
+                    className="rounded-xl p-4 transition-colors"
+                    style={{
+                      background: `linear-gradient(135deg, ${color} 0%, ${color}dd 50%, ${color}aa 100%)`,
+                      color: isLightColor(color) ? DARK_TEXT_COLOR : "white",
+                    }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="h-8 w-8 rounded-lg flex items-center justify-center"
+                        style={{
+                          backgroundColor: isLightColor(color)
+                            ? "rgba(0,0,0,0.1)"
+                            : "rgba(255,255,255,0.2)",
+                        }}
+                      >
+                        <SelectedIconComponent className="h-4 w-4" />
+                      </div>
+                      <span className="font-semibold">
+                        {watch("name") || "Nombre de la categoría"}
+                      </span>
                     </div>
-                    <span className="font-semibold">
-                      {watch("name") || "Nombre de la categoría"}
-                    </span>
                   </div>
                 </div>
               </div>
-            </div>
-            <SheetFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsCreating(false)}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                disabled={createCategory.isPending || !watch("name")}
-              >
-                {createCategory.isPending ? "Creando..." : "Crear"}
-              </Button>
-            </SheetFooter>
-          </form>
-        </SheetContent>
-      </Sheet>
+              <SheetFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsCreating(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={createCategory.isPending || !watch("name")}
+                >
+                  {createCategory.isPending ? "Creando..." : "Crear"}
+                </Button>
+              </SheetFooter>
+            </form>
+          </SheetContent>
+        </Sheet>
+      )}
     </div>
   );
 }

@@ -29,6 +29,7 @@ import { useBanks } from "../banks/hooks";
 import { useBudgets } from "../budgets/hooks";
 import { type TransactionWithRelations } from "./service";
 import { useMonth } from "@/lib/month-context";
+import { useAuth, useCanEdit } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card as CardUI, CardContent } from "@/components/ui/card";
 import {
@@ -68,6 +69,8 @@ import {
 
 export default function TransactionsPage() {
   const { selectedMonth } = useMonth();
+  const { accessMode, budgetId } = useAuth();
+  const canEdit = useCanEdit();
   const [typeFilter, setTypeFilter] = useState<"all" | "expense" | "income">(
     "all",
   );
@@ -79,7 +82,7 @@ export default function TransactionsPage() {
   const [bankFilter, setBankFilter] = useState<string>("__all__");
   const [budgetFilter, setBudgetFilter] = useState<string>("__all__");
 
-  // Build filters
+  // Build filters - in readonly mode, always filter by the assigned budget
   const filters: Record<string, string> = {
     date: format(selectedMonth, "yyyy-MM"),
     timezone: "America/Guayaquil",
@@ -87,7 +90,12 @@ export default function TransactionsPage() {
   if (categoryFilter !== "__all__") filters.category_id = categoryFilter;
   if (cardFilter !== "__all__") filters.card_id = cardFilter;
   if (bankFilter !== "__all__") filters.bank_id = bankFilter;
-  if (budgetFilter !== "__all__") filters.budget_id = budgetFilter;
+  // In readonly mode, force the budget filter to the assigned budget
+  if (accessMode === "readonly" && budgetId) {
+    filters.budget_id = budgetId;
+  } else if (budgetFilter !== "__all__") {
+    filters.budget_id = budgetFilter;
+  }
 
   // Queries
   const {
@@ -467,30 +475,32 @@ export default function TransactionsPage() {
             </SelectContent>
           </Select>
 
-          {/* Budget Filter */}
-          <Select value={budgetFilter} onValueChange={setBudgetFilter}>
-            <SelectTrigger
-              className={`h-8 text-xs shrink-0 min-w-[120px] ${
-                budgetFilter !== "__all__"
-                  ? "bg-primary/10 border-primary/30"
-                  : "bg-background"
-              }`}
-            >
-              <Wallet className="h-3.5 w-3.5" />
-              <SelectValue placeholder="Presupuesto" />
-            </SelectTrigger>
-            <SelectContent position="popper" side="bottom" align="start">
-              <SelectItem value="__all__">Todos los presupuestos</SelectItem>
-              {budgets.map((budget) => (
-                <SelectItem key={budget.id} value={budget.id}>
-                  <div className="flex items-center gap-2">
-                    <Wallet className="h-3.5 w-3.5 shrink-0 text-blue-500" />
-                    {budget.name}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {/* Budget Filter - hidden in readonly mode */}
+          {accessMode !== "readonly" && (
+            <Select value={budgetFilter} onValueChange={setBudgetFilter}>
+              <SelectTrigger
+                className={`h-8 text-xs shrink-0 min-w-[120px] ${
+                  budgetFilter !== "__all__"
+                    ? "bg-primary/10 border-primary/30"
+                    : "bg-background"
+                }`}
+              >
+                <Wallet className="h-3.5 w-3.5" />
+                <SelectValue placeholder="Presupuesto" />
+              </SelectTrigger>
+              <SelectContent position="popper" side="bottom" align="start">
+                <SelectItem value="__all__">Todos los presupuestos</SelectItem>
+                {budgets.map((budget) => (
+                  <SelectItem key={budget.id} value={budget.id}>
+                    <div className="flex items-center gap-2">
+                      <Wallet className="h-3.5 w-3.5 shrink-0 text-blue-500" />
+                      {budget.name}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </div>
 
@@ -499,20 +509,24 @@ export default function TransactionsPage() {
         <div className="flex items-center justify-between px-4 py-3 bg-muted/40">
           <span className="text-sm font-medium">Transacciones</span>
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" className="h-7 text-xs" asChild>
-              <Link href="transactions/from-image">
-                <Images className="h-3.5 w-3.5 mr-1" />
-                Extraer varios
-              </Link>
-            </Button>
-            <Button
-              size="sm"
-              className="h-7 text-xs"
-              onClick={() => setCreateOpen(true)}
-            >
-              <Plus className="h-3.5 w-3.5 mr-1" />
-              Nueva
-            </Button>
+            {canEdit && (
+              <>
+                <Button size="sm" variant="outline" className="h-7 text-xs" asChild>
+                  <Link href="transactions/from-image">
+                    <Images className="h-3.5 w-3.5 mr-1" />
+                    Extraer varios
+                  </Link>
+                </Button>
+                <Button
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => setCreateOpen(true)}
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  Nueva
+                </Button>
+              </>
+            )}
             <Button
               variant="ghost"
               size="icon"
@@ -570,10 +584,10 @@ export default function TransactionsPage() {
                         cards={cards}
                         banks={banks}
                         budgets={budgets}
-                        onUpdate={handleQuickUpdate}
-                        onEdit={setEditingTx}
-                        onDelete={setDeletingTx}
-                        onClick={handleRowClick}
+                        onUpdate={canEdit ? handleQuickUpdate : undefined}
+                        onEdit={canEdit ? setEditingTx : undefined}
+                        onDelete={canEdit ? setDeletingTx : undefined}
+                        onClick={canEdit ? handleRowClick : undefined}
                       />
                     ))}
                   </div>
@@ -823,35 +837,37 @@ export default function TransactionsPage() {
         </CardContent>
       </CardUI>
 
-      {/* Create Transaction Sheet */}
-      <CreateTransactionSheet
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        categories={categories}
-        cards={cards}
-        banks={banks}
-        budgets={budgets}
-      />
+      {/* Create/Edit/Delete - only in full access mode */}
+      {canEdit && (
+        <>
+          <CreateTransactionSheet
+            open={createOpen}
+            onOpenChange={setCreateOpen}
+            categories={categories}
+            cards={cards}
+            banks={banks}
+            budgets={budgets}
+          />
 
-      {/* Edit Transaction Sheet */}
-      <EditTransactionSheet
-        transaction={editingTx}
-        onClose={() => setEditingTx(null)}
-        onDelete={(tx) => {
-          setEditingTx(null);
-          setDeletingTx(tx);
-        }}
-        categories={categories}
-        cards={cards}
-        banks={banks}
-        budgets={budgets}
-      />
+          <EditTransactionSheet
+            transaction={editingTx}
+            onClose={() => setEditingTx(null)}
+            onDelete={(tx) => {
+              setEditingTx(null);
+              setDeletingTx(tx);
+            }}
+            categories={categories}
+            cards={cards}
+            banks={banks}
+            budgets={budgets}
+          />
 
-      {/* Delete Transaction Dialog */}
-      <DeleteTransactionDialog
-        transaction={deletingTx}
-        onClose={() => setDeletingTx(null)}
-      />
+          <DeleteTransactionDialog
+            transaction={deletingTx}
+            onClose={() => setDeletingTx(null)}
+          />
+        </>
+      )}
     </div>
   );
 }

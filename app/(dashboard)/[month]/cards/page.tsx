@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useCards, useCreateCard } from "./hooks";
 import { useBanks } from "../banks/hooks";
+import { useCanEdit } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -36,6 +37,7 @@ function CardSkeleton() {
 }
 
 export default function CardsPage() {
+  const canEdit = useCanEdit();
   const { data: cards = [], isLoading: loadingCards } = useCards();
   const { data: banks = [], isLoading: loadingBanks } = useBanks();
   const createCard = useCreateCard();
@@ -65,13 +67,15 @@ export default function CardsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Cards</h1>
           <p className="text-sm text-muted-foreground">
-            Tap a card to edit its details
+            {canEdit ? "Tap a card to edit its details" : "Tus tarjetas"}
           </p>
         </div>
-        <Button onClick={openCreate} size="sm">
-          <Plus className="h-4 w-4 mr-1" />
-          Add
-        </Button>
+        {canEdit && (
+          <Button onClick={openCreate} size="sm">
+            <Plus className="h-4 w-4 mr-1" />
+            Add
+          </Button>
+        )}
       </div>
 
       {/* Cards Grid */}
@@ -87,10 +91,12 @@ export default function CardsPage() {
             <CreditCard className="h-7 w-7 text-muted-foreground" />
           </div>
           <p className="text-muted-foreground mb-4">No cards yet</p>
-          <Button onClick={openCreate} size="sm">
-            <Plus className="h-4 w-4 mr-1" />
-            Add card
-          </Button>
+          {canEdit && (
+            <Button onClick={openCreate} size="sm">
+              <Plus className="h-4 w-4 mr-1" />
+              Add card
+            </Button>
+          )}
         </div>
       ) : (
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
@@ -103,27 +109,29 @@ export default function CardsPage() {
         </div>
       )}
 
-      {/* Create Sheet */}
-      <Sheet open={isCreating} onOpenChange={setIsCreating}>
-        <SheetContent className="sm:max-w-xl">
-          <SheetHeader>
-            <SheetTitle>New Card</SheetTitle>
-          </SheetHeader>
-          <form onSubmit={handleSubmit(onCreateSubmit)} className="flex flex-col flex-1 overflow-hidden">
-            <div className="flex-1 px-4 pb-4 overflow-y-auto">
-              <CardForm form={form} banks={banks} />
-            </div>
-            <SheetFooter>
-              <Button type="button" variant="outline" onClick={() => setIsCreating(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={createCard.isPending || !watch("name")}>
-                {createCard.isPending ? "Creating..." : "Create"}
-              </Button>
-            </SheetFooter>
-          </form>
-        </SheetContent>
-      </Sheet>
+      {/* Create Sheet - only in edit mode */}
+      {canEdit && (
+        <Sheet open={isCreating} onOpenChange={setIsCreating}>
+          <SheetContent className="sm:max-w-xl">
+            <SheetHeader>
+              <SheetTitle>New Card</SheetTitle>
+            </SheetHeader>
+            <form onSubmit={handleSubmit(onCreateSubmit)} className="flex flex-col flex-1 overflow-hidden">
+              <div className="flex-1 px-4 pb-4 overflow-y-auto">
+                <CardForm form={form} banks={banks} />
+              </div>
+              <SheetFooter>
+                <Button type="button" variant="outline" onClick={() => setIsCreating(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={createCard.isPending || !watch("name")}>
+                  {createCard.isPending ? "Creating..." : "Create"}
+                </Button>
+              </SheetFooter>
+            </form>
+          </SheetContent>
+        </Sheet>
+      )}
     </div>
   );
 }

@@ -63,7 +63,7 @@ interface TransactionRowProps {
   budgets?: Budget[];
   onUpdate?: (id: number, data: Record<string, string | null>) => void;
   onEdit?: (tx: TransactionWithRelations) => void;
-  onDelete: (tx: TransactionWithRelations) => void;
+  onDelete?: (tx: TransactionWithRelations) => void;
   onClick?: (tx: TransactionWithRelations) => void;
 }
 
@@ -100,8 +100,8 @@ export function TransactionRow({
 
   return (
     <div
-      className="group flex items-start gap-3 px-4 py-3 hover:bg-muted/50 transition-colors cursor-pointer"
-      onClick={handleRowClick}
+      className={`group flex items-start gap-3 px-4 py-3 hover:bg-muted/50 transition-colors ${onClick ? "cursor-pointer" : ""}`}
+      onClick={onClick ? handleRowClick : undefined}
     >
       {/* Time */}
       <div className="w-11 shrink-0 text-xs font-medium text-muted-foreground pt-0.5">
@@ -200,174 +200,176 @@ export function TransactionRow({
         </span>
       </div>
 
-      {/* Actions Dropdown */}
-      <div data-slot="dropdown-menu" className="self-center" onClick={(e) => e.stopPropagation()}>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-            >
-              <MoreVertical className="h-4 w-4" />
-              <span className="sr-only">Acciones</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            {/* Category Submenu */}
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                <Tag className="mr-2 h-4 w-4" />
-                Categoría
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="max-h-64 overflow-y-auto">
-                <DropdownMenuItem
-                  onClick={() => handleAssign("category_id", null)}
-                  className="text-muted-foreground"
-                >
-                  <X className="mr-2 h-4 w-4" />
-                  Ninguna
-                  {!tx.category_id && <Check className="ml-auto h-4 w-4" />}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                {categories.map((cat) => (
+      {/* Actions Dropdown - only show if there are any action handlers */}
+      {(onUpdate || onEdit || onDelete) && (
+        <div data-slot="dropdown-menu" className="self-center" onClick={(e) => e.stopPropagation()}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+              >
+                <MoreVertical className="h-4 w-4" />
+                <span className="sr-only">Acciones</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              {/* Category Submenu */}
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <Tag className="mr-2 h-4 w-4" />
+                  Categoría
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="max-h-64 overflow-y-auto">
                   <DropdownMenuItem
-                    key={cat.id}
-                    onClick={() => handleAssign("category_id", cat.id)}
+                    onClick={() => handleAssign("category_id", null)}
+                    className="text-muted-foreground"
                   >
-                    <div
-                      className="mr-2 h-3 w-3 rounded-full"
-                      style={{ backgroundColor: cat.color || "#888" }}
-                    />
-                    {cat.name}
-                    {tx.category_id === cat.id && <Check className="ml-auto h-4 w-4" />}
+                    <X className="mr-2 h-4 w-4" />
+                    Ninguna
+                    {!tx.category_id && <Check className="ml-auto h-4 w-4" />}
                   </DropdownMenuItem>
-                ))}
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-
-            {/* Card Submenu */}
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                <CreditCard className="mr-2 h-4 w-4" />
-                Tarjeta
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="max-h-64 overflow-y-auto">
-                <DropdownMenuItem
-                  onClick={() => handleAssign("card_id", null)}
-                  className="text-muted-foreground"
-                >
-                  <X className="mr-2 h-4 w-4" />
-                  Ninguna
-                  {!tx.card_id && <Check className="ml-auto h-4 w-4" />}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                {cards.map((card) => (
-                  <DropdownMenuItem
-                    key={card.id}
-                    onClick={() => handleAssign("card_id", card.id)}
-                  >
-                    <CreditCard
-                      className="mr-2 h-4 w-4"
-                      style={{ color: card.color || undefined }}
-                    />
-                    {card.name}
-                    {card.last4 && (
-                      <span className="text-muted-foreground ml-1">•{card.last4}</span>
-                    )}
-                    {tx.card_id === card.id && <Check className="ml-auto h-4 w-4" />}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-
-            {/* Bank Submenu */}
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                <Building2 className="mr-2 h-4 w-4" />
-                Banco
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="max-h-64 overflow-y-auto">
-                <DropdownMenuItem
-                  onClick={() => handleAssign("bank_id", null)}
-                  className="text-muted-foreground"
-                >
-                  <X className="mr-2 h-4 w-4" />
-                  Ninguno
-                  {!tx.bank_id && <Check className="ml-auto h-4 w-4" />}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                {banks.map((bank) => (
-                  <DropdownMenuItem
-                    key={bank.id}
-                    onClick={() => handleAssign("bank_id", bank.id)}
-                  >
-                    {bank.image ? (
-                      <Image
-                        src={bank.image}
-                        alt={bank.name}
-                        width={16}
-                        height={16}
-                        className="mr-2 h-4 w-4 rounded object-contain"
+                  <DropdownMenuSeparator />
+                  {categories.map((cat) => (
+                    <DropdownMenuItem
+                      key={cat.id}
+                      onClick={() => handleAssign("category_id", cat.id)}
+                    >
+                      <div
+                        className="mr-2 h-3 w-3 rounded-full"
+                        style={{ backgroundColor: cat.color || "#888" }}
                       />
-                    ) : (
-                      <Building2 className="mr-2 h-4 w-4" />
-                    )}
-                    {bank.name}
-                    {tx.bank_id === bank.id && <Check className="ml-auto h-4 w-4" />}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
+                      {cat.name}
+                      {tx.category_id === cat.id && <Check className="ml-auto h-4 w-4" />}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
 
-            {/* Budget Submenu */}
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                <Wallet className="mr-2 h-4 w-4" />
-                Presupuesto
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="max-h-64 overflow-y-auto">
-                <DropdownMenuItem
-                  onClick={() => handleAssign("budget_id", null)}
-                  className="text-muted-foreground"
-                >
-                  <X className="mr-2 h-4 w-4" />
-                  Ninguno
-                  {!tx.budget_id && <Check className="ml-auto h-4 w-4" />}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                {budgets.map((budget) => (
+              {/* Card Submenu */}
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Tarjeta
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="max-h-64 overflow-y-auto">
                   <DropdownMenuItem
-                    key={budget.id}
-                    onClick={() => handleAssign("budget_id", budget.id)}
+                    onClick={() => handleAssign("card_id", null)}
+                    className="text-muted-foreground"
                   >
-                    <Wallet className="mr-2 h-4 w-4" />
-                    {budget.name}
-                    {tx.budget_id === budget.id && <Check className="ml-auto h-4 w-4" />}
+                    <X className="mr-2 h-4 w-4" />
+                    Ninguna
+                    {!tx.card_id && <Check className="ml-auto h-4 w-4" />}
                   </DropdownMenuItem>
-                ))}
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
+                  <DropdownMenuSeparator />
+                  {cards.map((card) => (
+                    <DropdownMenuItem
+                      key={card.id}
+                      onClick={() => handleAssign("card_id", card.id)}
+                    >
+                      <CreditCard
+                        className="mr-2 h-4 w-4"
+                        style={{ color: card.color || undefined }}
+                      />
+                      {card.name}
+                      {card.last4 && (
+                        <span className="text-muted-foreground ml-1">•{card.last4}</span>
+                      )}
+                      {tx.card_id === card.id && <Check className="ml-auto h-4 w-4" />}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
 
-            <DropdownMenuSeparator />
+              {/* Bank Submenu */}
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <Building2 className="mr-2 h-4 w-4" />
+                  Banco
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="max-h-64 overflow-y-auto">
+                  <DropdownMenuItem
+                    onClick={() => handleAssign("bank_id", null)}
+                    className="text-muted-foreground"
+                  >
+                    <X className="mr-2 h-4 w-4" />
+                    Ninguno
+                    {!tx.bank_id && <Check className="ml-auto h-4 w-4" />}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {banks.map((bank) => (
+                    <DropdownMenuItem
+                      key={bank.id}
+                      onClick={() => handleAssign("bank_id", bank.id)}
+                    >
+                      {bank.image ? (
+                        <Image
+                          src={bank.image}
+                          alt={bank.name}
+                          width={16}
+                          height={16}
+                          className="mr-2 h-4 w-4 rounded object-contain"
+                        />
+                      ) : (
+                        <Building2 className="mr-2 h-4 w-4" />
+                      )}
+                      {bank.name}
+                      {tx.bank_id === bank.id && <Check className="ml-auto h-4 w-4" />}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
 
-            {/* Edit */}
-            <DropdownMenuItem onClick={() => onEdit?.(tx)}>
-              <Pencil className="mr-2 h-4 w-4" />
-              Editar
-            </DropdownMenuItem>
+              {/* Budget Submenu */}
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <Wallet className="mr-2 h-4 w-4" />
+                  Presupuesto
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="max-h-64 overflow-y-auto">
+                  <DropdownMenuItem
+                    onClick={() => handleAssign("budget_id", null)}
+                    className="text-muted-foreground"
+                  >
+                    <X className="mr-2 h-4 w-4" />
+                    Ninguno
+                    {!tx.budget_id && <Check className="ml-auto h-4 w-4" />}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {budgets.map((budget) => (
+                    <DropdownMenuItem
+                      key={budget.id}
+                      onClick={() => handleAssign("budget_id", budget.id)}
+                    >
+                      <Wallet className="mr-2 h-4 w-4" />
+                      {budget.name}
+                      {tx.budget_id === budget.id && <Check className="ml-auto h-4 w-4" />}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
 
-            {/* Delete */}
-            <DropdownMenuItem
-              onClick={() => onDelete(tx)}
-              className="text-red-600 focus:text-red-600"
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Eliminar
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+              <DropdownMenuSeparator />
+
+              {/* Edit */}
+              <DropdownMenuItem onClick={() => onEdit?.(tx)}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Editar
+              </DropdownMenuItem>
+
+              {/* Delete */}
+              <DropdownMenuItem
+                onClick={() => onDelete?.(tx)}
+                className="text-red-600 focus:text-red-600"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Eliminar
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
     </div>
   );
 }

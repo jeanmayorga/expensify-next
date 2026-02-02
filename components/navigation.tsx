@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useParams } from "next/navigation";
 import { format } from "date-fns";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/lib/auth-context";
 import {
   Home,
   Receipt,
@@ -34,7 +35,12 @@ const otherRoutes = [
 export function Navigation() {
   const pathname = usePathname();
   const params = useParams();
+  const { accessMode } = useAuth();
   const monthParam = (params.month as string) || format(new Date(), "yyyy-MM");
+
+  // In readonly mode, hide emails and subscriptions
+  const visibleOtherRoutes = accessMode === "readonly" ? [] : otherRoutes;
+  const gridCols = accessMode === "readonly" ? "sm:grid-cols-6" : "sm:grid-cols-8";
 
   // Build href for month-based routes
   const getMonthHref = (path: string) =>
@@ -65,7 +71,7 @@ export function Navigation() {
 
   return (
     <Tabs value={currentTab} className="w-full">
-      <TabsList className="flex w-full overflow-x-auto overflow-y-hidden flex-nowrap gap-0.5 p-1 h-auto min-h-9 sm:grid sm:grid-cols-8 sm:overflow-visible [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20">
+      <TabsList className={`flex w-full overflow-x-auto overflow-y-hidden flex-nowrap gap-0.5 p-1 h-auto min-h-9 sm:grid ${gridCols} sm:overflow-visible [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20`}>
         {monthRoutes.map((item) => {
           const href = getMonthHref(item.path);
           const Icon = item.icon;
@@ -88,7 +94,7 @@ export function Navigation() {
             </TabsTrigger>
           );
         })}
-        {otherRoutes.map((item) => {
+        {visibleOtherRoutes.map((item) => {
           const Icon = item.icon;
           return (
             <TabsTrigger

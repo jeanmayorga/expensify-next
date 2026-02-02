@@ -85,13 +85,20 @@ function ecuadorToUtcIso(
   return utcDate.toISOString();
 }
 
+export type DateFormat = "dmy" | "mdy";
+
 /**
  * Parse date from common Spanish email formats to ISO string (UTC).
  * Las horas en los emails de bancos ecuatorianos son en hora Ecuador (America/Guayaquil).
+ *
+ * @param text - Raw date text from email
+ * @param fallbackIso - Fallback ISO string (typically receivedDateTime)
+ * @param dateFormat - "dmy" (DD/MM/YYYY, default) or "mdy" (MM/DD/YYYY)
  */
 export function parseOccurredAt(
   text: string | null,
   fallbackIso: string,
+  dateFormat: DateFormat = "dmy",
 ): string {
   if (!text || !clean(text)) return fallbackIso;
 
@@ -132,17 +139,28 @@ export function parseOccurredAt(
     }
   }
 
-  // "16/01/2026 13:23:21" (DD/MM/YYYY HH:mm:ss, Ecuador) → when middle ≤ 12
-  const dmYTimeMatch = t.match(
+  // "16/01/2026 13:23:21" or "02/01/2026 19:02:07" (with time)
+  // dateFormat determines if it's DD/MM/YYYY or MM/DD/YYYY
+  const slashDateTimeMatch = t.match(
     /(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/,
   );
-  if (dmYTimeMatch) {
-    const [, d, m, y, h, min, sec = "0"] = dmYTimeMatch;
-    const month = Number(m);
-    const day = Number(d);
+  if (slashDateTimeMatch) {
+    const [, first, second, year, h, min, sec = "0"] = slashDateTimeMatch;
+    let day: number, month: number;
+
+    if (dateFormat === "mdy") {
+      // MM/DD/YYYY
+      month = Number(first);
+      day = Number(second);
+    } else {
+      // DD/MM/YYYY (default)
+      day = Number(first);
+      month = Number(second);
+    }
+
     if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
       return ecuadorToUtcIso(
-        Number(y),
+        Number(year),
         month,
         day,
         Number(h),
@@ -152,42 +170,29 @@ export function parseOccurredAt(
     }
   }
 
-  // "01/29/2026 15:13:45" (MM/DD/YYYY HH:mm:ss) → hora Ecuador
-  const usDateMatch = t.match(
-    /(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/,
-  );
-  if (usDateMatch) {
-    const [, month, day, year, h, min, sec = "0"] = usDateMatch;
-    return ecuadorToUtcIso(
-      Number(year),
-      Number(month),
-      Number(day),
-      Number(h),
-      Number(min),
-      Number(sec),
-    );
-  }
+  // "19/01/2026" (date only) → date from email + time from received email (Ecuador)
+  const slashDateOnlyMatch = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slashDateOnlyMatch) {
+    const [, first, second, year] = slashDateOnlyMatch;
+    let day: number, month: number;
 
-  // "19/01/2026" (DD/MM/YYYY, date only) → date from email + time from received email (Ecuador)
-  const dmYMatch = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (dmYMatch) {
-    const [, day, month, year] = dmYMatch;
+    if (dateFormat === "mdy") {
+      month = Number(first);
+      day = Number(second);
+    } else {
+      day = Number(first);
+      month = Number(second);
+    }
+
     try {
       const received = new Date(fallbackIso);
       if (!Number.isFinite(received.getTime())) return fallbackIso;
       const h = Number(formatInTimeZone(received, ECUADOR_TZ, "H"));
       const min = Number(formatInTimeZone(received, ECUADOR_TZ, "m"));
       const sec = Number(formatInTimeZone(received, ECUADOR_TZ, "s"));
-      return ecuadorToUtcIso(
-        Number(year),
-        Number(month),
-        Number(day),
-        h,
-        min,
-        sec,
-      );
+      return ecuadorToUtcIso(Number(year), month, day, h, min, sec);
     } catch {
-      return ecuadorToUtcIso(Number(year), Number(month), Number(day), 0, 0, 0);
+      return ecuadorToUtcIso(Number(year), month, day, 0, 0, 0);
     }
   }
 

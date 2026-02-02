@@ -1,5 +1,6 @@
 import { Navigation } from "@/components/navigation";
 import { MonthPickerNav } from "@/components/month-picker-nav";
+import { LogoutButton } from "@/components/logout-button";
 
 export default function DashboardLayout({
   children,
@@ -12,7 +13,10 @@ export default function DashboardLayout({
         <header className="mb-6">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h1 className="text-2xl font-bold">Expensify</h1>
-            <MonthPickerNav />
+            <div className="flex items-center gap-2">
+              <MonthPickerNav />
+              <LogoutButton />
+            </div>
           </div>
           <Navigation />
         </header>

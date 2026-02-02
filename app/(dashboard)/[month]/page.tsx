@@ -7,6 +7,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useTransactionsForMonth } from "./transactions/hooks";
 import { useMonth } from "@/lib/month-context";
+import { useAuth } from "@/lib/auth-context";
 import { useCategories } from "./categories/hooks";
 import { useBudgets } from "./budgets/hooks";
 import { useBanks } from "./banks/hooks";
@@ -154,13 +155,29 @@ const formatCurrency = (amount: number) => {
 
 export default function HomePage() {
   const { selectedMonth } = useMonth();
+  const { accessMode, budgetId: authBudgetId } = useAuth();
 
-  const { data: transactions = [], isLoading: loadingTx } =
+  const { data: allTransactions = [], isLoading: loadingTx } =
     useTransactionsForMonth(selectedMonth);
   const { data: categories = [], isLoading: loadingCat } = useCategories();
-  const { data: budgets = [], isLoading: loadingBudgets } = useBudgets();
+  const { data: allBudgets = [], isLoading: loadingBudgets } = useBudgets();
   const { data: banks = [], isLoading: loadingBanks } = useBanks();
   const { data: cards = [], isLoading: loadingCards } = useCards();
+
+  // Filter transactions and budgets in readonly mode
+  const transactions = useMemo(() => {
+    if (accessMode === "readonly" && authBudgetId) {
+      return allTransactions.filter((tx) => tx.budget_id === authBudgetId);
+    }
+    return allTransactions;
+  }, [allTransactions, accessMode, authBudgetId]);
+
+  const budgets = useMemo(() => {
+    if (accessMode === "readonly" && authBudgetId) {
+      return allBudgets.filter((b) => b.id === authBudgetId);
+    }
+    return allBudgets;
+  }, [allBudgets, accessMode, authBudgetId]);
 
   const loading =
     loadingTx || loadingCat || loadingBudgets || loadingBanks || loadingCards;
@@ -414,7 +431,6 @@ export default function HomePage() {
                           cards={cards}
                           banks={banks}
                           budgets={budgets}
-                          onDelete={() => {}}
                         />
                       ))}
                     </div>

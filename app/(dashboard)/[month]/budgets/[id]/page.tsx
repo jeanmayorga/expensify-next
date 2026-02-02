@@ -17,6 +17,7 @@ import { useBanks } from "../../banks/hooks";
 import { useBudgets } from "../hooks";
 import { type TransactionWithRelations } from "../../transactions/service";
 import { useMonth } from "@/lib/month-context";
+import { useCanEdit } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card as CardUI, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -42,6 +43,7 @@ export default function BudgetDetailPage() {
   const params = useParams();
   const router = useRouter();
   const budgetId = params.id as string;
+  const canEdit = useCanEdit();
 
   const { selectedMonth } = useMonth();
 
@@ -176,16 +178,18 @@ export default function BudgetDetailPage() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => router.push("edit")}
-          >
-            <Edit className="h-4 w-4 sm:mr-1" />
-            <span className="hidden sm:inline">Editar</span>
-          </Button>
-        </div>
+        {canEdit && (
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push("edit")}
+            >
+              <Edit className="h-4 w-4 sm:mr-1" />
+              <span className="hidden sm:inline">Editar</span>
+            </Button>
+          </div>
+        )}
       </div>
 
       <div
@@ -262,10 +266,10 @@ export default function BudgetDetailPage() {
                         cards={cards}
                         banks={banks}
                         budgets={budgets}
-                        onUpdate={handleQuickUpdate}
-                        onEdit={setEditingTx}
-                        onDelete={setDeletingTx}
-                        onClick={handleRowClick}
+                        onUpdate={canEdit ? handleQuickUpdate : undefined}
+                        onEdit={canEdit ? setEditingTx : undefined}
+                        onDelete={canEdit ? setDeletingTx : undefined}
+                        onClick={canEdit ? handleRowClick : undefined}
                       />
                     ))}
                   </div>
@@ -276,23 +280,27 @@ export default function BudgetDetailPage() {
         </CardContent>
       </CardUI>
 
-      <EditTransactionSheet
-        transaction={editingTx}
-        onClose={() => setEditingTx(null)}
-        onDelete={(tx) => {
-          setEditingTx(null);
-          setDeletingTx(tx);
-        }}
-        categories={categories}
-        cards={cards}
-        banks={banks}
-        budgets={budgets}
-      />
+      {canEdit && (
+        <>
+          <EditTransactionSheet
+            transaction={editingTx}
+            onClose={() => setEditingTx(null)}
+            onDelete={(tx) => {
+              setEditingTx(null);
+              setDeletingTx(tx);
+            }}
+            categories={categories}
+            cards={cards}
+            banks={banks}
+            budgets={budgets}
+          />
 
-      <DeleteTransactionDialog
-        transaction={deletingTx}
-        onClose={() => setDeletingTx(null)}
-      />
+          <DeleteTransactionDialog
+            transaction={deletingTx}
+            onClose={() => setDeletingTx(null)}
+          />
+        </>
+      )}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useBanks, useCreateBank } from "./hooks";
 import { type Bank } from "./service";
+import { useCanEdit } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -145,6 +146,7 @@ function BankCardSkeleton() {
 
 export default function BanksPage() {
   const router = useRouter();
+  const canEdit = useCanEdit();
   const { data: banks = [], isLoading } = useBanks();
   const createBank = useCreateBank();
 
@@ -251,13 +253,15 @@ export default function BanksPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Bancos</h1>
           <p className="text-sm text-muted-foreground">
-            Toca un banco para ver detalles y transacciones
+            {canEdit ? "Toca un banco para ver detalles y transacciones" : "Tus bancos"}
           </p>
         </div>
-        <Button onClick={openCreate} size="sm">
-          <Plus className="h-4 w-4 mr-1" />
-          Add
-        </Button>
+        {canEdit && (
+          <Button onClick={openCreate} size="sm">
+            <Plus className="h-4 w-4 mr-1" />
+            Add
+          </Button>
+        )}
       </div>
 
       {/* Banks Grid */}
@@ -273,10 +277,12 @@ export default function BanksPage() {
             <Building2 className="h-7 w-7 text-muted-foreground" />
           </div>
           <p className="text-muted-foreground mb-4">No banks configured yet</p>
-          <Button onClick={openCreate} size="sm">
-            <Plus className="h-4 w-4 mr-1" />
-            Add bank
-          </Button>
+          {canEdit && (
+            <Button onClick={openCreate} size="sm">
+              <Plus className="h-4 w-4 mr-1" />
+              Add bank
+            </Button>
+          )}
         </div>
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -290,37 +296,39 @@ export default function BanksPage() {
         </div>
       )}
 
-      {/* Create Sheet */}
-      <Sheet open={isCreating} onOpenChange={setIsCreating}>
-        <SheetContent className="sm:max-w-xl">
-          <SheetHeader>
-            <SheetTitle>New Bank</SheetTitle>
-          </SheetHeader>
-          <form
-            onSubmit={handleSubmit(onCreateSubmit)}
-            className="flex flex-col flex-1 overflow-hidden"
-          >
-            <div className="flex-1 px-4 pb-4 overflow-y-auto">
-              <FormFields />
-            </div>
-            <SheetFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsCreating(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={createBank.isPending || !watch("name")}
-              >
-                {createBank.isPending ? "Creating..." : "Create"}
-              </Button>
-            </SheetFooter>
-          </form>
-        </SheetContent>
-      </Sheet>
+      {/* Create Sheet - only in edit mode */}
+      {canEdit && (
+        <Sheet open={isCreating} onOpenChange={setIsCreating}>
+          <SheetContent className="sm:max-w-xl">
+            <SheetHeader>
+              <SheetTitle>New Bank</SheetTitle>
+            </SheetHeader>
+            <form
+              onSubmit={handleSubmit(onCreateSubmit)}
+              className="flex flex-col flex-1 overflow-hidden"
+            >
+              <div className="flex-1 px-4 pb-4 overflow-y-auto">
+                <FormFields />
+              </div>
+              <SheetFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsCreating(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={createBank.isPending || !watch("name")}
+                >
+                  {createBank.isPending ? "Creating..." : "Create"}
+                </Button>
+              </SheetFooter>
+            </form>
+          </SheetContent>
+        </Sheet>
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useCategory, useUpdateCategory, useDeleteCategory } from "../../hooks";
+import { useCanEdit } from "@/lib/auth-context";
 import { type Category } from "../../service";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -179,8 +180,21 @@ export default function EditCategoryPage() {
   const params = useParams();
   const router = useRouter();
   const categoryId = params.id as string;
+  const canEdit = useCanEdit();
+
+  // Redirect to detail page if user can't edit
+  useEffect(() => {
+    if (!canEdit) {
+      router.replace("..");
+    }
+  }, [canEdit, router]);
 
   const { data: category, isLoading } = useCategory(categoryId);
+
+  // Don't render anything if user can't edit
+  if (!canEdit) {
+    return null;
+  }
   const updateCategory = useUpdateCategory();
   const deleteCategory = useDeleteCategory();
 

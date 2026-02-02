@@ -198,14 +198,16 @@ export function extractProdubancoReversoDebito(
   const tarjetaMatch = text.match(/X+(\d{4})/);
   const card_last4 = tarjetaMatch ? tarjetaMatch[1] : undefined;
 
-  // Fecha y Hora: 01/29/2026 15:13:45 (MM/DD/YYYY HH:mm:ss)
+  // Fecha y Hora: 02/01/2026 19:02:07 (MM/DD/YYYY HH:mm:ss)
   const fechaMatch = text.match(
     /Fecha\s+y\s+Hora:\s*([^\n]+?)(?=\s*Transacción|$)/i,
   );
   const fechaRaw = fechaMatch ? clean(fechaMatch[1]) : null;
+  // Reverso débito usa formato MM/DD/YYYY (estadounidense)
   const occurred_at = parseOccurredAt(
     fechaRaw,
     message.receivedDateTime || new Date().toISOString(),
+    "mdy",
   );
 
   const description =

@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useBank, useUpdateBank, useDeleteBank } from "../../hooks";
+import { useCanEdit } from "@/lib/auth-context";
 import { type Bank } from "../../service";
 import { useCards } from "../../../cards/hooks";
 import { Button } from "@/components/ui/button";
@@ -75,8 +76,21 @@ export default function EditBankPage() {
   const params = useParams();
   const router = useRouter();
   const bankId = params.id as string;
+  const canEdit = useCanEdit();
+
+  // Redirect to detail page if user can't edit
+  useEffect(() => {
+    if (!canEdit) {
+      router.replace("..");
+    }
+  }, [canEdit, router]);
 
   const { data: bank, isLoading } = useBank(bankId);
+
+  // Don't render anything if user can't edit
+  if (!canEdit) {
+    return null;
+  }
   const { data: allCards = [] } = useCards();
   const updateBank = useUpdateBank();
   const deleteBank = useDeleteBank();

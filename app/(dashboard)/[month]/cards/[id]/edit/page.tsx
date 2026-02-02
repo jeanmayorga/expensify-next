@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useCard, useUpdateCard, useDeleteCard } from "../../hooks";
+import { useCanEdit } from "@/lib/auth-context";
 import { useBanks } from "../../../banks/hooks";
 import { type CardWithBank } from "../../service";
 import { Button } from "@/components/ui/button";
@@ -55,8 +56,21 @@ export default function EditCardPage() {
   const params = useParams();
   const router = useRouter();
   const cardId = params.id as string;
+  const canEdit = useCanEdit();
+
+  // Redirect to detail page if user can't edit
+  useEffect(() => {
+    if (!canEdit) {
+      router.replace("..");
+    }
+  }, [canEdit, router]);
 
   const { data: card, isLoading } = useCard(cardId);
+
+  // Don't render anything if user can't edit
+  if (!canEdit) {
+    return null;
+  }
   const { data: banks = [], isLoading: loadingBanks } = useBanks();
   const updateCard = useUpdateCard();
   const deleteCard = useDeleteCard();

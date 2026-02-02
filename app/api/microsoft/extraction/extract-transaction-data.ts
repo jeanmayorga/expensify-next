@@ -91,6 +91,13 @@ export async function buildTransactionInsertFromEmail(
     }
   }
 
+  // Default budget_id for Produbanco: "amor" budget
+  const PRODUBANCO_DEFAULT_BUDGET_ID = "0dc7502d-9d2a-4be1-a83d-6afb53545cb7";
+  const isProdubanco =
+    bank.slug?.toLowerCase().includes("produbanco") ||
+    bank.name?.toLowerCase().includes("produbanco");
+  const budget_id = isProdubanco ? PRODUBANCO_DEFAULT_BUDGET_ID : null;
+
   return {
     type: extracted.type,
     description: extracted.description,
@@ -100,7 +107,7 @@ export async function buildTransactionInsertFromEmail(
     bank_id: bank.id,
     card_id,
     category_id: null,
-    budget_id: null,
+    budget_id,
     comment: extracted.comment ?? null,
   };
 }
