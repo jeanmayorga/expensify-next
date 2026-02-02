@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import {
@@ -18,6 +19,7 @@ import {
   X,
   List,
   BarChart3,
+  Images,
 } from "lucide-react";
 import { useTransactions, useUpdateTransaction } from "./hooks";
 import { getEcuadorDate } from "@/utils/ecuador-time";
@@ -497,6 +499,12 @@ export default function TransactionsPage() {
         <div className="flex items-center justify-between px-4 py-3 bg-muted/40">
           <span className="text-sm font-medium">Transacciones</span>
           <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" className="h-7 text-xs" asChild>
+              <Link href="transactions/from-image">
+                <Images className="h-3.5 w-3.5 mr-1" />
+                Extraer varios
+              </Link>
+            </Button>
             <Button
               size="sm"
               className="h-7 text-xs"
