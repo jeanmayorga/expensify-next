@@ -43,6 +43,10 @@ import {
   BarChart3,
   Tag,
 } from "lucide-react";
+import {
+  TransactionRow,
+  TransactionRowSkeleton,
+} from "./transactions/components";
 
 const fmt = (amount: number) =>
   new Intl.NumberFormat("en-US", {
@@ -53,7 +57,7 @@ const fmt = (amount: number) =>
 
 export default function HomePage() {
   const { selectedMonth, monthStr } = useMonth();
-  const { accessMode, budgetId: authBudgetId } = useAuth();
+  const { budgetId: authBudgetId } = useAuth();
 
   const { data: allTransactions = [], isLoading: loadingTx } =
     useTransactionsForMonth(selectedMonth);
@@ -62,18 +66,18 @@ export default function HomePage() {
   const { data: cards = [], isLoading: loadingCards } = useCards();
 
   const transactions = useMemo(() => {
-    if (accessMode === "readonly" && authBudgetId) {
+    if (authBudgetId) {
       return allTransactions.filter((tx) => tx.budget_id === authBudgetId);
     }
     return allTransactions;
-  }, [allTransactions, accessMode, authBudgetId]);
+  }, [allTransactions, authBudgetId]);
 
   const budgets = useMemo(() => {
-    if (accessMode === "readonly" && authBudgetId) {
+    if (authBudgetId) {
       return allBudgets.filter((b) => b.id === authBudgetId);
     }
     return allBudgets;
-  }, [allBudgets, accessMode, authBudgetId]);
+  }, [allBudgets, authBudgetId]);
 
   const loading = loadingTx || loadingBudgets || loadingBanks || loadingCards;
 
@@ -327,79 +331,6 @@ export default function HomePage() {
             </Card>
           )}
 
-          {/* Recent Transactions */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <Receipt className="h-4 w-4 text-muted-foreground" />
-                Ultimas transacciones
-              </CardTitle>
-              <Link
-                href={`/${monthStr}/transactions`}
-                className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
-              >
-                Ver todas <ArrowRight className="h-3 w-3" />
-              </Link>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              {loading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <Skeleton key={i} className="h-12 rounded-lg" />
-                  ))}
-                </div>
-              ) : recentTx.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  No hay transacciones este mes
-                </p>
-              ) : (
-                <div className="space-y-1">
-                  {recentTx.map((tx) => (
-                    <div
-                      key={tx.id}
-                      className="flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-muted/50 transition-colors"
-                    >
-                      <div
-                        className={cn(
-                          "h-8 w-8 rounded-full flex items-center justify-center shrink-0",
-                          tx.type === "expense"
-                            ? "bg-red-100 dark:bg-red-900/30"
-                            : "bg-emerald-100 dark:bg-emerald-900/30",
-                        )}
-                      >
-                        {tx.type === "expense" ? (
-                          <ArrowDownRight className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
-                        ) : (
-                          <ArrowUpRight className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium truncate">
-                          {tx.description}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(tx.occurred_at), "d MMM, HH:mm", {
-                            locale: es,
-                          })}
-                        </p>
-                      </div>
-                      <span
-                        className={cn(
-                          "text-sm font-semibold tabular-nums shrink-0",
-                          tx.type === "expense"
-                            ? "text-red-600 dark:text-red-400"
-                            : "text-emerald-600 dark:text-emerald-400",
-                        )}
-                      >
-                        {tx.type === "expense" ? "-" : "+"}
-                        {fmt(Math.abs(tx.amount))}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </div>
 
         {/* Right column */}
@@ -444,48 +375,6 @@ export default function HomePage() {
                       warn
                     />
                   )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Top Expenses */}
-          <Card>
-            <CardHeader className="pb-2 pt-4 px-4">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
-                Gastos mas grandes
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              {loading ? (
-                <div className="space-y-2">
-                  {[1, 2, 3].map((i) => (
-                    <Skeleton key={i} className="h-10 rounded-lg" />
-                  ))}
-                </div>
-              ) : topExpenses.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-4">
-                  Sin datos
-                </p>
-              ) : (
-                <div className="space-y-1">
-                  {topExpenses.map((tx, i) => (
-                    <div
-                      key={tx.id}
-                      className="flex items-center gap-2.5 py-2 px-2 rounded-lg hover:bg-muted/50 transition-colors"
-                    >
-                      <span className="text-xs font-bold text-muted-foreground w-4 text-center shrink-0">
-                        {i + 1}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm truncate">{tx.description}</p>
-                      </div>
-                      <span className="text-sm font-semibold tabular-nums text-red-600 dark:text-red-400 shrink-0">
-                        {fmt(Math.abs(tx.amount))}
-                      </span>
-                    </div>
-                  ))}
                 </div>
               )}
             </CardContent>
@@ -631,6 +520,83 @@ export default function HomePage() {
                       </div>
                     );
                   })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Últimas transacciones + Gastos más grandes — 50/50 grid with TransactionRow */}
+        <div className="col-span-12 grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Receipt className="h-4 w-4 text-muted-foreground" />
+                Últimas transacciones
+              </CardTitle>
+              <Link
+                href={`/${monthStr}/transactions`}
+                className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+              >
+                Ver todas <ArrowRight className="h-3 w-3" />
+              </Link>
+            </CardHeader>
+            <CardContent className="p-0">
+              {loading ? (
+                <div className="divide-y">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <TransactionRowSkeleton key={i} />
+                  ))}
+                </div>
+              ) : recentTx.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8 px-4">
+                  No hay transacciones este mes
+                </p>
+              ) : (
+                <div className="divide-y">
+                  {recentTx.map((tx) => (
+                    <TransactionRow
+                      key={tx.id}
+                      transaction={tx}
+                      cards={cards}
+                      banks={banks}
+                      budgets={budgets}
+                    />
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
+                Gastos más grandes
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {loading ? (
+                <div className="divide-y">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <TransactionRowSkeleton key={i} />
+                  ))}
+                </div>
+              ) : topExpenses.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8 px-4">
+                  Sin datos
+                </p>
+              ) : (
+                <div className="divide-y">
+                  {topExpenses.map((tx) => (
+                    <TransactionRow
+                      key={tx.id}
+                      transaction={tx}
+                      cards={cards}
+                      banks={banks}
+                      budgets={budgets}
+                    />
+                  ))}
                 </div>
               )}
             </CardContent>

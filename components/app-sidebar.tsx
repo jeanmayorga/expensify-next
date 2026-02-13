@@ -44,10 +44,10 @@ const otherRoutes = [
 export function AppSidebar() {
   const pathname = usePathname();
   const params = useParams();
-  const { accessMode, logout } = useAuth();
+  const { accessMode, budgetId, logout } = useAuth();
   const monthParam = (params.month as string) || format(new Date(), "yyyy-MM");
 
-  const visibleOtherRoutes = accessMode === "readonly" ? [] : otherRoutes;
+  const visibleOtherRoutes = accessMode === "readonly" && !budgetId ? [] : otherRoutes;
 
   const getMonthHref = (path: string) =>
     path ? `/${monthParam}/${path}` : `/${monthParam}`;
@@ -125,14 +125,21 @@ export function AppSidebar() {
 
       <SidebarFooter>
         <SidebarMenu>
-          {accessMode === "readonly" && (
+          {budgetId ? (
+            <SidebarMenuItem>
+              <SidebarMenuButton tooltip="Limitado a tu presupuesto" className="pointer-events-none opacity-70">
+                <Eye />
+                <span>Tu presupuesto</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ) : accessMode === "readonly" ? (
             <SidebarMenuItem>
               <SidebarMenuButton tooltip="Solo lectura" className="pointer-events-none opacity-70">
                 <Eye />
                 <span>Solo lectura</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
-          )}
+          ) : null}
           <SidebarMenuItem>
             <SidebarMenuButton onClick={logout} tooltip="Cerrar sesión">
               <LogOut />

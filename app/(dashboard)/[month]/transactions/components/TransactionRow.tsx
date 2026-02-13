@@ -17,7 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { type TransactionWithRelations } from "../service";
-import { Badge } from "@/components/ui/badge";
+import { CARD_TYPES, CARD_KINDS } from "@/app/(dashboard)/[month]/cards/utils";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -36,6 +36,8 @@ interface Card {
   last4: string | null;
   color: string | null;
   card_kind: string | null;
+  card_type: string | null;
+  bank?: { name: string; image: string | null } | null;
 }
 
 interface Bank {
@@ -67,6 +69,18 @@ function parseDate(date: string | Date): Date {
     return getEcuadorDate(utcDate);
   }
   return getEcuadorDate(date);
+}
+
+function formatCardLabel(card: Card, options?: { includeBankName?: boolean }): string {
+  const kindLabel = CARD_KINDS.find((k) => k.value === card.card_kind)?.label ?? null;
+  const typeLabel = CARD_TYPES.find((t) => t.value === card.card_type)?.label ?? null;
+  const parts = [
+    kindLabel,
+    typeLabel,
+    ...(options?.includeBankName && card.bank?.name ? [card.bank.name] : []),
+    card.last4 ?? null,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(" ") : card.name;
 }
 
 export function TransactionRow({
@@ -117,67 +131,50 @@ export function TransactionRow({
 
       {/* Info Section */}
       <div className="flex flex-col min-w-0 flex-1 gap-0.5">
-        {/* Bank */}
-        {tx.bank && (
-          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-            {tx.bank.image ? (
-              <Image
-                src={tx.bank.image}
-                alt={tx.bank.name}
-                width={14}
-                height={14}
-                className="h-3.5 w-3.5 rounded object-contain"
-              />
-            ) : (
-              <Building2 className="h-3 w-3" />
+        {/* Línea referentes: Banco – Tarjeta – Presupuesto */}
+        {(tx.bank || tx.card || tx.budget) && (
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
+            {tx.bank && (
+              <span className="inline-flex items-center gap-1.5 shrink-0">
+                {tx.bank.image ? (
+                  <Image
+                    src={tx.bank.image}
+                    alt={tx.bank.name}
+                    width={14}
+                    height={14}
+                    className="h-3.5 w-3.5 rounded object-contain"
+                  />
+                ) : (
+                  <Building2 className="h-3 w-3" />
+                )}
+                {tx.bank.name}
+              </span>
             )}
-            {tx.bank.name}
-          </span>
-        )}
-
-        {/* Description */}
-        <p className="text-sm font-medium text-foreground truncate leading-tight">
-          {tx.description}
-        </p>
-
-        {/* Badges */}
-        {(tx.card || tx.budget) && (
-          <div className="flex flex-wrap items-center gap-2 mt-0.5">
+            {tx.bank && (tx.card || tx.budget) && (
+              <span className="shrink-0">–</span>
+            )}
             {tx.card && (
-              <Badge
-                variant="outline"
-                className="text-xs h-5 gap-1"
-                style={{
-                  borderColor: tx.card.color ? `${tx.card.color}60` : undefined,
-                  backgroundColor: tx.card.color
-                    ? `${tx.card.color}15`
-                    : undefined,
-                }}
-              >
+              <span className="inline-flex items-center gap-1.5 shrink-0">
                 <CreditCard className="h-3 w-3" />
-                {[
-                  tx.card.card_kind === "debit"
-                    ? "Debit"
-                    : tx.card.card_kind === "credit"
-                      ? "Credit"
-                      : null,
-                  tx.card.last4 || tx.card.name,
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-              </Badge>
+                {formatCardLabel(tx.card)}
+              </span>
+            )}
+            {tx.card && tx.budget && (
+              <span className="shrink-0">–</span>
             )}
             {tx.budget && (
-              <Badge
-                variant="outline"
-                className="text-xs h-5 gap-1 border-emerald-400 bg-emerald-50 text-emerald-700"
-              >
+              <span className="inline-flex items-center gap-1.5 shrink-0">
                 <Wallet className="h-3 w-3" />
                 {tx.budget.name}
-              </Badge>
+              </span>
             )}
           </div>
         )}
+
+        {/* Descripción */}
+        <p className="text-sm font-medium text-foreground truncate leading-tight">
+          {tx.description}
+        </p>
       </div>
 
       {/* Amount */}
@@ -228,16 +225,18 @@ export function TransactionRow({
                       key={card.id}
                       onClick={() => handleAssign("card_id", card.id)}
                     >
-                      <CreditCard
-                        className="mr-2 h-4 w-4"
-                        style={{ color: card.color || undefined }}
-                      />
-                      {card.name}
-                      {card.last4 && (
-                        <span className="text-muted-foreground ml-1">
-                          •{card.last4}
-                        </span>
+                      {card.bank?.image ? (
+                        <Image
+                          src={card.bank.image}
+                          alt={card.bank.name}
+                          width={16}
+                          height={16}
+                          className="mr-2 h-4 w-4 rounded object-contain shrink-0"
+                        />
+                      ) : (
+                        <Building2 className="mr-2 h-4 w-4 shrink-0" />
                       )}
+                      {formatCardLabel(card, { includeBankName: true })}
                       {tx.card_id === card.id && (
                         <Check className="ml-auto h-4 w-4" />
                       )}

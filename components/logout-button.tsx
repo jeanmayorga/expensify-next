@@ -5,16 +5,21 @@ import { Button } from "@/components/ui/button";
 import { LogOut, Eye } from "lucide-react";
 
 export function LogoutButton() {
-  const { logout, accessMode } = useAuth();
+  const { logout, accessMode, budgetId } = useAuth();
 
   return (
     <div className="flex items-center gap-2">
-      {accessMode === "readonly" && (
+      {budgetId ? (
+        <div className="flex items-center gap-1 text-xs bg-white/20 px-2 py-1 rounded">
+          <Eye className="h-3 w-3" />
+          <span className="hidden sm:inline">Tu presupuesto</span>
+        </div>
+      ) : accessMode === "readonly" ? (
         <div className="flex items-center gap-1 text-xs bg-white/20 px-2 py-1 rounded">
           <Eye className="h-3 w-3" />
           <span className="hidden sm:inline">Solo lectura</span>
         </div>
-      )}
+      ) : null}
       <Button
         variant="ghost"
         size="icon"

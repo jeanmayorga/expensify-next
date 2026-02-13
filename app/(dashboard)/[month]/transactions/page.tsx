@@ -6,30 +6,34 @@ import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import {
-  TrendingDown,
-  TrendingUp,
   Wallet,
   RefreshCw,
-  ArrowLeft,
-  CreditCard,
   Building2,
-  PiggyBank,
   Plus,
   X,
   List,
   BarChart3,
   Images,
+  ArrowDownRight,
+  ArrowUpRight,
+  CalendarDays,
+  Filter,
+  LayoutGrid,
 } from "lucide-react";
 import { useTransactions, useUpdateTransaction } from "./hooks";
 import { getEcuadorDate } from "@/utils/ecuador-time";
 import { useCards } from "../cards/hooks";
+import { CARD_TYPES, CARD_KINDS } from "../cards/utils";
 import { useBanks } from "../banks/hooks";
 import { useBudgets } from "../budgets/hooks";
 import { type TransactionWithRelations } from "./service";
 import { useMonth } from "@/lib/month-context";
 import { useAuth, useCanEdit } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
-import { Card as CardUI, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+} from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -38,6 +42,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import {
   AreaChart,
@@ -47,15 +54,6 @@ import {
   CartesianGrid,
   ResponsiveContainer,
 } from "recharts";
-
-function formatChartCurrency(amount: number) {
-  return new Intl.NumberFormat("es-EC", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
 import {
   TransactionRow,
   TransactionRowSkeleton,
@@ -65,9 +63,25 @@ import {
   DeleteTransactionDialog,
 } from "./components";
 
+const fmt = (amount: number) =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+  }).format(amount);
+
+function formatChartCurrency(amount: number) {
+  return new Intl.NumberFormat("es-EC", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
 export default function TransactionsPage() {
   const { selectedMonth } = useMonth();
-  const { accessMode, budgetId } = useAuth();
+  const { budgetId } = useAuth();
   const canEdit = useCanEdit();
   const [typeFilter, setTypeFilter] = useState<"all" | "expense" | "income">(
     "all",
@@ -79,15 +93,14 @@ export default function TransactionsPage() {
   const [bankFilter, setBankFilter] = useState<string>("__all__");
   const [budgetFilter, setBudgetFilter] = useState<string>("__all__");
 
-  // Build filters - in readonly mode, always filter by the assigned budget
+  // Build filters
   const filters: Record<string, string> = {
     date: format(selectedMonth, "yyyy-MM"),
     timezone: "America/Guayaquil",
   };
   if (cardFilter !== "__all__") filters.card_id = cardFilter;
   if (bankFilter !== "__all__") filters.bank_id = bankFilter;
-  // In readonly mode, force the budget filter to the assigned budget
-  if (accessMode === "readonly" && budgetId) {
+  if (budgetId) {
     filters.budget_id = budgetId;
   } else if (budgetFilter !== "__all__") {
     filters.budget_id = budgetFilter;
@@ -118,18 +131,16 @@ export default function TransactionsPage() {
   // Helper to parse date correctly for Ecuador timezone
   const parseDate = (date: string | Date): Date => {
     if (typeof date === "string") {
-      // Parse as UTC then convert to Ecuador timezone for display
       const utcDate = parseISO(date);
       return getEcuadorDate(utcDate);
     }
     return getEcuadorDate(date);
   };
 
-  // Group transactions by date (Ecuador timezone)
+  // Group transactions by date
   const groupedTransactions = useMemo(() => {
     const groups: Record<string, TransactionWithRelations[]> = {};
     filteredTransactions.forEach((tx) => {
-      // Convert UTC date to Ecuador timezone, then format as date key
       const ecuadorDate = parseDate(tx.occurred_at);
       const dateKey = format(ecuadorDate, "yyyy-MM-dd");
       if (!groups[dateKey]) groups[dateKey] = [];
@@ -138,9 +149,8 @@ export default function TransactionsPage() {
     return Object.entries(groups).sort(([a], [b]) => b.localeCompare(a));
   }, [filteredTransactions]);
 
-  // Prepare data for charts (daily expenses and income)
+  // Chart data
   const chartData = useMemo(() => {
-    // Get all days in the selected month
     const year = format(selectedMonth, "yyyy");
     const month = format(selectedMonth, "MM");
     const daysInMonth = new Date(parseInt(year), parseInt(month), 0).getDate();
@@ -148,30 +158,23 @@ export default function TransactionsPage() {
     const data = [];
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${year}-${month}-${day.toString().padStart(2, "0")}`;
-
-      // Calculate expenses and income for this day
       const dayTransactions = filteredTransactions.filter((tx) => {
         const ecuadorDate = parseDate(tx.occurred_at);
         return format(ecuadorDate, "yyyy-MM-dd") === dateStr;
       });
 
-      const dayExpenses = dayTransactions
-        .filter((tx) => tx.type === "expense")
-        .reduce((sum, tx) => sum + tx.amount, 0);
-
-      const dayIncome = dayTransactions
-        .filter((tx) => tx.type === "income")
-        .reduce((sum, tx) => sum + tx.amount, 0);
-
       data.push({
         day: day.toString(),
         date: dateStr,
-        expenses: dayExpenses,
-        income: dayIncome,
+        expenses: dayTransactions
+          .filter((tx) => tx.type === "expense")
+          .reduce((sum, tx) => sum + tx.amount, 0),
+        income: dayTransactions
+          .filter((tx) => tx.type === "income")
+          .reduce((sum, tx) => sum + tx.amount, 0),
         transactions: dayTransactions.length,
       });
     }
-
     return data;
   }, [filteredTransactions, selectedMonth]);
 
@@ -213,298 +216,289 @@ export default function TransactionsPage() {
     bankFilter !== "__all__" ||
     budgetFilter !== "__all__";
 
+  const activeFilterCount = [cardFilter, bankFilter, budgetFilter].filter(
+    (f) => f !== "__all__",
+  ).length;
+
   const clearFilters = () => {
     setCardFilter("__all__");
     setBankFilter("__all__");
     setBudgetFilter("__all__");
   };
 
+  const currentMonth = format(selectedMonth, "MMMM yyyy", { locale: es });
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
             Transacciones
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Gestiona y revisa tu actividad
+          <p className="text-sm text-muted-foreground mt-0.5 capitalize">
+            {currentMonth}
           </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => refetch()}
+            disabled={isRefetching || loading}
+          >
+            <RefreshCw
+              className={cn("h-4 w-4 mr-1.5", isRefetching && "animate-spin")}
+            />
+            Refresh
+          </Button>
+          {canEdit && (
+            <>
+              <Button size="sm" variant="outline" asChild>
+                <Link href="transactions/from-image">
+                  <Images className="h-4 w-4 mr-1.5" />
+                  Extract with AI
+                </Link>
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>
+                <Plus className="h-4 w-4 mr-1.5" />
+                New
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3">
-        {/* Expenses Card */}
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-500 to-red-600 p-5 text-white shadow-lg">
           <div className="absolute top-3 right-3 opacity-20">
-            <TrendingDown className="h-16 w-16" />
+            <ArrowDownRight className="h-16 w-16" />
           </div>
           <div className="relative">
             <p className="text-sm font-medium text-white/80">Total Gastos</p>
-            <p className="text-2xl sm:text-3xl font-bold tracking-tight mt-1 truncate">
-              ${totalExpenses.toFixed(2)}
-            </p>
+            {loading ? (
+              <Skeleton className="h-9 w-32 bg-white/20 mt-1" />
+            ) : (
+              <p className="text-2xl sm:text-3xl font-bold tracking-tight mt-1 truncate">
+                {fmt(totalExpenses)}
+              </p>
+            )}
             <p className="text-xs text-white/70 mt-2">
-              {expenseCount} transacción{expenseCount !== 1 ? "es" : ""}
+              {expenseCount} transaccion{expenseCount !== 1 ? "es" : ""}
             </p>
           </div>
         </div>
 
-        {/* Income Card */}
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 p-5 text-white shadow-lg">
           <div className="absolute top-3 right-3 opacity-20">
-            <TrendingUp className="h-16 w-16" />
+            <ArrowUpRight className="h-16 w-16" />
           </div>
           <div className="relative">
             <p className="text-sm font-medium text-white/80">Total Ingresos</p>
-            <p className="text-2xl sm:text-3xl font-bold tracking-tight mt-1 truncate">
-              ${totalIncomes.toFixed(2)}
-            </p>
+            {loading ? (
+              <Skeleton className="h-9 w-32 bg-white/20 mt-1" />
+            ) : (
+              <p className="text-2xl sm:text-3xl font-bold tracking-tight mt-1 truncate">
+                {fmt(totalIncomes)}
+              </p>
+            )}
             <p className="text-xs text-white/70 mt-2">
-              {incomeCount} transacción{incomeCount !== 1 ? "es" : ""}
+              {incomeCount} transaccion{incomeCount !== 1 ? "es" : ""}
             </p>
           </div>
         </div>
 
-        {/* Balance Card */}
         <div
-          className={`relative overflow-hidden rounded-2xl p-5 text-white shadow-lg ${
+          className={cn(
+            "relative overflow-hidden rounded-2xl p-5 text-white shadow-lg",
             balance >= 0
               ? "bg-gradient-to-br from-blue-500 to-blue-600"
-              : "bg-gradient-to-br from-orange-500 to-orange-600"
-          }`}
+              : "bg-gradient-to-br from-orange-500 to-orange-600",
+          )}
         >
           <div className="absolute top-3 right-3 opacity-20">
             <Wallet className="h-16 w-16" />
           </div>
           <div className="relative">
             <p className="text-sm font-medium text-white/80">Balance</p>
-            <p className="text-2xl sm:text-3xl font-bold tracking-tight mt-1 truncate">
-              {balance >= 0 ? "+" : "-"}${Math.abs(balance).toFixed(2)}
-            </p>
+            {loading ? (
+              <Skeleton className="h-9 w-32 bg-white/20 mt-1" />
+            ) : (
+              <p className="text-2xl sm:text-3xl font-bold tracking-tight mt-1 truncate">
+                {balance >= 0 ? "+" : "-"}{fmt(Math.abs(balance))}
+              </p>
+            )}
             <p className="text-xs text-white/70 mt-2">
-              {transactions.length} transacción
-              {transactions.length !== 1 ? "es" : ""} total
+              {transactions.length} transaccion{transactions.length !== 1 ? "es" : ""} total
             </p>
           </div>
         </div>
       </div>
 
-      {/* Filters Section */}
-      <div className="space-y-3">
-        {/* View Controls Row */}
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2 shrink-0">
-            {/* View Mode Tabs */}
-            <Tabs
-              value={viewMode}
-              onValueChange={(v) => setViewMode(v as "list" | "chart")}
-            >
-              <TabsList className="h-8">
-                <TabsTrigger value="list" className="gap-1.5 text-xs">
-                  <List className="h-3.5 w-3.5" />
-                  Lista
-                </TabsTrigger>
-                <TabsTrigger value="chart" className="gap-1.5 text-xs">
-                  <BarChart3 className="h-3.5 w-3.5" />
-                  Gráfico
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* View Mode */}
+        <Tabs
+          value={viewMode}
+          onValueChange={(v) => setViewMode(v as "list" | "chart")}
+        >
+          <TabsList className="h-8">
+            <TabsTrigger value="list" className="gap-1.5 text-xs px-3">
+              <List className="h-3.5 w-3.5" />
+              Lista
+            </TabsTrigger>
+            <TabsTrigger value="chart" className="gap-1.5 text-xs px-3">
+              <BarChart3 className="h-3.5 w-3.5" />
+              Grafico
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
 
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
-              onClick={clearFilters}
-            >
-              <X className="h-3.5 w-3.5 mr-1" />
-              Limpiar
-            </Button>
-          )}
+        <div className="h-5 w-px bg-border hidden sm:block" />
+
+        {/* Type Filter */}
+        <Tabs
+          value={typeFilter}
+          onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}
+        >
+          <TabsList className="h-8">
+            <TabsTrigger value="all" className="gap-1.5 text-xs px-3">
+              <LayoutGrid className="h-3.5 w-3.5" />
+              Todas
+            </TabsTrigger>
+            <TabsTrigger value="expense" className="gap-1.5 text-xs px-3">
+              <ArrowDownRight className="h-3.5 w-3.5" />
+              Gastos
+            </TabsTrigger>
+            <TabsTrigger value="income" className="gap-1.5 text-xs px-3">
+              <ArrowUpRight className="h-3.5 w-3.5" />
+              Ingresos
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        <div className="flex-1" />
+      </div>
+
+      {/* Filter Dropdowns */}
+      <div className="flex items-center gap-2 overflow-x-auto">
+        <div className="flex items-center gap-1.5 text-muted-foreground shrink-0">
+          <Filter className="h-3.5 w-3.5" />
+          <span className="text-xs font-medium">Filtros</span>
         </div>
 
-        {/* Filter Dropdowns Row */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          {/* Type Filter */}
-          <Select
-            value={typeFilter}
-            onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}
+        {/* Card Filter */}
+        <Select value={cardFilter} onValueChange={setCardFilter}>
+          <SelectTrigger
+            className={cn(
+              "shrink-0 min-w-[140px]",
+              cardFilter !== "__all__" && "bg-primary/10 border-primary/30",
+            )}
           >
-            <SelectTrigger
-              className={`h-8 text-xs shrink-0 min-w-[180px] ${
-                typeFilter !== "all"
-                  ? "bg-primary/10 border-primary/30"
-                  : "bg-background"
-              }`}
-            >
-              <SelectValue placeholder="Todas las transacciones" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">
-                <div className="flex items-center gap-2">
-                  <span>Todas las transacciones</span>
-                  <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">
-                    {transactions.length}
-                  </span>
-                </div>
-              </SelectItem>
-              <SelectItem value="expense">
-                <div className="flex items-center gap-2">
-                  <TrendingDown className="h-3.5 w-3.5" />
-                  <span>Gastos</span>
-                  <span className="rounded-full bg-red-100 text-red-700 px-1.5 py-0.5 text-[10px] font-medium">
-                    {expenseCount}
-                  </span>
-                </div>
-              </SelectItem>
-              <SelectItem value="income">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="h-3.5 w-3.5" />
-                  <span>Ingresos</span>
-                  <span className="rounded-full bg-emerald-100 text-emerald-700 px-1.5 py-0.5 text-[10px] font-medium">
-                    {incomeCount}
-                  </span>
-                </div>
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          {/* Card Filter */}
-          <Select value={cardFilter} onValueChange={setCardFilter}>
-            <SelectTrigger
-              className={`h-8 text-xs shrink-0 min-w-[120px] ${
-                cardFilter !== "__all__"
-                  ? "bg-primary/10 border-primary/30"
-                  : "bg-background"
-              }`}
-            >
-              <CreditCard className="h-3.5 w-3.5" />
-              <SelectValue placeholder="Tarjeta" />
-            </SelectTrigger>
-            <SelectContent position="popper" side="bottom" align="start">
-              <SelectItem value="__all__">Todas las tarjetas</SelectItem>
-              {cards.map((card) => (
+            <SelectValue placeholder="Tarjeta" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todas las tarjetas</SelectItem>
+            {cards.map((card) => {
+              const kindLabel = CARD_KINDS.find((k) => k.value === card.card_kind)?.label ?? null;
+              const typeLabel = CARD_TYPES.find((t) => t.value === card.card_type)?.label ?? null;
+              const cardLabel = [kindLabel, typeLabel, card.bank?.name ?? null, card.last4 ?? null]
+                .filter(Boolean)
+                .join(" ");
+              return (
                 <SelectItem key={card.id} value={card.id}>
                   <div className="flex items-center gap-2">
-                    <CreditCard
-                      className="h-3.5 w-3.5 shrink-0"
-                      style={{ color: card.color || undefined }}
-                    />
-                    <span>{card.name}</span>
-                    {card.last4 && (
-                      <span className="text-muted-foreground text-xs">
-                        •••• {card.last4}
-                      </span>
-                    )}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {/* Bank Filter */}
-          <Select value={bankFilter} onValueChange={setBankFilter}>
-            <SelectTrigger
-              className={`h-8 text-xs shrink-0 min-w-[100px] ${
-                bankFilter !== "__all__"
-                  ? "bg-primary/10 border-primary/30"
-                  : "bg-background"
-              }`}
-            >
-              <Building2 className="h-3.5 w-3.5" />
-              <SelectValue placeholder="Banco" />
-            </SelectTrigger>
-            <SelectContent position="popper" side="bottom" align="start">
-              <SelectItem value="__all__">Todos los bancos</SelectItem>
-              {banks.map((bank) => (
-                <SelectItem key={bank.id} value={bank.id}>
-                  <div className="flex items-center gap-2">
-                    {bank.image ? (
+                    {card.bank?.image ? (
                       <Image
-                        src={bank.image}
-                        alt={bank.name}
-                        width={16}
-                        height={16}
-                        className="h-4 w-4 rounded object-contain shrink-0"
+                        src={card.bank.image}
+                        alt={card.bank.name}
+                        width={20}
+                        height={20}
+                        className="h-5 w-5 shrink-0 rounded object-contain"
                       />
                     ) : (
-                      <Building2 className="h-3.5 w-3.5 shrink-0" />
+                      <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
                     )}
-                    {bank.name}
+                    <span>{cardLabel || card.name}</span>
+                  </div>
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
+
+        {/* Bank Filter */}
+        <Select value={bankFilter} onValueChange={setBankFilter}>
+          <SelectTrigger
+            className={cn(
+              "shrink-0 min-w-[140px]",
+              bankFilter !== "__all__" && "bg-primary/10 border-primary/30",
+            )}
+          >
+            <SelectValue placeholder="Banco" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todos los bancos</SelectItem>
+            {banks.map((bank) => (
+              <SelectItem key={bank.id} value={bank.id}>
+                <div className="flex items-center gap-2">
+                  {bank.image ? (
+                    <Image
+                      src={bank.image}
+                      alt={bank.name}
+                      width={16}
+                      height={16}
+                      className="h-4 w-4 rounded object-contain shrink-0"
+                    />
+                  ) : (
+                    <Building2 className="h-3.5 w-3.5 shrink-0" />
+                  )}
+                  {bank.name}
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Budget Filter - hidden when scoped to a single budget (key) */}
+        {!budgetId && (
+          <Select value={budgetFilter} onValueChange={setBudgetFilter}>
+            <SelectTrigger
+              className={cn(
+                "shrink-0 min-w-[140px]",
+                budgetFilter !== "__all__" && "bg-primary/10 border-primary/30",
+              )}
+            >
+              <SelectValue placeholder="Presupuesto" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos los presupuestos</SelectItem>
+              {budgets.map((budget) => (
+                <SelectItem key={budget.id} value={budget.id}>
+                  <div className="flex items-center gap-2">
+                    <Wallet className="h-3.5 w-3.5 shrink-0 text-blue-500" />
+                    {budget.name}
                   </div>
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+        )}
 
-          {/* Budget Filter - hidden in readonly mode */}
-          {accessMode !== "readonly" && (
-            <Select value={budgetFilter} onValueChange={setBudgetFilter}>
-              <SelectTrigger
-                className={`h-8 text-xs shrink-0 min-w-[120px] ${
-                  budgetFilter !== "__all__"
-                    ? "bg-primary/10 border-primary/30"
-                    : "bg-background"
-                }`}
-              >
-                <Wallet className="h-3.5 w-3.5" />
-                <SelectValue placeholder="Presupuesto" />
-              </SelectTrigger>
-              <SelectContent position="popper" side="bottom" align="start">
-                <SelectItem value="__all__">Todos los presupuestos</SelectItem>
-                {budgets.map((budget) => (
-                  <SelectItem key={budget.id} value={budget.id}>
-                    <div className="flex items-center gap-2">
-                      <Wallet className="h-3.5 w-3.5 shrink-0 text-blue-500" />
-                      {budget.name}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
+        {hasActiveFilters && (
+          <button
+            onClick={clearFilters}
+            className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          >
+            <X className="h-3 w-3" />
+            Limpiar ({activeFilterCount})
+          </button>
+        )}
       </div>
 
-      {/* Transactions List */}
-      <CardUI className="overflow-hidden py-0 gap-0">
-        <div className="flex items-center justify-between px-4 py-3 bg-muted/25">
-          <span className="text-sm font-medium">Transacciones</span>
-          <div className="flex items-center gap-2">
-            {canEdit && (
-              <>
-                <Button size="sm" variant="outline" className="h-7 text-xs" asChild>
-                  <Link href="transactions/from-image">
-                    <Images className="h-3.5 w-3.5 mr-1" />
-                    Extraer varios
-                  </Link>
-                </Button>
-                <Button
-                  size="sm"
-                  className="h-7 text-xs"
-                  onClick={() => setCreateOpen(true)}
-                >
-                  <Plus className="h-3.5 w-3.5 mr-1" />
-                  Nueva
-                </Button>
-              </>
-            )}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-muted-foreground hover:text-foreground"
-              onClick={() => refetch()}
-              disabled={isRefetching || loading}
-            >
-              <RefreshCw
-                className={`h-3.5 w-3.5 ${isRefetching ? "animate-spin" : ""}`}
-              />
-            </Button>
-          </div>
-        </div>
+      {/* Content */}
+      <Card className="overflow-hidden py-0 gap-0">
         <CardContent className="p-0">
           {loading ? (
             <div className="divide-y">
@@ -516,292 +510,311 @@ export default function TransactionsPage() {
             <EmptyState
               title={
                 hasActiveFilters || typeFilter !== "all"
-                  ? "No matching transactions"
-                  : "No transactions yet"
+                  ? "Sin resultados"
+                  : "Sin transacciones"
               }
               description={
                 hasActiveFilters || typeFilter !== "all"
-                  ? "Try adjusting your filters to see more results."
-                  : "Your transactions for this month will appear here."
+                  ? "Intenta ajustar los filtros para ver mas resultados."
+                  : "Las transacciones de este mes apareceran aqui."
               }
             />
           ) : viewMode === "list" ? (
             <div>
-              {groupedTransactions.map(([dateKey, txs]) => (
-                <div key={dateKey}>
-                  {/* Date Header */}
-                  <div className="sticky top-0 z-10 bg-muted/35 backdrop-blur-sm px-4 py-2 border-y">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      {format(
-                        parseISO(dateKey),
-                        "EEEE, d 'de' MMMM 'de' yyyy",
-                        { locale: es },
-                      )}
-                    </p>
+              {groupedTransactions.map(([dateKey, txs], groupIndex) => {
+                const dayTotal = txs
+                  .filter((tx) => tx.type === "expense")
+                  .reduce((s, tx) => s + tx.amount, 0);
+                return (
+                  <div key={dateKey}>
+                    <div className={cn("sticky top-0 z-10 bg-muted/60 backdrop-blur-sm px-4 py-2 border-b flex items-center justify-between", groupIndex > 0 && "border-t")}>
+                      <div className="flex items-center gap-2">
+                        <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          {format(
+                            parseISO(dateKey),
+                            "EEEE, d 'de' MMMM",
+                            { locale: es },
+                          )}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] h-5 px-1.5 font-normal"
+                        >
+                          {txs.length} tx
+                        </Badge>
+                        {dayTotal > 0 && (
+                          <span className="text-xs font-medium text-muted-foreground tabular-nums">
+                            -{fmt(dayTotal)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="divide-y">
+                      {txs.map((tx) => (
+                        <TransactionRow
+                          key={tx.id}
+                          transaction={tx}
+                          cards={cards}
+                          banks={banks}
+                          budgets={budgets}
+                          onUpdate={canEdit ? handleQuickUpdate : undefined}
+                          onEdit={canEdit ? setEditingTx : undefined}
+                          onDelete={canEdit ? setDeletingTx : undefined}
+                          onClick={canEdit ? handleRowClick : undefined}
+                        />
+                      ))}
+                    </div>
                   </div>
-                  {/* Transactions for this date */}
-                  <div className="divide-y">
-                    {txs.map((tx) => (
-                      <TransactionRow
-                        key={tx.id}
-                        transaction={tx}
-                        cards={cards}
-                        banks={banks}
-                        budgets={budgets}
-                        onUpdate={canEdit ? handleQuickUpdate : undefined}
-                        onEdit={canEdit ? setEditingTx : undefined}
-                        onDelete={canEdit ? setDeletingTx : undefined}
-                        onClick={canEdit ? handleRowClick : undefined}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
-            // Chart View - Two separate cards
+            /* Chart View */
             <div className="space-y-6 p-4">
               {/* Expenses Chart */}
-              <CardUI className="overflow-hidden">
-                <div className="p-6 pb-2">
-                  <h3 className="text-lg font-semibold mb-1 text-red-600 dark:text-red-400">
+              <div>
+                <div className="px-2 pb-3">
+                  <h3 className="text-sm font-semibold text-red-600 dark:text-red-400">
                     Gastos diarios
                   </h3>
-                  <p className="text-sm text-muted-foreground mb-4">
+                  <p className="text-xs text-muted-foreground capitalize">
                     {format(selectedMonth, "MMMM 'de' yyyy", { locale: es })}
                   </p>
-                  <ChartContainer
-                    config={{
-                      expenses: {
-                        label: "Gastos",
-                        color: "hsl(0 84% 60%)",
-                      },
-                    }}
-                    className="h-[280px] w-full"
-                  >
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart
-                        data={chartData}
-                        margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-                      >
-                        <defs>
-                          <linearGradient
-                            id="fillExpensesChart"
-                            x1="0"
-                            y1="0"
-                            x2="0"
-                            y2="1"
-                          >
-                            <stop
-                              offset="0%"
-                              stopColor="hsl(0 84% 60%)"
-                              stopOpacity={0.35}
-                            />
-                            <stop
-                              offset="100%"
-                              stopColor="hsl(0 84% 60%)"
-                              stopOpacity={0}
-                            />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          className="stroke-muted opacity-50"
-                          vertical={false}
-                        />
-                        <XAxis
-                          dataKey="day"
-                          tick={{
-                            fontSize: 11,
-                            fill: "hsl(var(--muted-foreground))",
-                          }}
-                          tickLine={false}
-                          axisLine={false}
-                        />
-                        <YAxis
-                          tick={{
-                            fontSize: 11,
-                            fill: "hsl(var(--muted-foreground))",
-                          }}
-                          tickFormatter={(value) => formatChartCurrency(value)}
-                          tickLine={false}
-                          axisLine={false}
-                          width={56}
-                        />
-                        <ChartTooltip
-                          cursor={{
-                            stroke: "hsl(var(--border))",
-                            strokeWidth: 1,
-                          }}
-                          content={({ active, payload, label }) => {
-                            if (!active || !payload?.length) return null;
-                            const data = payload[0].payload;
-                            const total = data.expenses;
-                            return (
-                              <div className="rounded-lg border border-border bg-background px-3 py-2.5 shadow-lg">
-                                <p className="text-xs font-medium text-muted-foreground">
-                                  Día {label} ·{" "}
-                                  {format(selectedMonth, "MMMM", {
-                                    locale: es,
-                                  })}
-                                </p>
-                                <p className="mt-1 text-base font-semibold text-red-600 dark:text-red-400">
-                                  Total: {formatChartCurrency(total)}
-                                </p>
-                                {data.transactions > 0 && (
-                                  <p className="text-xs text-muted-foreground mt-0.5">
-                                    {data.transactions} transacción
-                                    {data.transactions !== 1 ? "es" : ""}
-                                  </p>
-                                )}
-                              </div>
-                            );
-                          }}
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="expenses"
-                          stroke="hsl(0 84% 60%)"
-                          strokeWidth={2}
-                          fill="url(#fillExpensesChart)"
-                          dot={{ fill: "hsl(0 84% 60%)", strokeWidth: 0, r: 3 }}
-                          activeDot={{
-                            r: 5,
-                            strokeWidth: 2,
-                            stroke: "hsl(var(--background))",
-                          }}
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
                 </div>
-              </CardUI>
+                <ChartContainer
+                  config={{
+                    expenses: {
+                      label: "Gastos",
+                      color: "hsl(0 84% 60%)",
+                    },
+                  }}
+                  className="h-[250px] w-full"
+                >
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                      data={chartData}
+                      margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                    >
+                      <defs>
+                        <linearGradient
+                          id="fillExpensesChart"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop
+                            offset="0%"
+                            stopColor="hsl(0 84% 60%)"
+                            stopOpacity={0.35}
+                          />
+                          <stop
+                            offset="100%"
+                            stopColor="hsl(0 84% 60%)"
+                            stopOpacity={0}
+                          />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        className="stroke-muted opacity-50"
+                        vertical={false}
+                      />
+                      <XAxis
+                        dataKey="day"
+                        tick={{
+                          fontSize: 11,
+                          fill: "hsl(var(--muted-foreground))",
+                        }}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <YAxis
+                        tick={{
+                          fontSize: 11,
+                          fill: "hsl(var(--muted-foreground))",
+                        }}
+                        tickFormatter={(value) => formatChartCurrency(value)}
+                        tickLine={false}
+                        axisLine={false}
+                        width={56}
+                      />
+                      <ChartTooltip
+                        cursor={{
+                          stroke: "hsl(var(--border))",
+                          strokeWidth: 1,
+                        }}
+                        content={({ active, payload, label }) => {
+                          if (!active || !payload?.length) return null;
+                          const data = payload[0].payload;
+                          return (
+                            <div className="rounded-lg border border-border bg-background px-3 py-2.5 shadow-lg">
+                              <p className="text-xs font-medium text-muted-foreground">
+                                Dia {label} ·{" "}
+                                {format(selectedMonth, "MMMM", {
+                                  locale: es,
+                                })}
+                              </p>
+                              <p className="mt-1 text-base font-semibold text-red-600 dark:text-red-400">
+                                {formatChartCurrency(data.expenses)}
+                              </p>
+                              {data.transactions > 0 && (
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  {data.transactions} transaccion
+                                  {data.transactions !== 1 ? "es" : ""}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="expenses"
+                        stroke="hsl(0 84% 60%)"
+                        strokeWidth={2}
+                        fill="url(#fillExpensesChart)"
+                        dot={{ fill: "hsl(0 84% 60%)", strokeWidth: 0, r: 3 }}
+                        activeDot={{
+                          r: 5,
+                          strokeWidth: 2,
+                          stroke: "hsl(var(--background))",
+                        }}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              </div>
+
+              <div className="h-px bg-border" />
 
               {/* Income Chart */}
-              <CardUI className="overflow-hidden">
-                <div className="p-6 pb-2">
-                  <h3 className="text-lg font-semibold mb-1 text-emerald-600 dark:text-emerald-400">
+              <div>
+                <div className="px-2 pb-3">
+                  <h3 className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
                     Ingresos diarios
                   </h3>
-                  <p className="text-sm text-muted-foreground mb-4">
+                  <p className="text-xs text-muted-foreground capitalize">
                     {format(selectedMonth, "MMMM 'de' yyyy", { locale: es })}
                   </p>
-                  <ChartContainer
-                    config={{
-                      income: {
-                        label: "Ingresos",
-                        color: "hsl(160 84% 39%)",
-                      },
-                    }}
-                    className="h-[280px] w-full"
-                  >
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart
-                        data={chartData}
-                        margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-                      >
-                        <defs>
-                          <linearGradient
-                            id="fillIncomeChart"
-                            x1="0"
-                            y1="0"
-                            x2="0"
-                            y2="1"
-                          >
-                            <stop
-                              offset="0%"
-                              stopColor="hsl(160 84% 39%)"
-                              stopOpacity={0.35}
-                            />
-                            <stop
-                              offset="100%"
-                              stopColor="hsl(160 84% 39%)"
-                              stopOpacity={0}
-                            />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          className="stroke-muted opacity-50"
-                          vertical={false}
-                        />
-                        <XAxis
-                          dataKey="day"
-                          tick={{
-                            fontSize: 11,
-                            fill: "hsl(var(--muted-foreground))",
-                          }}
-                          tickLine={false}
-                          axisLine={false}
-                        />
-                        <YAxis
-                          tick={{
-                            fontSize: 11,
-                            fill: "hsl(var(--muted-foreground))",
-                          }}
-                          tickFormatter={(value) => formatChartCurrency(value)}
-                          tickLine={false}
-                          axisLine={false}
-                          width={56}
-                        />
-                        <ChartTooltip
-                          cursor={{
-                            stroke: "hsl(var(--border))",
-                            strokeWidth: 1,
-                          }}
-                          content={({ active, payload, label }) => {
-                            if (!active || !payload?.length) return null;
-                            const data = payload[0].payload;
-                            const total = data.income;
-                            return (
-                              <div className="rounded-lg border border-border bg-background px-3 py-2.5 shadow-lg">
-                                <p className="text-xs font-medium text-muted-foreground">
-                                  Día {label} ·{" "}
-                                  {format(selectedMonth, "MMMM", {
-                                    locale: es,
-                                  })}
-                                </p>
-                                <p className="mt-1 text-base font-semibold text-emerald-600 dark:text-emerald-400">
-                                  Total: {formatChartCurrency(total)}
-                                </p>
-                                {data.transactions > 0 && (
-                                  <p className="text-xs text-muted-foreground mt-0.5">
-                                    {data.transactions} transacción
-                                    {data.transactions !== 1 ? "es" : ""}
-                                  </p>
-                                )}
-                              </div>
-                            );
-                          }}
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="income"
-                          stroke="hsl(160 84% 39%)"
-                          strokeWidth={2}
-                          fill="url(#fillIncomeChart)"
-                          dot={{
-                            fill: "hsl(160 84% 39%)",
-                            strokeWidth: 0,
-                            r: 3,
-                          }}
-                          activeDot={{
-                            r: 5,
-                            strokeWidth: 2,
-                            stroke: "hsl(var(--background))",
-                          }}
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
                 </div>
-              </CardUI>
+                <ChartContainer
+                  config={{
+                    income: {
+                      label: "Ingresos",
+                      color: "hsl(160 84% 39%)",
+                    },
+                  }}
+                  className="h-[250px] w-full"
+                >
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                      data={chartData}
+                      margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                    >
+                      <defs>
+                        <linearGradient
+                          id="fillIncomeChart"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop
+                            offset="0%"
+                            stopColor="hsl(160 84% 39%)"
+                            stopOpacity={0.35}
+                          />
+                          <stop
+                            offset="100%"
+                            stopColor="hsl(160 84% 39%)"
+                            stopOpacity={0}
+                          />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        className="stroke-muted opacity-50"
+                        vertical={false}
+                      />
+                      <XAxis
+                        dataKey="day"
+                        tick={{
+                          fontSize: 11,
+                          fill: "hsl(var(--muted-foreground))",
+                        }}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <YAxis
+                        tick={{
+                          fontSize: 11,
+                          fill: "hsl(var(--muted-foreground))",
+                        }}
+                        tickFormatter={(value) => formatChartCurrency(value)}
+                        tickLine={false}
+                        axisLine={false}
+                        width={56}
+                      />
+                      <ChartTooltip
+                        cursor={{
+                          stroke: "hsl(var(--border))",
+                          strokeWidth: 1,
+                        }}
+                        content={({ active, payload, label }) => {
+                          if (!active || !payload?.length) return null;
+                          const data = payload[0].payload;
+                          return (
+                            <div className="rounded-lg border border-border bg-background px-3 py-2.5 shadow-lg">
+                              <p className="text-xs font-medium text-muted-foreground">
+                                Dia {label} ·{" "}
+                                {format(selectedMonth, "MMMM", {
+                                  locale: es,
+                                })}
+                              </p>
+                              <p className="mt-1 text-base font-semibold text-emerald-600 dark:text-emerald-400">
+                                {formatChartCurrency(data.income)}
+                              </p>
+                              {data.transactions > 0 && (
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  {data.transactions} transaccion
+                                  {data.transactions !== 1 ? "es" : ""}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="income"
+                        stroke="hsl(160 84% 39%)"
+                        strokeWidth={2}
+                        fill="url(#fillIncomeChart)"
+                        dot={{
+                          fill: "hsl(160 84% 39%)",
+                          strokeWidth: 0,
+                          r: 3,
+                        }}
+                        activeDot={{
+                          r: 5,
+                          strokeWidth: 2,
+                          stroke: "hsl(var(--background))",
+                        }}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              </div>
             </div>
           )}
         </CardContent>
-      </CardUI>
+      </Card>
 
-      {/* Create/Edit/Delete - only in full access mode */}
+      {/* Create/Edit/Delete */}
       {canEdit && (
         <>
           <CreateTransactionSheet

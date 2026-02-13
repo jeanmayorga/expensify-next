@@ -104,8 +104,9 @@ export function useAuth() {
   return context;
 }
 
-// Hook to check if actions are allowed (for readonly mode)
+// Hook to check if actions are allowed.
+// Full access: can edit. Budget-scoped (key with budgetId): can edit but data is filtered by that budget.
 export function useCanEdit() {
-  const { accessMode } = useAuth();
-  return accessMode === "full";
+  const { accessMode, budgetId } = useAuth();
+  return accessMode === "full" || budgetId !== null;
 }

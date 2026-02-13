@@ -31,10 +31,10 @@ const otherRoutes = [
 export function Navigation() {
   const pathname = usePathname();
   const params = useParams();
-  const { accessMode } = useAuth();
+  const { accessMode, budgetId } = useAuth();
   const monthParam = (params.month as string) || format(new Date(), "yyyy-MM");
 
-  const visibleOtherRoutes = accessMode === "readonly" ? [] : otherRoutes;
+  const visibleOtherRoutes = accessMode === "readonly" && !budgetId ? [] : otherRoutes;
 
   const getMonthHref = (path: string) =>
     path ? `/${monthParam}/${path}` : `/${monthParam}`;

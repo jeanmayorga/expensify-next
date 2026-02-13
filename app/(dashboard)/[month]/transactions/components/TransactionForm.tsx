@@ -1,5 +1,6 @@
+import Image from "next/image";
 import { UseFormReturn } from "react-hook-form";
-import { TrendingDown, TrendingUp } from "lucide-react";
+import { Building2, TrendingDown, TrendingUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -12,6 +13,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toEcuadorDateTimeLocal } from "@/utils/ecuador-time";
 import { type CardWithBank } from "../../cards/service";
+import { CARD_TYPES, CARD_KINDS } from "../../cards/utils";
 import { type Bank } from "../../banks/service";
 import { type Budget } from "../../budgets/service";
 
@@ -118,12 +120,31 @@ export function TransactionForm({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="__none__">Ninguna</SelectItem>
-            {cards.map((card) => (
-              <SelectItem key={card.id} value={card.id}>
-                {card.name}
-                {card.last4 && ` •••• ${card.last4}`}
-              </SelectItem>
-            ))}
+            {cards.map((card) => {
+              const kindLabel = CARD_KINDS.find((k) => k.value === card.card_kind)?.label ?? null;
+              const typeLabel = CARD_TYPES.find((t) => t.value === card.card_type)?.label ?? null;
+              const cardLabel = [kindLabel, typeLabel, card.bank?.name ?? null, card.last4 ?? null]
+                .filter(Boolean)
+                .join(" ");
+              return (
+                <SelectItem key={card.id} value={card.id}>
+                  <div className="flex items-center gap-2">
+                    {card.bank?.image ? (
+                      <Image
+                        src={card.bank.image}
+                        alt={card.bank.name}
+                        width={20}
+                        height={20}
+                        className="h-5 w-5 shrink-0 rounded object-contain"
+                      />
+                    ) : (
+                      <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    )}
+                    <span>{cardLabel || card.name}</span>
+                  </div>
+                </SelectItem>
+              );
+            })}
           </SelectContent>
         </Select>
       </div>
@@ -142,7 +163,20 @@ export function TransactionForm({
             <SelectItem value="__none__">Ninguno</SelectItem>
             {banks.map((bank) => (
               <SelectItem key={bank.id} value={bank.id}>
-                {bank.name}
+                <div className="flex items-center gap-2">
+                  {bank.image ? (
+                    <Image
+                      src={bank.image}
+                      alt={bank.name}
+                      width={20}
+                      height={20}
+                      className="h-5 w-5 shrink-0 rounded object-contain"
+                    />
+                  ) : (
+                    <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  )}
+                  <span>{bank.name}</span>
+                </div>
               </SelectItem>
             ))}
           </SelectContent>

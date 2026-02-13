@@ -40,7 +40,7 @@ const defaultFormValues: BudgetFormData = {
 export default function BudgetsPage() {
   const router = useRouter();
   const { selectedMonth } = useMonth();
-  const { budgetId, accessMode } = useAuth();
+  const { budgetId } = useAuth();
   const canEdit = useCanEdit();
   const { data: budgets = [], isLoading } = useBudgets();
   const createBudget = useCreateBudget();
@@ -55,13 +55,13 @@ export default function BudgetsPage() {
   const { data: transactions = [], isLoading: loadingTx } =
     useTransactions(filters);
 
-  // In readonly mode, filter to only show the assigned budget
+  // When budgetId is set (key / budget-scoped), only show that budget
   const filteredBudgets = useMemo(() => {
-    if (accessMode === "readonly" && budgetId) {
+    if (budgetId) {
       return budgets.filter((b) => b.id === budgetId);
     }
     return budgets;
-  }, [budgets, accessMode, budgetId]);
+  }, [budgets, budgetId]);
 
   const budgetSpending = useMemo(() => {
     return filteredBudgets.map((budget) => {
