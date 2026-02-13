@@ -72,9 +72,9 @@ export function extractProdubancoConsumoTarjeta(
   const amount = valorMatch ? parseAmountToNumber(valorMatch[1]) : null;
   if (amount === null) return null;
 
-  // Establecimiento: DIDI RIDES EC KS
+  // Establecimiento: UBER * PENDING (cortar antes de "Si no realizaste..." o "Atentamente")
   const establecimientoMatch = text.match(
-    /Establecimiento:\s*([^\n]+?)(?=\s*Atentamente|$)/i,
+    /Establecimiento:\s*([^\n]+?)(?=\s*Si no realizaste|\s*Atentamente|$)/i,
   );
   const establecimiento = establecimientoMatch
     ? clean(establecimientoMatch[1])
@@ -85,7 +85,7 @@ export function extractProdubancoConsumoTarjeta(
   const raw = tarjetaMatch ? tarjetaMatch[1] : null;
   const card_last4 = raw ? raw.slice(-4).padStart(4, "0") : undefined;
 
-  // Fecha y Hora: 30/Enero/2026 10:03
+  // Fecha y Hora: 30/Enero/2026 10:03  o  02/11/2026 00:12 (MM/DD/YYYY)
   const fechaMatch = text.match(
     /Fecha\s+y\s+Hora:\s*([^\n]+?)(?=\s*Transacción|$)/i,
   );
@@ -93,6 +93,7 @@ export function extractProdubancoConsumoTarjeta(
   const occurred_at = parseOccurredAt(
     fechaRaw,
     message.receivedDateTime || new Date().toISOString(),
+    "mdy",
   );
 
   const description =
@@ -127,9 +128,9 @@ export function extractProdubancoConsumoDebito(
   const amount = valorMatch ? parseAmountToNumber(valorMatch[1]) : null;
   if (amount === null) return null;
 
-  // Establecimiento: DLC* UBER RIDES SAN JOSE CR
+  // Establecimiento: DLC* UBER RIDES SAN JOSE CR (cortar antes de "Si no realizaste...", "Cuenta" o "Atentamente")
   const establecimientoMatch = text.match(
-    /Establecimiento:\s*([^\n]+?)(?=\s*Cuenta|\s*Atentamente|$)/i,
+    /Establecimiento:\s*([^\n]+?)(?=\s*Si no realizaste|\s*Cuenta|\s*Atentamente|$)/i,
   );
   const establecimiento = establecimientoMatch
     ? clean(establecimientoMatch[1])
@@ -141,7 +142,7 @@ export function extractProdubancoConsumoDebito(
   const raw = cuentaMatch ? cuentaMatch[1] : null;
   const card_last4 = raw ? raw.slice(-4) : undefined;
 
-  // Fecha y Hora: 30/Enero/2026 14:54
+  // Fecha y Hora: 30/Enero/2026 14:54  o  02/11/2026 00:12 (MM/DD/YYYY)
   const fechaMatch = text.match(
     /Fecha\s+y\s+Hora:\s*([^\n]+?)(?=\s*Transacción|$)/i,
   );
@@ -149,6 +150,7 @@ export function extractProdubancoConsumoDebito(
   const occurred_at = parseOccurredAt(
     fechaRaw,
     message.receivedDateTime || new Date().toISOString(),
+    "mdy",
   );
 
   const description =
@@ -186,9 +188,9 @@ export function extractProdubancoReversoDebito(
   const amount = valorMatch ? parseAmountToNumber(valorMatch[1]) : null;
   if (amount === null) return null;
 
-  // Establecimiento: UBR* PENDING.UBER.COM Amsterdam IE
+  // Establecimiento: UBR* PENDING.UBER.COM Amsterdam IE (cortar antes de "Si no realizaste..." o "Atentamente")
   const establecimientoMatch = text.match(
-    /Establecimiento:\s*([^\n]+?)(?=\s*Atentamente|$)/i,
+    /Establecimiento:\s*([^\n]+?)(?=\s*Si no realizaste|\s*Atentamente|$)/i,
   );
   const establecimiento = establecimientoMatch
     ? clean(establecimientoMatch[1])
@@ -244,9 +246,9 @@ export function extractProdubancoReversoCredito(
   const amount = valorMatch ? parseAmountToNumber(valorMatch[1]) : null;
   if (amount === null) return null;
 
-  // Establecimiento: KSH DIDI
+  // Establecimiento: KSH DIDI (cortar antes de "Si no realizaste..." o "Atentamente")
   const establecimientoMatch = text.match(
-    /Establecimiento:\s*([^\n]+?)(?=\s*Atentamente|$)/i,
+    /Establecimiento:\s*([^\n]+?)(?=\s*Si no realizaste|\s*Atentamente|$)/i,
   );
   const establecimiento = establecimientoMatch
     ? clean(establecimientoMatch[1])
@@ -257,7 +259,7 @@ export function extractProdubancoReversoCredito(
   const raw = tarjetaMatch ? tarjetaMatch[1] : null;
   const card_last4 = raw ? raw.slice(-4).padStart(4, "0") : undefined;
 
-  // Fecha y Hora: 14/Enero/2026 15:56
+  // Fecha y Hora: 14/Enero/2026 15:56  o  02/11/2026 00:12 (MM/DD/YYYY)
   const fechaMatch = text.match(
     /Fecha\s+y\s+Hora:\s*([^\n]+?)(?=\s*Transacción|$)/i,
   );
@@ -265,6 +267,7 @@ export function extractProdubancoReversoCredito(
   const occurred_at = parseOccurredAt(
     fechaRaw,
     message.receivedDateTime || new Date().toISOString(),
+    "mdy",
   );
 
   const description =
@@ -315,7 +318,7 @@ export function extractProdubancoTransferenciaRecibida(
   const raw = cuentaMatch ? cuentaMatch[1] : null;
   const card_last4 = raw ? raw.slice(-4) : undefined;
 
-  // Fecha y Hora: 11/Enero/2026 11:15
+  // Fecha y Hora: 11/Enero/2026 11:15  o  02/11/2026 00:12 (MM/DD/YYYY)
   const fechaMatch = text.match(
     /Fecha\s+y\s+Hora:\s*([^\n]+?)(?=\s*Transacción|$)/i,
   );
@@ -323,6 +326,7 @@ export function extractProdubancoTransferenciaRecibida(
   const occurred_at = parseOccurredAt(
     fechaRaw,
     message.receivedDateTime || new Date().toISOString(),
+    "mdy",
   );
 
   const description =
@@ -382,7 +386,7 @@ export function extractProdubancoTransferenciaEnviada(
   );
   const canal = canalMatch ? clean(canalMatch[1]) : null;
 
-  // Fecha y Hora: 11/Enero/2026 11:15
+  // Fecha y Hora: 11/Enero/2026 11:15  o  02/11/2026 00:12 (MM/DD/YYYY)
   const fechaMatch = text.match(
     /Fecha\s+y\s+Hora:\s*([^\n]+?)(?=\s*Transacción|$)/i,
   );
@@ -390,6 +394,7 @@ export function extractProdubancoTransferenciaEnviada(
   const occurred_at = parseOccurredAt(
     fechaRaw,
     message.receivedDateTime || new Date().toISOString(),
+    "mdy",
   );
 
   const commentParts = [

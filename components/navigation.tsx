@@ -12,8 +12,7 @@ import {
   CreditCard,
   Landmark,
   PiggyBank,
-  Mail,
-  Bell,
+  Cloud,
 } from "lucide-react";
 
 // Routes under [month] segment
@@ -28,8 +27,7 @@ const monthRoutes = [
 
 // Routes outside [month] segment
 const otherRoutes = [
-  { name: "Emails", href: "/emails", icon: Mail },
-  { name: "Subs", href: "/subscriptions", icon: Bell },
+  { name: "Microsoft", href: "/microsoft", icon: Cloud },
 ];
 
 export function Navigation() {
@@ -40,7 +38,7 @@ export function Navigation() {
 
   // In readonly mode, hide emails and subscriptions
   const visibleOtherRoutes = accessMode === "readonly" ? [] : otherRoutes;
-  const gridCols = accessMode === "readonly" ? "sm:grid-cols-6" : "sm:grid-cols-8";
+  const gridCols = accessMode === "readonly" ? "sm:grid-cols-6" : "sm:grid-cols-7";
 
   // Build href for month-based routes
   const getMonthHref = (path: string) =>

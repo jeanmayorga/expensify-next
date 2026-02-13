@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { Trash2, Mail, Loader2 } from "lucide-react";
+import { Trash2, Mail, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -29,7 +29,29 @@ import {
   fromEcuadorDateTimeLocalToUTC,
 } from "@/utils/ecuador-time";
 import { getEmail } from "../../../emails/service";
+import { useExtractTransactionData } from "../../../emails/hooks";
 import type { MicrosoftMeMessage } from "../../../emails/service";
+import type { TransactionInsert } from "@/app/api/transactions/model";
+
+/** Map extracted API data to form values (occurred_at → Ecuador local) */
+function transactionInsertToFormData(
+  insert: TransactionInsert,
+): TransactionFormData {
+  return {
+    ...defaultTransactionFormValues,
+    type: (insert.type as "expense" | "income") ?? "expense",
+    description: insert.description ?? "",
+    amount: insert.amount ?? 0,
+    occurred_at: insert.occurred_at
+      ? toEcuadorDateTimeLocal(insert.occurred_at)
+      : toEcuadorDateTimeLocal(),
+    category_id: insert.category_id ?? "",
+    card_id: insert.card_id ?? "",
+    bank_id: insert.bank_id ?? "",
+    budget_id: insert.budget_id ?? "",
+    comment: insert.comment ?? "",
+  };
+}
 
 interface EditTransactionSheetProps {
   transaction: TransactionWithRelations | null;
@@ -51,9 +73,11 @@ export function EditTransactionSheet({
   budgets,
 }: EditTransactionSheetProps) {
   const updateTransaction = useUpdateTransaction();
+  const extractDataMutation = useExtractTransactionData();
   const [email, setEmail] = useState<MicrosoftMeMessage | null>(null);
   const [loadingEmail, setLoadingEmail] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [extractError, setExtractError] = useState<string | null>(null);
 
   const form = useForm<TransactionFormData>({
     defaultValues: defaultTransactionFormValues,
@@ -79,14 +103,32 @@ export function EditTransactionSheet({
     if (!open) {
       setEmail(null);
       setEmailError(null);
+      setExtractError(null);
       onClose();
     }
+  };
+
+  const handleExtractInfo = () => {
+    if (!transaction?.income_message_id) return;
+    setExtractError(null);
+    extractDataMutation.mutate(transaction.income_message_id, {
+      onSuccess: (data) => {
+        setExtractError(null);
+        reset(transactionInsertToFormData(data));
+      },
+      onError: (err) => {
+        setExtractError(
+          err instanceof Error ? err.message : "Error al extraer",
+        );
+      },
+    });
   };
 
   // Reset form and email when transaction changes
   useEffect(() => {
     setEmail(null);
     setEmailError(null);
+    setExtractError(null);
     if (transaction) {
       reset({
         type: transaction.type as "expense" | "income",
@@ -136,6 +178,29 @@ export function EditTransactionSheet({
           className="flex flex-col flex-1 overflow-hidden"
         >
           <div className="flex-1 px-6 pt-0 overflow-y-auto">
+            {transaction?.income_message_id && (
+              <div className="flex items-center gap-2 mb-4">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  disabled={extractDataMutation.isPending}
+                  onClick={handleExtractInfo}
+                >
+                  {extractDataMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4 mr-1.5" />
+                  )}
+                  {extractDataMutation.isPending
+                    ? "Extrayendo..."
+                    : "Extract info"}
+                </Button>
+                {extractError && (
+                  <p className="text-sm text-destructive">{extractError}</p>
+                )}
+              </div>
+            )}
             <TransactionForm
               form={form}
               categories={categories}

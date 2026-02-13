@@ -148,24 +148,34 @@ export function extractPichinchaTransferencia(
   };
 }
 
+/** Normalize for subject match: lowercase, remove accents */
+function subjectNorm(s: string): string {
+  return (s || "")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .trim();
+}
+
 /**
- * Notificación Banco Pichincha (transferencia)
+ * Notificación Banco Pichincha (transferencia genérica o Transferencia Interbancaria).
+ * Asunto: "NOTIFICACION BANCO PICHINCHA" (con o sin tilde).
+ * Cuerpo Transferencia Interbancaria: tabla con Cuenta de origen, Banco destino, Cuenta acreditada,
+ * Nombre del beneficiario, Monto, Fecha, Descripción, Documento.
  */
 export function extractPichinchaNotificacionBanco(
   message: MicrosoftMeMessage,
 ): ExtractedTransactionData | null {
   const body = message.body || "";
-  const subject = (message.subject || "").toLowerCase();
+  const subject = message.subject || "";
 
   if (!body.trim()) return null;
-  if (!subject.includes("notificación banco pichincha")) return null;
+  if (!subjectNorm(subject).includes("notificacion banco pichincha"))
+    return null;
 
   const pairs = extractPairs(body);
   const montoRaw = getExact(pairs, "Monto:");
-  const descripcion = getExact(pairs, "Descripción:");
-  const beneficiario = getExact(pairs, "Nombre del beneficiario:");
   const fechaRaw = getExact(pairs, "Fecha:");
-
   const amount = montoRaw ? parseAmountToNumber(montoRaw) : null;
   if (amount === null) return null;
 
@@ -174,16 +184,58 @@ export function extractPichinchaNotificacionBanco(
     message.receivedDateTime || new Date().toISOString(),
   );
 
-  const description =
-    descripcion?.trim() ||
-    beneficiario?.trim() ||
-    "BANCO PICHINCHA - Notificación";
+  // Template "Transferencia Interbancaria": tiene Banco destino, Cuenta de origen, etc.
+  const cuentaOrigen = getExact(pairs, "Cuenta de origen:");
+  const bancoDestino = getExact(pairs, "Banco destino:");
+  const cuentaAcreditada = getExact(pairs, "Cuenta acreditada:");
+  const beneficiario = getExact(pairs, "Nombre del beneficiario:");
+  const descripcion = getExact(pairs, "Descripción:");
+  const documento = getExact(pairs, "Documento:");
+  const isInterbancaria =
+    body.includes("Transferencia Interbancaria") &&
+    (bancoDestino != null || cuentaOrigen != null);
+
+  let description: string;
+  let comment: string | undefined;
+  let card_last4: string | undefined;
+
+  if (isInterbancaria) {
+    description =
+      descripcion?.trim() ||
+      (beneficiario?.trim()
+        ? `Transferencia a ${beneficiario.trim()}`
+        : "Transferencia Interbancaria");
+    const commentParts: string[] = [];
+    if (beneficiario?.trim())
+      commentParts.push(`Beneficiario: ${beneficiario.trim()}`);
+    if (bancoDestino?.trim())
+      commentParts.push(`Banco destino: ${bancoDestino.trim()}`);
+    if (cuentaOrigen?.trim())
+      commentParts.push(`Cuenta origen: ${cuentaOrigen.trim()}`);
+    if (cuentaAcreditada?.trim())
+      commentParts.push(`Cuenta acreditada: ${cuentaAcreditada.trim()}`);
+    if (documento?.trim()) commentParts.push(`Documento: ${documento.trim()}`);
+    comment =
+      commentParts.length > 0 ? commentParts.join(" | ") : undefined;
+    const card_last4Raw = cuentaOrigen ? extractLast4(cuentaOrigen) : null;
+    card_last4 = card_last4Raw
+      ? card_last4Raw.padStart(4, "0").slice(-4)
+      : undefined;
+  } else {
+    description =
+      descripcion?.trim() ||
+      (beneficiario?.trim() || "BANCO PICHINCHA - Notificación");
+    comment = beneficiario?.trim()
+      ? `Beneficiario: ${beneficiario.trim()}`
+      : undefined;
+  }
 
   return {
     type: "expense",
     description,
     amount,
     occurred_at,
-    comment: beneficiario ? `Beneficiario: ${beneficiario}` : undefined,
+    card_last4,
+    comment,
   };
 }
