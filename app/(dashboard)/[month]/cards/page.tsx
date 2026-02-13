@@ -82,7 +82,7 @@ export default function CardsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -101,7 +101,7 @@ export default function CardsPage() {
 
       {/* Cards Grid */}
       {isLoading ? (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 min-w-0">
           {Array.from({ length: 3 }).map((_, i) => (
             <CardSkeleton key={i} />
           ))}
@@ -120,7 +120,7 @@ export default function CardsPage() {
           )}
         </div>
       ) : (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 min-w-0">
           {cards.map((card) => (
             <CreditCardVisual
               key={card.id}

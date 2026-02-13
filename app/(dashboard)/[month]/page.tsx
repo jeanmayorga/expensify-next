@@ -6,11 +6,13 @@ import {
   differenceInDays,
   startOfMonth,
   endOfMonth,
+  isSameDay,
 } from "date-fns";
 import { es } from "date-fns/locale";
 import Link from "next/link";
 import Image from "next/image";
 import { useTransactionsForMonth, useUpdateTransaction } from "./transactions/hooks";
+import { getEcuadorDate } from "@/utils/ecuador-time";
 import { useMonth } from "@/lib/month-context";
 import { useAuth, useCanEdit } from "@/lib/auth-context";
 import { useBudgets } from "./budgets/hooks";
@@ -124,6 +126,16 @@ export default function HomePage() {
   }, [selectedMonth]);
 
   const dailyAvg = totalExpenses / daysElapsed;
+
+  // Gastado hoy
+  const todayExpenses = useMemo(() => {
+    const today = getEcuadorDate();
+    return expenses.filter((tx) => {
+      const txDate = getEcuadorDate(tx.occurred_at);
+      return isSameDay(txDate, today);
+    });
+  }, [expenses]);
+  const todayTotal = todayExpenses.reduce((s, tx) => s + Math.abs(tx.amount), 0);
 
   // Unassigned transactions
   const unassignedCount = expenses.filter(
@@ -308,6 +320,34 @@ export default function HomePage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Gastado hoy */}
+      <Card className="border-l-4 border-l-red-500">
+        <CardContent className="flex flex-row items-center justify-between p-4">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+              <CalendarDays className="h-5 w-5 text-red-600 dark:text-red-400" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Gastado hoy
+              </p>
+              {loading ? (
+                <Skeleton className="h-7 w-24 mt-1" />
+              ) : (
+                <p className="text-xl font-bold tabular-nums">
+                  {fmt(todayTotal)}
+                </p>
+              )}
+            </div>
+          </div>
+          {!loading && todayExpenses.length > 0 && (
+            <span className="text-xs text-muted-foreground">
+              {todayExpenses.length} transaccion{todayExpenses.length !== 1 ? "es" : ""}
+            </span>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Main Grid — col-span-12 en mobile (100%), 50/50 desde lg */}
       <div className="grid w-full grid-cols-12 gap-4">
@@ -551,7 +591,7 @@ export default function HomePage() {
 
         {/* Últimas transacciones + Gastos más grandes — 50/50 en desktop, apiladas en tablet/móvil */}
         <div className="col-span-12 grid min-w-0 gap-4 lg:grid-cols-2">
-          <Card>
+          <Card className="min-w-0 overflow-hidden">
             <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-x-2 gap-y-1 pb-2 pt-4 px-4">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <Receipt className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -595,7 +635,7 @@ export default function HomePage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="min-w-0 overflow-hidden">
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <CircleDollarSign className="h-4 w-4 text-muted-foreground" />

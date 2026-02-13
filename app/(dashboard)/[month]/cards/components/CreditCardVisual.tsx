@@ -45,10 +45,10 @@ export function CreditCardVisual({ card, spentThisMonth = 0 }: CreditCardVisualP
   return (
     <Link
       href={`/${monthStr}/cards/${card.id}`}
-      className="group block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-2xl"
+      className="group block w-full min-w-0 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-2xl overflow-hidden"
     >
       <div
-        className="relative overflow-hidden rounded-2xl p-5 shadow-md transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:ring-2 hover:ring-white/30 active:scale-[0.99]"
+        className="relative overflow-hidden rounded-2xl p-5 shadow-md transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:ring-2 hover:ring-white/30 active:scale-[0.99] w-full"
         style={{
           background: `linear-gradient(135deg, ${cardColor} 0%, ${cardColor}dd 50%, ${cardColor}aa 100%)`,
           color: useDarkText ? DARK_TEXT_COLOR : "white",
@@ -100,18 +100,18 @@ export function CreditCardVisual({ card, spentThisMonth = 0 }: CreditCardVisualP
           )}
 
           {showUsageBar && (
-            <div className="mt-auto rounded-xl bg-white/20 px-3 py-2.5 backdrop-blur-sm space-y-2.5">
-              <div className="flex items-center justify-between text-xs">
+            <div className="mt-auto rounded-xl bg-white/20 px-3 py-2.5 backdrop-blur-sm space-y-2.5 min-w-0 overflow-hidden">
+              <div className="flex items-center justify-between gap-2 text-xs min-w-0">
                 <span className="opacity-90">Gastado este mes</span>
                 <span className="font-bold tabular-nums">{fmt(spentThisMonth)}</span>
               </div>
-              <div className="flex items-center justify-between text-xs mb-1.5">
-                <span className="opacity-90 tabular-nums">
+              <div className="flex items-center justify-between gap-2 text-xs mb-1.5 min-w-0">
+                <span className="opacity-90 tabular-nums min-w-0 truncate">
                   {fmt(outstanding)} / {fmt(creditLimit)}
                 </span>
                 <span
                   className={cn(
-                    "font-bold tabular-nums",
+                    "font-bold tabular-nums shrink-0",
                     useDarkText
                       ? isOverLimit
                         ? "text-red-700"
@@ -133,7 +133,7 @@ export function CreditCardVisual({ card, spentThisMonth = 0 }: CreditCardVisualP
                 className="h-2"
                 indicatorClassName={cn("bg-gradient-to-r", barGradient)}
               />
-              <div className="flex justify-between mt-1.5 text-[10px]">
+              <div className="flex justify-between gap-2 mt-1.5 text-[10px] min-w-0">
                 <span className="opacity-80">
                   {isOverLimit ? "Excedido" : "Disponible"}
                 </span>

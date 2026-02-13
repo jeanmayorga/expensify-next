@@ -106,7 +106,7 @@ export function TransactionRow({
 
   return (
     <div
-      className={`group flex items-start gap-3 px-4 py-3 hover:bg-muted/30 transition-colors ${onClick ? "cursor-pointer" : ""}`}
+      className={`group flex items-start gap-3 px-4 py-3 hover:bg-muted/30 transition-colors min-w-0 overflow-hidden ${onClick ? "cursor-pointer" : ""}`}
       onClick={onClick ? handleRowClick : undefined}
     >
       {/* Time */}
@@ -130,10 +130,10 @@ export function TransactionRow({
       </div>
 
       {/* Info Section */}
-      <div className="flex flex-col min-w-0 flex-1 gap-0.5">
+      <div className="flex flex-col min-w-0 flex-1 gap-0.5 overflow-hidden">
         {/* Línea referentes: Banco – Tarjeta – Presupuesto */}
         {(tx.bank || tx.card || tx.budget) && (
-          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground min-w-0 overflow-hidden">
             {tx.bank && (
               <span className="inline-flex items-center gap-1.5 shrink-0">
                 {tx.bank.image ? (
@@ -172,7 +172,7 @@ export function TransactionRow({
         )}
 
         {/* Descripción */}
-        <p className="text-sm font-medium text-foreground truncate leading-tight">
+        <p className="text-sm font-medium text-foreground truncate leading-tight min-w-0">
           {tx.description}
         </p>
       </div>
