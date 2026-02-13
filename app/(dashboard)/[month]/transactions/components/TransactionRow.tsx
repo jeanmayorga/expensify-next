@@ -92,7 +92,7 @@ export function TransactionRow({
 
   return (
     <div
-      className={`group flex items-start gap-3 px-4 py-3 hover:bg-muted/50 transition-colors ${onClick ? "cursor-pointer" : ""}`}
+      className={`group flex items-start gap-3 px-4 py-3 hover:bg-muted/30 transition-colors ${onClick ? "cursor-pointer" : ""}`}
       onClick={onClick ? handleRowClick : undefined}
     >
       {/* Time */}
@@ -100,18 +100,18 @@ export function TransactionRow({
         {format(date, "HH:mm")}
       </div>
 
-      {/* Type Icon */}
+      {/* Type Icon - outline style with subtle bg */}
       <div
-        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg shadow-sm ${
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${
           isExpense
-            ? "bg-gradient-to-br from-red-500 to-red-600"
-            : "bg-gradient-to-br from-emerald-500 to-emerald-600"
+            ? "border-red-200 text-red-500 bg-red-200/20"
+            : "border-emerald-200 text-emerald-500 bg-emerald-200/20"
         }`}
       >
         {isExpense ? (
-          <TrendingDown className="h-4 w-4 text-white" />
+          <TrendingDown className="h-4 w-4" />
         ) : (
-          <TrendingUp className="h-4 w-4 text-white" />
+          <TrendingUp className="h-4 w-4" />
         )}
       </div>
 
@@ -149,14 +149,22 @@ export function TransactionRow({
                 className="text-xs h-5 gap-1"
                 style={{
                   borderColor: tx.card.color ? `${tx.card.color}60` : undefined,
-                  backgroundColor: tx.card.color ? `${tx.card.color}15` : undefined,
+                  backgroundColor: tx.card.color
+                    ? `${tx.card.color}15`
+                    : undefined,
                 }}
               >
                 <CreditCard className="h-3 w-3" />
                 {[
-                  tx.card.card_kind === "debit" ? "Debit" : tx.card.card_kind === "credit" ? "Credit" : null,
+                  tx.card.card_kind === "debit"
+                    ? "Debit"
+                    : tx.card.card_kind === "credit"
+                      ? "Credit"
+                      : null,
                   tx.card.last4 || tx.card.name,
-                ].filter(Boolean).join(" ")}
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
               </Badge>
             )}
             {tx.budget && (
@@ -179,20 +187,21 @@ export function TransactionRow({
             isExpense ? "text-red-600" : "text-emerald-600"
           }`}
         >
-          {isExpense ? "-$" : "+$"}{tx.amount.toFixed(2)}
+          {isExpense ? "-$" : "+$"}
+          {tx.amount.toFixed(2)}
         </span>
       </div>
 
       {/* Actions Dropdown - only show if there are any action handlers */}
       {(onUpdate || onEdit || onDelete) && (
-        <div data-slot="dropdown-menu" className="self-center" onClick={(e) => e.stopPropagation()}>
+        <div
+          data-slot="dropdown-menu"
+          className="self-center"
+          onClick={(e) => e.stopPropagation()}
+        >
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-              >
+              <Button variant="ghost" size="icon" className="h-8 w-8">
                 <MoreVertical className="h-4 w-4" />
                 <span className="sr-only">Acciones</span>
               </Button>
@@ -225,9 +234,13 @@ export function TransactionRow({
                       />
                       {card.name}
                       {card.last4 && (
-                        <span className="text-muted-foreground ml-1">•{card.last4}</span>
+                        <span className="text-muted-foreground ml-1">
+                          •{card.last4}
+                        </span>
                       )}
-                      {tx.card_id === card.id && <Check className="ml-auto h-4 w-4" />}
+                      {tx.card_id === card.id && (
+                        <Check className="ml-auto h-4 w-4" />
+                      )}
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuSubContent>
@@ -266,7 +279,9 @@ export function TransactionRow({
                         <Building2 className="mr-2 h-4 w-4" />
                       )}
                       {bank.name}
-                      {tx.bank_id === bank.id && <Check className="ml-auto h-4 w-4" />}
+                      {tx.bank_id === bank.id && (
+                        <Check className="ml-auto h-4 w-4" />
+                      )}
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuSubContent>
@@ -295,7 +310,9 @@ export function TransactionRow({
                     >
                       <Wallet className="mr-2 h-4 w-4" />
                       {budget.name}
-                      {tx.budget_id === budget.id && <Check className="ml-auto h-4 w-4" />}
+                      {tx.budget_id === budget.id && (
+                        <Check className="ml-auto h-4 w-4" />
+                      )}
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuSubContent>

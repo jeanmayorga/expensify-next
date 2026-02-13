@@ -289,7 +289,7 @@ export default function BankDetailPage() {
       </div>
 
       <CardUI className="overflow-hidden py-0 gap-0">
-        <div className="flex items-center justify-between px-4 py-3 bg-muted/40">
+        <div className="flex items-center justify-between px-4 py-3 bg-muted/25">
           <span className="text-sm font-medium">Transacciones</span>
           <Button
             variant="ghost"
@@ -319,7 +319,7 @@ export default function BankDetailPage() {
             <div>
               {groupedTransactions.map(([dateKey, txs]) => (
                 <div key={dateKey}>
-                  <div className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm px-4 py-2 border-y">
+                  <div className="sticky top-0 z-10 bg-muted/35 backdrop-blur-sm px-4 py-2 border-y">
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       {format(
                         parseISO(dateKey),
