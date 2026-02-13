@@ -48,15 +48,17 @@ function budgetToForm(budget: Budget): BudgetFormData {
 export default function EditBudgetPage() {
   const params = useParams();
   const router = useRouter();
+  const month = params.month as string;
   const budgetId = params.id as string;
   const canEdit = useCanEdit();
+  const budgetsListPath = `/${month}/budgets`;
 
-  // Redirect to detail page if user can't edit
+  // Redirect to list if user can't edit
   useEffect(() => {
     if (!canEdit) {
-      router.replace("..");
+      router.replace(budgetsListPath);
     }
-  }, [canEdit, router]);
+  }, [canEdit, router, budgetsListPath]);
 
   const { data: budget, isLoading } = useBudget(budgetId);
 
@@ -95,11 +97,11 @@ export default function EditBudgetPage() {
     if (!budget) return;
     await deleteBudget.mutateAsync(budget.id);
     setShowDeleteConfirm(false);
-    router.push("../..");
+    router.push(budgetsListPath);
   };
 
   const handleCancel = () => {
-    router.push("..");
+    router.push(budgetsListPath);
   };
 
   if (isLoading) {
@@ -122,9 +124,9 @@ export default function EditBudgetPage() {
   if (!budget) {
     return (
       <div className="space-y-6">
-        <Button variant="ghost" onClick={() => router.back()}>
+        <Button variant="ghost" onClick={() => router.push(budgetsListPath)}>
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Volver
+          Volver a presupuestos
         </Button>
         <div className="text-center py-12 text-muted-foreground">
           Presupuesto no encontrado
@@ -137,7 +139,7 @@ export default function EditBudgetPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.push("..")}>
+          <Button variant="ghost" size="icon" onClick={() => router.push(budgetsListPath)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center">
