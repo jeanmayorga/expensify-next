@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import {
   format,
   differenceInDays,
@@ -10,14 +10,15 @@ import {
 import { es } from "date-fns/locale";
 import Link from "next/link";
 import Image from "next/image";
-import { useTransactionsForMonth } from "./transactions/hooks";
+import { useTransactionsForMonth, useUpdateTransaction } from "./transactions/hooks";
 import { useMonth } from "@/lib/month-context";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth, useCanEdit } from "@/lib/auth-context";
 import { useBudgets } from "./budgets/hooks";
 import { useBanks } from "./banks/hooks";
 import { useCards } from "./cards/hooks";
 import { type Bank } from "./banks/service";
 import { type CardWithBank } from "./cards/service";
+import { type TransactionWithRelations } from "./transactions/service";
 import {
   Card,
   CardContent,
@@ -46,6 +47,8 @@ import {
 import {
   TransactionRow,
   TransactionRowSkeleton,
+  EditTransactionSheet,
+  DeleteTransactionDialog,
 } from "./transactions/components";
 
 const fmt = (amount: number) =>
@@ -58,6 +61,22 @@ const fmt = (amount: number) =>
 export default function HomePage() {
   const { selectedMonth, monthStr } = useMonth();
   const { budgetId: authBudgetId } = useAuth();
+  const canEdit = useCanEdit();
+  const updateTransaction = useUpdateTransaction();
+
+  const [editingTx, setEditingTx] = useState<TransactionWithRelations | null>(null);
+  const [deletingTx, setDeletingTx] = useState<TransactionWithRelations | null>(null);
+
+  const handleRowClick = (tx: TransactionWithRelations) => {
+    setEditingTx(tx);
+  };
+
+  const handleQuickUpdate = async (
+    id: number,
+    data: Record<string, string | null>,
+  ) => {
+    await updateTransaction.mutateAsync({ id, data });
+  };
 
   const { data: allTransactions = [], isLoading: loadingTx } =
     useTransactionsForMonth(selectedMonth);
@@ -192,7 +211,7 @@ export default function HomePage() {
   const currentMonth = format(selectedMonth, "MMMM yyyy", { locale: es });
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 w-full max-w-full space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight capitalize">
@@ -204,7 +223,7 @@ export default function HomePage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+      <div className="grid min-w-0 grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiCard
           label="Gastos"
           value={fmt(totalExpenses)}
@@ -236,7 +255,7 @@ export default function HomePage() {
         <KpiCard
           label="Promedio diario"
           value={fmt(dailyAvg)}
-          sub={`${daysElapsed} dias transcurridos`}
+          sub={`${daysElapsed} días transcurridos`}
           icon={<CalendarDays className="h-4 w-4" />}
           iconBg="bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400"
           loading={loading}
@@ -290,16 +309,16 @@ export default function HomePage() {
         </Card>
       )}
 
-      {/* Main Grid */}
-      <div className="grid gap-4 lg:grid-cols-12">
-        {/* Left column */}
-        <div className="lg:col-span-8 space-y-4">
+      {/* Main Grid — col-span-12 en mobile (100%), 50/50 desde lg */}
+      <div className="grid w-full grid-cols-12 gap-4">
+        {/* Left column: Presupuestos */}
+        <div className="col-span-12 min-w-0 w-full space-y-4 lg:col-span-6">
           {/* Budget Cards */}
           {budgets.length > 0 && (
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
+            <Card className="w-full">
+              <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-x-2 gap-y-1 pb-2 pt-4 px-4">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <PiggyBank className="h-4 w-4 text-muted-foreground" />
+                  <PiggyBank className="h-4 w-4 shrink-0 text-muted-foreground" />
                   Presupuestos
                 </CardTitle>
                 <Link
@@ -333,14 +352,14 @@ export default function HomePage() {
 
         </div>
 
-        {/* Right column */}
-        <div className="lg:col-span-4 space-y-4">
+        {/* Right column: Resumen rápido, Por banco, Por tarjeta */}
+        <div className="col-span-12 min-w-0 w-full space-y-4 lg:col-span-6">
           {/* Quick Stats */}
           <Card>
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                Resumen rapido
+                Resumen rápido
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4">
@@ -382,16 +401,16 @@ export default function HomePage() {
 
           {/* Bank Distribution */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
+            <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-x-2 gap-y-1 pb-2 pt-4 px-4">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-muted-foreground" />
+                <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
                 Por banco
               </CardTitle>
               <Link
                 href={`/${monthStr}/banks`}
-                className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
               >
-                <ArrowRight className="h-3 w-3" />
+                Ver todos <ArrowRight className="h-3 w-3" />
               </Link>
             </CardHeader>
             <CardContent className="px-4 pb-4">
@@ -432,7 +451,7 @@ export default function HomePage() {
                                 style={{ color: bank.color || "#6b7280" }}
                               />
                             )}
-                            <span className="text-xs font-medium truncate group-hover:text-primary transition-colors">
+                            <span className="text-xs font-medium line-clamp-2 group-hover:text-primary transition-colors break-words">
                               {bank.name}
                             </span>
                           </div>
@@ -459,16 +478,16 @@ export default function HomePage() {
 
           {/* Card Distribution */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
+            <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-x-2 gap-y-1 pb-2 pt-4 px-4">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <CreditCard className="h-4 w-4 text-muted-foreground" />
+                <CreditCard className="h-4 w-4 shrink-0 text-muted-foreground" />
                 Por tarjeta
               </CardTitle>
               <Link
                 href={`/${monthStr}/cards`}
-                className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
               >
-                <ArrowRight className="h-3 w-3" />
+                Ver todos <ArrowRight className="h-3 w-3" />
               </Link>
             </CardHeader>
             <CardContent className="px-4 pb-4">
@@ -488,14 +507,18 @@ export default function HomePage() {
                     const pct =
                       totalExpenses > 0 ? (total / totalExpenses) * 100 : 0;
                     return (
-                      <div key={card.id}>
+                      <Link
+                        key={card.id}
+                        href={`/${monthStr}/cards/${card.id}`}
+                        className="block group"
+                      >
                         <div className="flex items-center justify-between mb-1">
                           <div className="flex items-center gap-2 min-w-0">
                             <CreditCard
                               className="h-4 w-4 shrink-0"
                               style={{ color: card.color || "#6366f1" }}
                             />
-                            <span className="text-xs font-medium truncate">
+                            <span className="text-xs font-medium line-clamp-2 group-hover:text-primary transition-colors break-words">
                               {card.name}
                               {card.last4 && (
                                 <span className="text-muted-foreground ml-1">
@@ -517,7 +540,7 @@ export default function HomePage() {
                             }}
                           />
                         </div>
-                      </div>
+                      </Link>
                     );
                   })}
                 </div>
@@ -526,12 +549,12 @@ export default function HomePage() {
           </Card>
         </div>
 
-        {/* Últimas transacciones + Gastos más grandes — 50/50 grid with TransactionRow */}
-        <div className="col-span-12 grid gap-4 md:grid-cols-2">
+        {/* Últimas transacciones + Gastos más grandes — 50/50 en desktop, apiladas en tablet/móvil */}
+        <div className="col-span-12 grid min-w-0 gap-4 lg:grid-cols-2">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
+            <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-x-2 gap-y-1 pb-2 pt-4 px-4">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <Receipt className="h-4 w-4 text-muted-foreground" />
+                <Receipt className="h-4 w-4 shrink-0 text-muted-foreground" />
                 Últimas transacciones
               </CardTitle>
               <Link
@@ -561,6 +584,10 @@ export default function HomePage() {
                       cards={cards}
                       banks={banks}
                       budgets={budgets}
+                      onUpdate={canEdit ? handleQuickUpdate : undefined}
+                      onEdit={canEdit ? setEditingTx : undefined}
+                      onDelete={canEdit ? setDeletingTx : undefined}
+                      onClick={canEdit ? handleRowClick : undefined}
                     />
                   ))}
                 </div>
@@ -595,6 +622,10 @@ export default function HomePage() {
                       cards={cards}
                       banks={banks}
                       budgets={budgets}
+                      onUpdate={canEdit ? handleQuickUpdate : undefined}
+                      onEdit={canEdit ? setEditingTx : undefined}
+                      onDelete={canEdit ? setDeletingTx : undefined}
+                      onClick={canEdit ? handleRowClick : undefined}
                     />
                   ))}
                 </div>
@@ -603,6 +634,27 @@ export default function HomePage() {
           </Card>
         </div>
       </div>
+
+      {/* Edit / Delete transaction modals */}
+      {canEdit && (
+        <>
+          <EditTransactionSheet
+            transaction={editingTx}
+            onClose={() => setEditingTx(null)}
+            onDelete={(tx) => {
+              setEditingTx(null);
+              setDeletingTx(tx);
+            }}
+            cards={cards}
+            banks={banks}
+            budgets={allBudgets}
+          />
+          <DeleteTransactionDialog
+            transaction={deletingTx}
+            onClose={() => setDeletingTx(null)}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -625,10 +677,10 @@ function KpiCard({
   loading: boolean;
 }) {
   return (
-    <Card className="py-0">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+    <Card className="min-w-0 py-0">
+      <CardContent className="min-w-0 p-4">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide truncate min-w-0">
             {label}
           </span>
           <div
@@ -716,7 +768,7 @@ function BudgetMiniCard({
         )}
       />
       <div className="flex items-center justify-between mb-2">
-        <p className="text-sm font-semibold truncate">{budget.name}</p>
+        <p className="text-sm font-semibold line-clamp-2 break-words">{budget.name}</p>
         <Badge
           variant="secondary"
           className={cn(

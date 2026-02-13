@@ -33,6 +33,7 @@ function cardToForm(card: CardWithBank): CardFormData {
     cardholder_name: card.cardholder_name || "",
     expiration_date: card.expiration_date || "",
     outstanding_balance: card.outstanding_balance?.toString() || "",
+    credit_limit: card.credit_limit?.toString() || "",
   };
 }
 
@@ -49,6 +50,7 @@ function formToPayload(form: CardFormData) {
     outstanding_balance: form.outstanding_balance
       ? parseFloat(form.outstanding_balance)
       : null,
+    credit_limit: form.credit_limit ? parseFloat(form.credit_limit) : null,
   };
 }
 

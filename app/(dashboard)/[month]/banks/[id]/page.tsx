@@ -14,6 +14,7 @@ import {
   Building2,
   Edit,
   RefreshCw,
+  CalendarDays,
 } from "lucide-react";
 import { useBank } from "../hooks";
 import {
@@ -28,7 +29,9 @@ import { useMonth } from "@/lib/month-context";
 import { useAuth, useCanEdit } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card as CardUI, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import {
   TransactionRow,
   TransactionRowSkeleton,
@@ -264,21 +267,8 @@ export default function BankDetailPage() {
         </div>
       </div>
 
+      {/* Lista de transacciones — mismo estilo que /transactions */}
       <CardUI className="overflow-hidden py-0 gap-0">
-        <div className="flex items-center justify-between px-4 py-3 bg-muted/25">
-          <span className="text-sm font-medium">Transacciones</span>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground hover:text-foreground"
-            onClick={() => refetch()}
-            disabled={isRefetching || loading}
-          >
-            <RefreshCw
-              className={`h-3.5 w-3.5 ${isRefetching ? "animate-spin" : ""}`}
-            />
-          </Button>
-        </div>
         <CardContent className="p-0">
           {loadingTx ? (
             <div className="divide-y">
@@ -293,34 +283,66 @@ export default function BankDetailPage() {
             />
           ) : (
             <div>
-              {groupedTransactions.map(([dateKey, txs]) => (
-                <div key={dateKey}>
-                  <div className="sticky top-0 z-10 bg-muted/35 backdrop-blur-sm px-4 py-2 border-y">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      {format(
-                        parseISO(dateKey),
-                        "EEEE, d 'de' MMMM 'de' yyyy",
-                        { locale: es },
+              {groupedTransactions.map(([dateKey, txs], groupIndex) => {
+                const dayTotal = txs
+                  .filter((tx) => tx.type === "expense")
+                  .reduce((s, tx) => s + tx.amount, 0);
+                const fmt = (n: number) =>
+                  new Intl.NumberFormat("en-US", {
+                    style: "currency",
+                    currency: "USD",
+                    minimumFractionDigits: 2,
+                  }).format(n);
+                return (
+                  <div key={dateKey}>
+                    <div
+                      className={cn(
+                        "sticky top-0 z-10 bg-muted/60 backdrop-blur-sm px-4 py-2 border-b flex items-center justify-between",
+                        groupIndex > 0 && "border-t",
                       )}
-                    </p>
+                    >
+                      <div className="flex items-center gap-2">
+                        <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          {format(
+                            parseISO(dateKey),
+                            "EEEE, d 'de' MMMM",
+                            { locale: es },
+                          )}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] h-5 px-1.5 font-normal"
+                        >
+                          {txs.length} tx
+                        </Badge>
+                        {dayTotal > 0 && (
+                          <span className="text-xs font-medium text-muted-foreground tabular-nums">
+                            -{fmt(dayTotal)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="divide-y">
+                      {txs.map((tx) => (
+                        <TransactionRow
+                          key={tx.id}
+                          transaction={tx}
+                          cards={cards}
+                          banks={banks}
+                          budgets={budgets}
+                          onUpdate={canEdit ? handleQuickUpdate : undefined}
+                          onEdit={canEdit ? setEditingTx : undefined}
+                          onDelete={canEdit ? setDeletingTx : undefined}
+                          onClick={canEdit ? handleRowClick : undefined}
+                        />
+                      ))}
+                    </div>
                   </div>
-                  <div className="divide-y">
-                    {txs.map((tx) => (
-                      <TransactionRow
-                        key={tx.id}
-                        transaction={tx}
-                        cards={cards}
-                        banks={banks}
-                        budgets={budgets}
-                        onUpdate={canEdit ? handleQuickUpdate : undefined}
-                        onEdit={canEdit ? setEditingTx : undefined}
-                        onDelete={canEdit ? setDeletingTx : undefined}
-                        onClick={canEdit ? handleRowClick : undefined}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>

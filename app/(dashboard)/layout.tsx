@@ -10,10 +10,10 @@ export default function DashboardLayout({
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <header className="flex h-12 items-center gap-2 border-b px-4 shrink-0">
+        <header className="flex min-w-0 h-12 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />
         </header>
-        <main className="flex-1 p-4 sm:p-6">{children}</main>
+        <main className="min-w-[280px] flex-1 overflow-x-auto p-4 sm:p-6 lg:p-8">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );

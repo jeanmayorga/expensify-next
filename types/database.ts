@@ -148,6 +148,7 @@ export type Database = {
           cardholder_name: string | null
           color: string | null
           created_at: string
+          credit_limit: number | null
           expiration_date: string | null
           id: string
           last4: string | null
@@ -162,6 +163,7 @@ export type Database = {
           cardholder_name?: string | null
           color?: string | null
           created_at?: string
+          credit_limit?: number | null
           expiration_date?: string | null
           id?: string
           last4?: string | null
@@ -176,6 +178,7 @@ export type Database = {
           cardholder_name?: string | null
           color?: string | null
           created_at?: string
+          credit_limit?: number | null
           expiration_date?: string | null
           id?: string
           last4?: string | null

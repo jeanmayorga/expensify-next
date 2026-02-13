@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { useCards, useCreateCard } from "./hooks";
 import { useBanks } from "../banks/hooks";
-import { useCanEdit } from "@/lib/auth-context";
+import { useMonth } from "@/lib/month-context";
+import { useAuth, useCanEdit } from "@/lib/auth-context";
+import { useTransactionsForMonth } from "../transactions/hooks";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -29,17 +31,36 @@ function formToPayload(form: CardFormData) {
     cardholder_name: form.cardholder_name || null,
     expiration_date: form.expiration_date || null,
     outstanding_balance: form.outstanding_balance ? parseFloat(form.outstanding_balance) : null,
+    credit_limit: form.credit_limit ? parseFloat(form.credit_limit) : null,
   };
 }
 
 function CardSkeleton() {
-  return <Skeleton className="w-full aspect-[1.586/1] rounded-2xl" />;
+  return <Skeleton className="w-full aspect-[1.6/1] rounded-2xl" />;
 }
 
 export default function CardsPage() {
   const canEdit = useCanEdit();
+  const { selectedMonth } = useMonth();
+  const { budgetId } = useAuth();
   const { data: cards = [], isLoading: loadingCards } = useCards();
   const { data: banks = [], isLoading: loadingBanks } = useBanks();
+  const { data: transactions = [] } = useTransactionsForMonth(selectedMonth);
+
+  const spendingByCard = useMemo(() => {
+    const filtered = budgetId
+      ? transactions.filter((tx) => tx.budget_id === budgetId)
+      : transactions;
+    const expenses = filtered.filter((tx) => tx.type === "expense");
+    const map: Record<string, number> = {};
+    expenses.forEach((tx) => {
+      if (tx.card_id) {
+        map[tx.card_id] = (map[tx.card_id] ?? 0) + Math.abs(tx.amount);
+      }
+    });
+    return map;
+  }, [transactions, budgetId]);
+
   const createCard = useCreateCard();
 
   const isLoading = loadingCards || loadingBanks;
@@ -65,23 +86,23 @@ export default function CardsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Cards</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Tarjetas</h1>
           <p className="text-sm text-muted-foreground">
-            {canEdit ? "Tap a card to edit its details" : "Tus tarjetas"}
+            {canEdit ? "Toca una tarjeta para ver detalles" : "Tus tarjetas"}
           </p>
         </div>
         {canEdit && (
           <Button onClick={openCreate} size="sm">
             <Plus className="h-4 w-4 mr-1" />
-            Add
+            Agregar
           </Button>
         )}
       </div>
 
       {/* Cards Grid */}
       {isLoading ? (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
             <CardSkeleton key={i} />
           ))}
         </div>
@@ -90,20 +111,21 @@ export default function CardsPage() {
           <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center mb-4">
             <CreditCard className="h-7 w-7 text-muted-foreground" />
           </div>
-          <p className="text-muted-foreground mb-4">No cards yet</p>
+          <p className="text-muted-foreground mb-4">Aún no hay tarjetas</p>
           {canEdit && (
             <Button onClick={openCreate} size="sm">
               <Plus className="h-4 w-4 mr-1" />
-              Add card
+              Agregar tarjeta
             </Button>
           )}
         </div>
       ) : (
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {cards.map((card) => (
             <CreditCardVisual
               key={card.id}
               card={card}
+              spentThisMonth={spendingByCard[card.id] ?? 0}
             />
           ))}
         </div>
@@ -114,7 +136,7 @@ export default function CardsPage() {
         <Sheet open={isCreating} onOpenChange={setIsCreating}>
           <SheetContent className="sm:max-w-xl">
             <SheetHeader>
-              <SheetTitle>New Card</SheetTitle>
+              <SheetTitle>Nueva tarjeta</SheetTitle>
             </SheetHeader>
             <form onSubmit={handleSubmit(onCreateSubmit)} className="flex flex-col flex-1 overflow-hidden">
               <div className="flex-1 px-4 pb-4 overflow-y-auto">
@@ -122,10 +144,10 @@ export default function CardsPage() {
               </div>
               <SheetFooter>
                 <Button type="button" variant="outline" onClick={() => setIsCreating(false)}>
-                  Cancel
+                  Cancelar
                 </Button>
                 <Button type="submit" disabled={createCard.isPending || !watch("name")}>
-                  {createCard.isPending ? "Creating..." : "Create"}
+                  {createCard.isPending ? "Creando..." : "Crear"}
                 </Button>
               </SheetFooter>
             </form>

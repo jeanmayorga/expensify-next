@@ -2,142 +2,160 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { CreditCard, Wifi } from "lucide-react";
+import { CreditCard } from "lucide-react";
 import { type CardWithBank } from "../service";
-import {
-  isLightColor,
-  formatCurrency,
-  CARD_TYPES,
-  CARD_KINDS,
-  DARK_TEXT_COLOR,
-} from "../utils";
+import { isLightColor, DARK_TEXT_COLOR } from "../utils";
 import { useMonth } from "@/lib/month-context";
+import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
+
+const fmt = (amount: number) =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+  }).format(amount);
 
 interface CreditCardVisualProps {
   card: CardWithBank;
+  spentThisMonth?: number;
 }
 
-export function CreditCardVisual({ card }: CreditCardVisualProps) {
+export function CreditCardVisual({ card, spentThisMonth = 0 }: CreditCardVisualProps) {
   const { monthStr } = useMonth();
   const cardColor = card.color || "#1e293b";
   const useDarkText = isLightColor(cardColor);
 
-  const cardTypeLabel = CARD_TYPES.find(
-    (t) => t.value === card.card_type,
-  )?.label;
-  const cardKindLabel = CARD_KINDS.find(
-    (k) => k.value === card.card_kind,
-  )?.label;
+  const creditLimit = card.credit_limit ?? 0;
+  const outstanding = card.outstanding_balance ?? 0;
+  const usagePct =
+    creditLimit > 0 ? Math.min(100, (outstanding / creditLimit) * 100) : 0;
+  const showUsageBar =
+    card.card_kind === "credit" && creditLimit > 0;
+  const remaining = creditLimit - outstanding;
+  const isOverLimit = outstanding >= creditLimit;
+
+  const barGradient =
+    isOverLimit
+      ? "from-red-500 to-red-600"
+      : usagePct >= 80
+        ? "from-amber-500 to-amber-600"
+        : "from-emerald-500 to-emerald-600";
 
   return (
     <Link
       href={`/${monthStr}/cards/${card.id}`}
-      className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-2xl block"
+      className="group block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-2xl"
     >
       <div
-        className="relative w-full aspect-[1.75/1] rounded-2xl p-4 overflow-hidden shadow-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl active:scale-[0.98]"
+        className="relative overflow-hidden rounded-2xl p-5 shadow-md transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:ring-2 hover:ring-white/30 active:scale-[0.99]"
         style={{
           background: `linear-gradient(135deg, ${cardColor} 0%, ${cardColor}dd 50%, ${cardColor}aa 100%)`,
           color: useDarkText ? DARK_TEXT_COLOR : "white",
         }}
       >
-        {/* Decorative circles */}
         <div
-          className="absolute -right-8 -top-8 w-28 h-28 rounded-full opacity-10"
+          className="absolute -right-6 -top-6 w-24 h-24 rounded-full opacity-10"
           style={{ backgroundColor: useDarkText ? DARK_TEXT_COLOR : "white" }}
         />
         <div
-          className="absolute -right-4 top-12 w-20 h-20 rounded-full opacity-10"
+          className="absolute -right-2 top-12 w-16 h-16 rounded-full opacity-10"
           style={{ backgroundColor: useDarkText ? DARK_TEXT_COLOR : "white" }}
         />
 
-        {/* Top row: Bank logo and card kind */}
-        <div className="flex items-start justify-between mb-5">
-          <div className="flex items-center gap-2">
+        <div className="relative flex flex-col min-h-[140px]">
+          <div className="flex items-center gap-2 mb-3 min-w-0">
             {card.bank?.image ? (
-              <div
-                className="h-7 w-7 rounded-md backdrop-blur-sm p-1 flex items-center justify-center"
-                style={{
-                  backgroundColor: useDarkText
-                    ? "rgba(0,0,0,0.1)"
-                    : "rgba(255,255,255,0.2)",
-                }}
-              >
+              <div className="h-10 w-10 rounded-full flex items-center justify-center overflow-hidden bg-white/20 shrink-0">
                 <Image
                   src={card.bank.image}
                   alt={card.bank.name}
-                  width={20}
-                  height={20}
+                  width={28}
+                  height={28}
                   className="object-contain"
                 />
               </div>
             ) : (
-              <div
-                className="h-7 w-7 rounded-md backdrop-blur-sm flex items-center justify-center"
-                style={{
-                  backgroundColor: useDarkText
-                    ? "rgba(0,0,0,0.1)"
-                    : "rgba(255,255,255,0.2)",
-                }}
-              >
-                <CreditCard className="h-3.5 w-3.5" />
+              <div className="h-10 w-10 rounded-full flex items-center justify-center bg-white/20 shrink-0">
+                <CreditCard className="h-5 w-5 opacity-90" />
               </div>
             )}
-            {card.bank && (
-              <span className="text-xs font-medium opacity-80">
-                {card.bank.name}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {cardKindLabel && (
-              <span className="text-[10px] font-medium uppercase opacity-60">
-                {cardKindLabel}
-              </span>
-            )}
-            <Wifi className="h-4 w-4 opacity-60 rotate-90" />
-          </div>
-        </div>
-
-        {/* Card number */}
-        <div className="font-mono text-base tracking-widest mb-3 opacity-90">
-          •••• •••• •••• {card.last4 || "••••"}
-        </div>
-
-        {/* Bottom row: cardholder, expiry, type, balance */}
-        <div className="flex items-end justify-between mb-2">
-          <div className="flex-1 min-w-0">
-            {card.cardholder_name && (
-              <p className="text-xs font-medium tracking-wide uppercase truncate">
-                {card.cardholder_name}
-              </p>
-            )}
-            {card.expiration_date && (
-              <p className="text-[10px] opacity-60 mt-0.5">
-                {card.expiration_date}
-              </p>
-            )}
-          </div>
-          <div className="flex flex-col items-end gap-0.5">
-            {cardTypeLabel && (
-              <span className="text-[10px] font-bold uppercase opacity-80">
-                {cardTypeLabel}
-              </span>
-            )}
-            {card.card_kind === "credit" &&
-              card.outstanding_balance != null &&
-              card.outstanding_balance > 0 && (
-                <span className="text-[10px] font-semibold opacity-70">
-                  {formatCurrency(card.outstanding_balance)}
+            <h3 className="text-lg font-bold tracking-tight truncate min-w-0 flex-1">
+              {card.name}
+              {card.last4 && (
+                <span className="ml-1.5 font-mono text-sm font-medium opacity-80">
+                  •••• {card.last4}
                 </span>
               )}
+            </h3>
           </div>
-        </div>
 
-        {/* Card name */}
-        <p className="text-[11px] font-medium opacity-70 truncate">
-          {card.name}
-        </p>
+          {!showUsageBar && (
+            <div className="mt-auto rounded-xl bg-white/20 px-3 py-2.5 inline-block backdrop-blur-sm">
+              <span className="text-xs opacity-90">Gastado este mes</span>
+              <span className="block text-lg font-bold tabular-nums">
+                {fmt(spentThisMonth)}
+              </span>
+            </div>
+          )}
+
+          {showUsageBar && (
+            <div className="mt-auto rounded-xl bg-white/20 px-3 py-2.5 backdrop-blur-sm space-y-2.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="opacity-90">Gastado este mes</span>
+                <span className="font-bold tabular-nums">{fmt(spentThisMonth)}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs mb-1.5">
+                <span className="opacity-90 tabular-nums">
+                  {fmt(outstanding)} / {fmt(creditLimit)}
+                </span>
+                <span
+                  className={cn(
+                    "font-bold tabular-nums",
+                    useDarkText
+                      ? isOverLimit
+                        ? "text-red-700"
+                        : usagePct >= 80
+                          ? "text-amber-700"
+                          : "text-emerald-700"
+                      : isOverLimit
+                        ? "text-red-200"
+                        : usagePct >= 80
+                          ? "text-amber-200"
+                          : "text-emerald-200",
+                  )}
+                >
+                  {usagePct.toFixed(0)}%
+                </span>
+              </div>
+              <Progress
+                value={usagePct}
+                className="h-2"
+                indicatorClassName={cn("bg-gradient-to-r", barGradient)}
+              />
+              <div className="flex justify-between mt-1.5 text-[10px]">
+                <span className="opacity-80">
+                  {isOverLimit ? "Excedido" : "Disponible"}
+                </span>
+                <span
+                  className={cn(
+                    "font-semibold tabular-nums",
+                    useDarkText
+                      ? isOverLimit
+                        ? "text-red-700"
+                        : "text-emerald-700"
+                      : isOverLimit
+                        ? "text-red-200"
+                        : "text-emerald-200",
+                  )}
+                >
+                  {isOverLimit && "-"}
+                  {fmt(Math.abs(remaining))}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </Link>
   );

@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useBanks, useCreateBank } from "./hooks";
 import { type Bank } from "./service";
-import { useCanEdit } from "@/lib/auth-context";
+import { useMonth } from "@/lib/month-context";
+import { useAuth, useCanEdit } from "@/lib/auth-context";
+import { useTransactionsForMonth } from "../transactions/hooks";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -18,7 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Building2, Plus, Mail } from "lucide-react";
+import { Building2, Plus } from "lucide-react";
 
 const DARK_TEXT_COLOR = "#0f265c";
 
@@ -81,9 +83,23 @@ function formToPayload(form: BankFormData) {
   };
 }
 
-function BankCard({ bank, onClick }: { bank: Bank; onClick: () => void }) {
+const fmt = (amount: number) =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+  }).format(amount);
+
+function BankCard({
+  bank,
+  spentThisMonth,
+  onClick,
+}: {
+  bank: Bank;
+  spentThisMonth: number;
+  onClick: () => void;
+}) {
   const bankColor = bank.color || "#2563eb";
-  const emailCount = bank.emails?.length || 0;
   const useDarkText = isLightColor(bankColor);
 
   return (
@@ -109,31 +125,31 @@ function BankCard({ bank, onClick }: { bank: Bank; onClick: () => void }) {
 
         <div className="relative">
           <div className="flex items-center gap-3 mb-4">
-            <div className="flex items-center justify-center overflow-hidden">
-              {bank.image ? (
+            {bank.image ? (
+              <div className="h-10 w-10 rounded-full flex items-center justify-center overflow-hidden bg-white/20 shrink-0">
                 <Image
                   src={bank.image}
                   alt={bank.name}
-                  width={40}
-                  height={40}
-                  className="h-10 w-10 object-contain rounded-full"
+                  width={28}
+                  height={28}
+                  className="object-contain"
                 />
-              ) : (
-                <Building2 className="h-6 w-6" />
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="h-10 w-10 rounded-full flex items-center justify-center bg-white/20 shrink-0">
+                <Building2 className="h-5 w-5 opacity-90" />
+              </div>
+            )}
           </div>
 
           <h3 className="text-xl font-bold tracking-tight">{bank.name}</h3>
 
-          {emailCount > 0 && (
-            <div className="flex items-center gap-1.5 mt-3 text-sm opacity-70">
-              <Mail className="h-4 w-4" />
-              <span>
-                {emailCount} email{emailCount !== 1 ? "s" : ""} configured
-              </span>
-            </div>
-          )}
+          <div className="mt-3 rounded-lg bg-white/20 px-3 py-2 inline-block">
+            <span className="text-xs opacity-90">Gastado este mes</span>
+            <span className="block text-base font-bold tabular-nums">
+              {fmt(spentThisMonth)}
+            </span>
+          </div>
         </div>
       </div>
     </button>
@@ -147,7 +163,26 @@ function BankCardSkeleton() {
 export default function BanksPage() {
   const router = useRouter();
   const canEdit = useCanEdit();
+  const { selectedMonth, monthStr } = useMonth();
+  const { budgetId } = useAuth();
   const { data: banks = [], isLoading } = useBanks();
+  const { data: transactions = [], isLoading: loadingTx } =
+    useTransactionsForMonth(selectedMonth);
+
+  const spendingByBank = useMemo(() => {
+    const filtered = budgetId
+      ? transactions.filter((tx) => tx.budget_id === budgetId)
+      : transactions;
+    const expenses = filtered.filter((tx) => tx.type === "expense");
+    const map: Record<string, number> = {};
+    expenses.forEach((tx) => {
+      if (tx.bank_id) {
+        map[tx.bank_id] = (map[tx.bank_id] ?? 0) + Math.abs(tx.amount);
+      }
+    });
+    return map;
+  }, [transactions, budgetId]);
+
   const createBank = useCreateBank();
 
   const [isCreating, setIsCreating] = useState(false);
@@ -259,14 +294,14 @@ export default function BanksPage() {
         {canEdit && (
           <Button onClick={openCreate} size="sm">
             <Plus className="h-4 w-4 mr-1" />
-            Add
+            Agregar
           </Button>
         )}
       </div>
 
       {/* Banks Grid */}
       {isLoading ? (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 3 }).map((_, i) => (
             <BankCardSkeleton key={i} />
           ))}
@@ -276,21 +311,22 @@ export default function BanksPage() {
           <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center mb-4">
             <Building2 className="h-7 w-7 text-muted-foreground" />
           </div>
-          <p className="text-muted-foreground mb-4">No banks configured yet</p>
+          <p className="text-muted-foreground mb-4">Aún no hay bancos</p>
           {canEdit && (
             <Button onClick={openCreate} size="sm">
               <Plus className="h-4 w-4 mr-1" />
-              Add bank
+              Agregar banco
             </Button>
           )}
         </div>
       ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {banks.map((bank) => (
             <BankCard
               key={bank.id}
               bank={bank}
-              onClick={() => router.push(`banks/${bank.id}`)}
+              spentThisMonth={spendingByBank[bank.id] ?? 0}
+              onClick={() => router.push(`/${monthStr}/banks/${bank.id}`)}
             />
           ))}
         </div>

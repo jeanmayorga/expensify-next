@@ -20,6 +20,7 @@ export interface CardFormData {
   cardholder_name: string;
   expiration_date: string;
   outstanding_balance: string;
+  credit_limit: string;
 }
 
 export const defaultCardFormValues: CardFormData = {
@@ -32,6 +33,7 @@ export const defaultCardFormValues: CardFormData = {
   cardholder_name: "",
   expiration_date: "",
   outstanding_balance: "",
+  credit_limit: "",
 };
 
 interface CardFormProps {
@@ -166,17 +168,31 @@ export function CardForm({ form, banks }: CardFormProps) {
         />
       </div>
 
-      {/* Outstanding balance - only for credit cards */}
+      {/* Outstanding balance & Credit limit - only for credit cards */}
       {cardKind === "credit" && (
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">Outstanding balance</label>
-          <Input
-            type="number"
-            {...register("outstanding_balance")}
-            placeholder="0.00"
-            step="0.01"
-          />
-        </div>
+        <>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Saldo pendiente</label>
+            <Input
+              type="number"
+              {...register("outstanding_balance")}
+              placeholder="0.00"
+              step="0.01"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Cupo máximo</label>
+            <Input
+              type="number"
+              {...register("credit_limit")}
+              placeholder="0.00"
+              step="0.01"
+            />
+            <p className="text-xs text-muted-foreground">
+              Límite de crédito de la tarjeta (para la barra de uso)
+            </p>
+          </div>
+        </>
       )}
 
       {/* Color */}
