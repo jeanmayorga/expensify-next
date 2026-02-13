@@ -14,8 +14,6 @@ import {
   Building2,
   Edit,
   RefreshCw,
-  Mail,
-  CreditCard,
 } from "lucide-react";
 import { useBank } from "../hooks";
 import {
@@ -27,7 +25,7 @@ import { useBanks } from "../hooks";
 import { useBudgets } from "../../budgets/hooks";
 import { type TransactionWithRelations } from "../../transactions/service";
 import { useMonth } from "@/lib/month-context";
-import { useCanEdit } from "@/lib/auth-context";
+import { useAuth, useCanEdit } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card as CardUI, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -39,22 +37,27 @@ import {
   DeleteTransactionDialog,
 } from "../../transactions/components";
 
-const DARK_TEXT_COLOR = "#0f265c";
-
 export default function BankDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const month = params.month as string;
   const bankId = params.id as string;
+  const { budgetId } = useAuth();
   const canEdit = useCanEdit();
+  const banksListPath = `/${month}/banks`;
 
   const { selectedMonth } = useMonth();
 
   const { data: bank, isLoading: loadingBank } = useBank(bankId);
 
-  const filters = {
-    date: format(selectedMonth, "yyyy-MM"),
-    bank_id: bankId,
-  };
+  const filters = useMemo(
+    () => ({
+      date: format(selectedMonth, "yyyy-MM"),
+      bank_id: bankId,
+      ...(budgetId ? { budget_id: budgetId } : {}),
+    }),
+    [selectedMonth, bankId, budgetId],
+  );
   const {
     data: transactions = [],
     isLoading: loadingTx,
@@ -140,9 +143,9 @@ export default function BankDetailPage() {
   if (!bank) {
     return (
       <div className="space-y-6">
-        <Button variant="ghost" onClick={() => router.back()}>
+        <Button variant="ghost" onClick={() => router.push(banksListPath)}>
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Volver
+          Volver a bancos
         </Button>
         <div className="text-center py-12 text-muted-foreground">
           Banco no encontrado
@@ -161,7 +164,7 @@ export default function BankDetailPage() {
             variant="ghost"
             size="icon"
             className="shrink-0"
-            onClick={() => router.push("/banks")}
+            onClick={() => router.push(banksListPath)}
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -205,33 +208,6 @@ export default function BankDetailPage() {
             </Button>
           </div>
         )}
-      </div>
-
-      <div
-        className="relative overflow-hidden rounded-2xl p-5 shadow-xl"
-        style={{
-          background: `linear-gradient(135deg, ${bankColor} 0%, ${bankColor}dd 50%, ${bankColor}aa 100%)`,
-          color: "white",
-        }}
-      >
-        <div
-          className="absolute -right-6 -top-6 w-24 h-24 rounded-full opacity-10"
-          style={{ backgroundColor: DARK_TEXT_COLOR }}
-        />
-        <div className="relative flex flex-wrap items-center gap-4">
-          {bank.emails && bank.emails.length > 0 && (
-            <div className="flex items-center gap-1.5 text-sm opacity-90">
-              <Mail className="h-4 w-4" />
-              <span>{bank.emails.length} email(s) configurado(s)</span>
-            </div>
-          )}
-          {bankCards.length > 0 && (
-            <div className="flex items-center gap-1.5 text-sm opacity-90">
-              <CreditCard className="h-4 w-4" />
-              <span>{bankCards.length} tarjeta(s)</span>
-            </div>
-          )}
-        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">

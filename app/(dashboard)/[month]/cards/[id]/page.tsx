@@ -24,15 +24,13 @@ import { useBanks } from "../../banks/hooks";
 import { useBudgets } from "../../budgets/hooks";
 import { type TransactionWithRelations } from "../../transactions/service";
 import { useMonth } from "@/lib/month-context";
-import { useCanEdit } from "@/lib/auth-context";
+import { useAuth, useCanEdit } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card as CardUI, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   isLightColor,
   formatCurrency,
-  CARD_TYPES,
-  CARD_KINDS,
   DARK_TEXT_COLOR,
 } from "../utils";
 import {
@@ -46,19 +44,26 @@ import {
 export default function CardDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const month = params.month as string;
   const cardId = params.id as string;
+  const { budgetId } = useAuth();
   const canEdit = useCanEdit();
+  const cardsListPath = `/${month}/cards`;
 
   const { selectedMonth } = useMonth();
 
   // Fetch card details
   const { data: card, isLoading: loadingCard } = useCard(cardId);
 
-  // Fetch transactions for this card and month
-  const filters = {
-    date: format(selectedMonth, "yyyy-MM"),
-    card_id: cardId,
-  };
+  // Fetch transactions for this card and month (scoped by budget when key profile)
+  const filters = useMemo(
+    () => ({
+      date: format(selectedMonth, "yyyy-MM"),
+      card_id: cardId,
+      ...(budgetId ? { budget_id: budgetId } : {}),
+    }),
+    [selectedMonth, cardId, budgetId],
+  );
   const {
     data: transactions = [],
     isLoading: loadingTx,
@@ -147,9 +152,9 @@ export default function CardDetailPage() {
   if (!card) {
     return (
       <div className="space-y-6">
-        <Button variant="ghost" onClick={() => router.back()}>
+        <Button variant="ghost" onClick={() => router.push(cardsListPath)}>
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Volver
+          Volver a tarjetas
         </Button>
         <div className="text-center py-12 text-muted-foreground">
           Tarjeta no encontrada
@@ -160,12 +165,6 @@ export default function CardDetailPage() {
 
   const cardColor = card.color || "#1e293b";
   const useDarkText = isLightColor(cardColor);
-  const cardTypeLabel = CARD_TYPES.find(
-    (t) => t.value === card.card_type,
-  )?.label;
-  const cardKindLabel = CARD_KINDS.find(
-    (k) => k.value === card.card_kind,
-  )?.label;
 
   return (
     <div className="space-y-6">
@@ -176,7 +175,7 @@ export default function CardDetailPage() {
             variant="ghost"
             size="icon"
             className="shrink-0"
-            onClick={() => router.push("/cards")}
+            onClick={() => router.push(cardsListPath)}
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -210,104 +209,6 @@ export default function CardDetailPage() {
             </Button>
           </div>
         )}
-      </div>
-
-      {/* Card Summary */}
-      <div
-        className="relative overflow-hidden rounded-2xl p-5 shadow-xl"
-        style={{
-          background: `linear-gradient(135deg, ${cardColor} 0%, ${cardColor}dd 50%, ${cardColor}aa 100%)`,
-          color: useDarkText ? DARK_TEXT_COLOR : "white",
-        }}
-      >
-        {/* Decorative circles */}
-        <div
-          className="absolute -right-8 -top-8 w-28 h-28 rounded-full opacity-10"
-          style={{ backgroundColor: useDarkText ? DARK_TEXT_COLOR : "white" }}
-        />
-        <div
-          className="absolute -right-4 top-12 w-20 h-20 rounded-full opacity-10"
-          style={{ backgroundColor: useDarkText ? DARK_TEXT_COLOR : "white" }}
-        />
-
-        <div className="relative">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex items-center gap-2">
-              {card.bank?.image ? (
-                <div
-                  className="h-8 w-8 rounded-md backdrop-blur-sm p-1 flex items-center justify-center"
-                  style={{
-                    backgroundColor: useDarkText
-                      ? "rgba(0,0,0,0.1)"
-                      : "rgba(255,255,255,0.2)",
-                  }}
-                >
-                  <img
-                    src={card.bank.image}
-                    alt={card.bank.name}
-                    className="h-6 w-6 object-contain"
-                  />
-                </div>
-              ) : (
-                <div
-                  className="h-8 w-8 rounded-md backdrop-blur-sm flex items-center justify-center"
-                  style={{
-                    backgroundColor: useDarkText
-                      ? "rgba(0,0,0,0.1)"
-                      : "rgba(255,255,255,0.2)",
-                  }}
-                >
-                  <CreditCard className="h-4 w-4" />
-                </div>
-              )}
-              <div>
-                {card.bank && (
-                  <span className="text-sm font-medium opacity-80">
-                    {card.bank.name}
-                  </span>
-                )}
-                {cardKindLabel && (
-                  <div className="text-xs font-medium uppercase opacity-60">
-                    {cardKindLabel}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="flex flex-col items-end gap-1">
-              {cardTypeLabel && (
-                <span className="text-xs font-bold uppercase opacity-80">
-                  {cardTypeLabel}
-                </span>
-              )}
-              {card.card_kind === "credit" &&
-                card.outstanding_balance != null &&
-                card.outstanding_balance > 0 && (
-                  <span className="text-xs font-semibold opacity-70">
-                    Saldo: {formatCurrency(card.outstanding_balance)}
-                  </span>
-                )}
-            </div>
-          </div>
-
-          <div className="font-mono text-lg tracking-widest mb-2 opacity-90">
-            •••• •••• •••• {card.last4 || "••••"}
-          </div>
-
-          <div className="flex items-end justify-between">
-            <div className="flex-1 min-w-0">
-              {card.cardholder_name && (
-                <p className="text-sm font-medium tracking-wide uppercase truncate">
-                  {card.cardholder_name}
-                </p>
-              )}
-              {card.expiration_date && (
-                <p className="text-xs opacity-60 mt-0.5">
-                  {card.expiration_date}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Summary Cards */}
