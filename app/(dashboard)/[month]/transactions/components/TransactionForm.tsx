@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toEcuadorDateTimeLocal } from "@/utils/ecuador-time";
-import { type Category } from "../../categories/service";
 import { type CardWithBank } from "../../cards/service";
 import { type Bank } from "../../banks/service";
 import { type Budget } from "../../budgets/service";
@@ -21,7 +20,6 @@ export interface TransactionFormData {
   description: string;
   amount: number;
   occurred_at: string; // datetime-local string in Ecuador time
-  category_id: string;
   card_id: string;
   bank_id: string;
   budget_id: string;
@@ -33,7 +31,6 @@ export const defaultTransactionFormValues: TransactionFormData = {
   description: "",
   amount: 0,
   occurred_at: toEcuadorDateTimeLocal(), // Current time in Ecuador
-  category_id: "",
   card_id: "",
   bank_id: "",
   budget_id: "",
@@ -42,7 +39,6 @@ export const defaultTransactionFormValues: TransactionFormData = {
 
 interface TransactionFormProps {
   form: UseFormReturn<TransactionFormData>;
-  categories: Category[];
   cards: CardWithBank[];
   banks: Bank[];
   budgets: Budget[];
@@ -50,7 +46,6 @@ interface TransactionFormProps {
 
 export function TransactionForm({
   form,
-  categories,
   cards,
   banks,
   budgets,
@@ -109,35 +104,6 @@ export function TransactionForm({
       <div className="space-y-1.5">
         <label className="text-sm font-medium">Fecha y Hora</label>
         <Input type="datetime-local" {...register("occurred_at")} />
-      </div>
-
-      {/* Category */}
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium">Categoría</label>
-        <Select
-          value={watch("category_id") || "__none__"}
-          onValueChange={(v) =>
-            setValue("category_id", v === "__none__" ? "" : v)
-          }
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Seleccionar categoría" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__none__">Ninguna</SelectItem>
-            {categories.map((cat) => (
-              <SelectItem key={cat.id} value={cat.id}>
-                <div className="flex items-center gap-2">
-                  <div
-                    className="h-2.5 w-2.5 rounded-full shrink-0"
-                    style={{ backgroundColor: cat.color || "#888" }}
-                  />
-                  {cat.name}
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
       {/* Card */}

@@ -32,7 +32,7 @@ export function MonthPickerNav() {
   const handleMonthChange = (newMonth: Date) => {
     const newMonthStr = format(newMonth, "yyyy-MM");
     // Replace the month segment in the current path
-    // Path looks like: /2026-01/transactions or /2026-01/categories/123
+    // Path looks like: /2026-01/transactions or /2026-01/budgets/123
     if (monthParam) {
       const newPath = pathname.replace(`/${monthParam}`, `/${newMonthStr}`);
       router.push(newPath);

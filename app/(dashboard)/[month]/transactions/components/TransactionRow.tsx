@@ -12,7 +12,6 @@ import {
   Trash2,
   Building2,
   CreditCard,
-  Tag,
   Wallet,
   Check,
   X,
@@ -30,12 +29,6 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-
-interface Category {
-  id: string;
-  name: string;
-  color: string | null;
-}
 
 interface Card {
   id: string;
@@ -58,7 +51,6 @@ interface Budget {
 
 interface TransactionRowProps {
   transaction: TransactionWithRelations;
-  categories?: Category[];
   cards?: Card[];
   banks?: Bank[];
   budgets?: Budget[];
@@ -79,7 +71,6 @@ function parseDate(date: string | Date): Date {
 
 export function TransactionRow({
   transaction: tx,
-  categories = [],
   cards = [],
   banks = [],
   budgets = [],
@@ -150,7 +141,7 @@ export function TransactionRow({
         </p>
 
         {/* Badges */}
-        {(tx.card || tx.category || tx.budget) && (
+        {(tx.card || tx.budget) && (
           <div className="flex flex-wrap items-center gap-2 mt-0.5">
             {tx.card && (
               <Badge
@@ -166,20 +157,6 @@ export function TransactionRow({
                   tx.card.card_kind === "debit" ? "Debit" : tx.card.card_kind === "credit" ? "Credit" : null,
                   tx.card.last4 || tx.card.name,
                 ].filter(Boolean).join(" ")}
-              </Badge>
-            )}
-            {tx.category && (
-              <Badge
-                variant="outline"
-                className="text-xs h-5 gap-1"
-                style={{
-                  borderColor: tx.category.color ? `${tx.category.color}60` : undefined,
-                  backgroundColor: tx.category.color ? `${tx.category.color}15` : undefined,
-                  color: tx.category.color || undefined,
-                }}
-              >
-                <Tag className="h-3 w-3" />
-                {tx.category.name}
               </Badge>
             )}
             {tx.budget && (
@@ -221,38 +198,6 @@ export function TransactionRow({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              {/* Category Submenu */}
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
-                  <Tag className="mr-2 h-4 w-4" />
-                  Categoría
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="max-h-64 overflow-y-auto">
-                  <DropdownMenuItem
-                    onClick={() => handleAssign("category_id", null)}
-                    className="text-muted-foreground"
-                  >
-                    <X className="mr-2 h-4 w-4" />
-                    Ninguna
-                    {!tx.category_id && <Check className="ml-auto h-4 w-4" />}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  {categories.map((cat) => (
-                    <DropdownMenuItem
-                      key={cat.id}
-                      onClick={() => handleAssign("category_id", cat.id)}
-                    >
-                      <div
-                        className="mr-2 h-3 w-3 rounded-full"
-                        style={{ backgroundColor: cat.color || "#888" }}
-                      />
-                      {cat.name}
-                      {tx.category_id === cat.id && <Check className="ml-auto h-4 w-4" />}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
-
               {/* Card Submenu */}
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>

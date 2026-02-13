@@ -20,7 +20,6 @@ import {
 } from "./TransactionForm";
 import { useUpdateTransaction } from "../hooks";
 import { type TransactionWithRelations } from "../service";
-import { type Category } from "../../categories/service";
 import { type CardWithBank } from "../../cards/service";
 import { type Bank } from "../../banks/service";
 import { type Budget } from "../../budgets/service";
@@ -45,7 +44,6 @@ function transactionInsertToFormData(
     occurred_at: insert.occurred_at
       ? toEcuadorDateTimeLocal(insert.occurred_at)
       : toEcuadorDateTimeLocal(),
-    category_id: insert.category_id ?? "",
     card_id: insert.card_id ?? "",
     bank_id: insert.bank_id ?? "",
     budget_id: insert.budget_id ?? "",
@@ -57,7 +55,6 @@ interface EditTransactionSheetProps {
   transaction: TransactionWithRelations | null;
   onClose: () => void;
   onDelete: (tx: TransactionWithRelations) => void;
-  categories: Category[];
   cards: CardWithBank[];
   banks: Bank[];
   budgets: Budget[];
@@ -67,7 +64,6 @@ export function EditTransactionSheet({
   transaction,
   onClose,
   onDelete,
-  categories,
   cards,
   banks,
   budgets,
@@ -137,7 +133,6 @@ export function EditTransactionSheet({
         occurred_at: transaction.occurred_at
           ? toEcuadorDateTimeLocal(transaction.occurred_at) // Convert UTC to Ecuador time
           : toEcuadorDateTimeLocal(),
-        category_id: transaction.category_id || "",
         card_id: transaction.card_id || "",
         bank_id: transaction.bank_id || "",
         budget_id: transaction.budget_id || "",
@@ -155,7 +150,6 @@ export function EditTransactionSheet({
         description: data.description,
         amount: data.amount,
         occurred_at: fromEcuadorDateTimeLocalToUTC(data.occurred_at), // Convert Ecuador time to UTC
-        category_id: data.category_id || null,
         card_id: data.card_id || null,
         bank_id: data.bank_id || null,
         budget_id: data.budget_id || null,
@@ -203,7 +197,6 @@ export function EditTransactionSheet({
             )}
             <TransactionForm
               form={form}
-              categories={categories}
               cards={cards}
               banks={banks}
               budgets={budgets}

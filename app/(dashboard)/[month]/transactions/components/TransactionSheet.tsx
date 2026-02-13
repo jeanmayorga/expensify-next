@@ -15,7 +15,6 @@ import {
   Trash2,
   Sparkles,
   HandCoins,
-  Tag,
   MessageSquare,
 } from "lucide-react";
 import { type TransactionWithRelations } from "../service";
@@ -31,7 +30,6 @@ import {
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { CreditCardMini } from "./CreditCardMini";
 import { BankCardMini } from "./BankCardMini";
-import { CategoryMini } from "./CategoryMini";
 import { BudgetMini } from "./BudgetMini";
 
 interface TransactionSheetProps {
@@ -161,17 +159,6 @@ export function TransactionSheet({
                 Bank
               </h3>
               <BankCardMini bank={tx.bank} />
-            </div>
-          )}
-
-          {/* Category */}
-          {tx.category && (
-            <div className="space-y-2">
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <Tag className="h-3.5 w-3.5" />
-                Category
-              </h3>
-              <CategoryMini category={tx.category} />
             </div>
           )}
 

@@ -16,7 +16,7 @@ export class TransactionsService {
     let query = supabase
       .from("expensify_transactions")
       .select(
-        "*, bank:bank_id(*), category:category_id(*), card:card_id(*), budget:budget_id(*)",
+        "*, bank:bank_id(*), card:card_id(*), budget:budget_id(*)",
       );
     const timezone = filters.timezone || DEFAULT_TIMEZONE;
 
@@ -31,10 +31,6 @@ export class TransactionsService {
       query = query
         .gte("occurred_at", startUTC.toISOString())
         .lte("occurred_at", endUTC.toISOString());
-    }
-
-    if (filters.category_id) {
-      query = query.eq("category_id", filters.category_id);
     }
 
     if (filters.card_id) {
@@ -66,7 +62,7 @@ export class TransactionsService {
     const { data, error } = await supabase
       .from("expensify_transactions")
       .select(
-        "*, bank:bank_id(*), category:category_id(*), card:card_id(*), budget:budget_id(*)",
+        "*, bank:bank_id(*), card:card_id(*), budget:budget_id(*)",
       )
       .eq("id", id)
       .single();
@@ -90,7 +86,7 @@ export class TransactionsService {
     const { data, error } = await supabase
       .from("expensify_transactions")
       .select(
-        "*, bank:bank_id(*), category:category_id(*), card:card_id(*), budget:budget_id(*)",
+        "*, bank:bank_id(*), card:card_id(*), budget:budget_id(*)",
       )
       .eq("income_message_id", messageId)
       .maybeSingle();
@@ -116,7 +112,6 @@ export class TransactionsService {
       occurred_at: dto.occurred_at || new Date().toISOString(),
       bank_id: dto.bank_id ?? null,
       budget_id: dto.budget_id ?? null,
-      category_id: dto.category_id ?? null,
       card_id: dto.card_id ?? null,
       income_message_id: dto.income_message_id ?? null,
       is_manual: !isFromEmail,

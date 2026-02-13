@@ -10,7 +10,6 @@ import {
   ImageIcon,
   Building2,
   CreditCard,
-  Tag,
   Wallet,
   Trash2,
   Save,
@@ -31,7 +30,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useCategories } from "../../categories/hooks";
 import { useCards } from "../../cards/hooks";
 import { useBanks } from "../../banks/hooks";
 import { useBudgets } from "../../budgets/hooks";
@@ -112,7 +110,6 @@ export default function FromImagePage() {
   const router = useRouter();
 
   // Data queries
-  const { data: categories = [] } = useCategories();
   const { data: cards = [] } = useCards();
   const { data: banks = [] } = useBanks();
   const { data: budgets = [] } = useBudgets();
@@ -135,8 +132,6 @@ export default function FromImagePage() {
   const [userContext, setUserContext] = useState("");
   const [selectedBankId, setSelectedBankId] = useState<string>("__none__");
   const [selectedCardId, setSelectedCardId] = useState<string>("__none__");
-  const [selectedCategoryId, setSelectedCategoryId] =
-    useState<string>("__none__");
   const [selectedBudgetId, setSelectedBudgetId] = useState<string>("__none__");
 
   // Extracted transactions state
@@ -221,9 +216,6 @@ export default function FromImagePage() {
     if (selectedCardId !== "__none__") {
       hints.preselectedCardId = selectedCardId;
     }
-    if (selectedCategoryId !== "__none__") {
-      hints.preselectedCategoryId = selectedCategoryId;
-    }
     if (selectedBudgetId !== "__none__") {
       hints.preselectedBudgetId = selectedBudgetId;
     }
@@ -254,7 +246,6 @@ export default function FromImagePage() {
     userContext,
     selectedBankId,
     selectedCardId,
-    selectedCategoryId,
     selectedBudgetId,
     extractBulk,
   ]);
@@ -286,7 +277,6 @@ export default function FromImagePage() {
       occurred_at: tx.occurred_at,
       bank_id: tx.bank_id,
       card_id: tx.card_id,
-      category_id: tx.category_id,
       budget_id: tx.budget_id,
     }));
 
@@ -460,30 +450,6 @@ export default function FromImagePage() {
 
                 <div className="space-y-1.5">
                   <span className="text-xs font-medium flex items-center gap-1">
-                    <Tag className="h-3 w-3" />
-                    Categoría
-                  </span>
-                  <Select
-                    value={selectedCategoryId}
-                    onValueChange={setSelectedCategoryId}
-                    disabled={isLoading}
-                  >
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="Seleccionar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Sin preselección</SelectItem>
-                      {categories.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id}>
-                          {cat.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <span className="text-xs font-medium flex items-center gap-1">
                     <Wallet className="h-3 w-3" />
                     Presupuesto
                   </span>
@@ -575,7 +541,6 @@ export default function FromImagePage() {
                     }
                     banks={banks}
                     cards={cards}
-                    categories={categories}
                     budgets={budgets}
                   />
                 ))}
@@ -622,7 +587,6 @@ interface TransactionItemProps {
   ) => void;
   banks: Array<{ id: string; name: string }>;
   cards: Array<{ id: string; name: string; last4: string | null }>;
-  categories: Array<{ id: string; name: string }>;
   budgets: Array<{ id: string; name: string }>;
 }
 
@@ -635,12 +599,10 @@ function TransactionItem({
   onUpdate,
   banks,
   cards,
-  categories,
   budgets,
 }: TransactionItemProps) {
   const bank = banks.find((b) => b.id === transaction.bank_id);
   const card = cards.find((c) => c.id === transaction.card_id);
-  const category = categories.find((c) => c.id === transaction.category_id);
   const budget = budgets.find((b) => b.id === transaction.budget_id);
 
   const formatDate = (dateStr: string) => {
@@ -753,25 +715,6 @@ function TransactionItem({
           </Select>
 
           <Select
-            value={transaction.category_id || "__none__"}
-            onValueChange={(v) =>
-              onUpdate("category_id", v === "__none__" ? null : v)
-            }
-          >
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="Categoría" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">Sin categoría</SelectItem>
-              {categories.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select
             value={transaction.budget_id || "__none__"}
             onValueChange={(v) =>
               onUpdate("budget_id", v === "__none__" ? null : v)
@@ -812,7 +755,6 @@ function TransactionItem({
             <span>{formatDate(transaction.occurred_at)}</span>
             {bank && <span>{bank.name}</span>}
             {card && <span>•••• {card.last4}</span>}
-            {category && <span>{category.name}</span>}
             {budget && <span>{budget.name}</span>}
           </div>
         </div>

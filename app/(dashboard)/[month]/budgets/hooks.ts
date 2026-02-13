@@ -44,8 +44,9 @@ export function useUpdateBudget() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: BudgetUpdate }) =>
       updateBudget(id, data),
-    onSuccess: () => {
+    onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: budgetKeys.all });
+      queryClient.invalidateQueries({ queryKey: budgetKeys.detail(id) });
     },
   });
 }

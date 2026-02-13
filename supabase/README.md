@@ -10,9 +10,8 @@ Este directorio es el **origen de verdad** de migraciones y configuración de Su
 1. **expensify_budgets** – Presupuestos
 2. **expensify_tx_budget_assignments** – Asignación transacción ↔ presupuesto
 3. **expensify_transactions** – Transacciones
-4. **expensify_categories** – Categorías
-5. **expensify_cards** – Tarjetas/cuentas
-6. **expensify_banks** – Bancos (referencia para cards/transactions)
+4. **expensify_cards** – Tarjetas/cuentas
+5. **expensify_banks** – Bancos (referencia para cards/transactions)
 
 ## Uso (todo desde expensify-next)
 

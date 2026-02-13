@@ -106,7 +106,6 @@ export async function buildTransactionInsertFromEmail(
     income_message_id: messageId,
     bank_id: bank.id,
     card_id,
-    category_id: null,
     budget_id,
     comment: extracted.comment ?? null,
   };

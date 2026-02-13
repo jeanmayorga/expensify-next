@@ -6,7 +6,6 @@ import type {
   TransactionFilters,
 } from "@/app/api/transactions/model";
 import type { Bank } from "@/app/api/banks/model";
-import type { Category } from "@/app/api/categories/model";
 import type { CardWithBank } from "@/app/api/cards/model";
 import type { Budget } from "@/app/api/budgets/model";
 
@@ -19,7 +18,6 @@ export type {
 
 export type TransactionWithRelations = Transaction & {
   bank: Bank | null;
-  category: Category | null;
   card: CardWithBank | null;
   budget: Budget | null;
 };
@@ -27,7 +25,6 @@ export type TransactionWithRelations = Transaction & {
 export async function getTransactions(filters: TransactionFilters = {}) {
   const params = new URLSearchParams();
   if (filters.date) params.set("date", filters.date);
-  if (filters.category_id) params.set("category_id", filters.category_id);
   if (filters.card_id) params.set("card_id", filters.card_id);
   if (filters.bank_id) params.set("bank_id", filters.bank_id);
   if (filters.budget_id) params.set("budget_id", filters.budget_id);
@@ -70,14 +67,12 @@ export interface ParsedTransaction {
   occurred_at: string;
   bank_id: string;
   card_id: string | null;
-  category_id: string | null;
 }
 
 export interface ImageExtractionHints {
   userContext?: string;
   preselectedBankId?: string | null;
   preselectedCardId?: string | null;
-  preselectedCategoryId?: string | null;
   preselectedBudgetId?: string | null;
 }
 

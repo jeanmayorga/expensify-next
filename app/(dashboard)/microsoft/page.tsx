@@ -16,7 +16,6 @@ import {
 } from "../subscriptions/hooks";
 import { SubscriptionRow } from "../subscriptions/SubscriptionRow";
 import { useBanks } from "../[month]/banks/hooks";
-import { useCategories } from "../[month]/categories/hooks";
 import { useCards } from "../[month]/cards/hooks";
 import { useBudgets } from "../[month]/budgets/hooks";
 import { useQueryClient } from "@tanstack/react-query";
@@ -88,7 +87,6 @@ function EmailsContent({ activeTab, setActiveTab }: { activeTab: Tab; setActiveT
     useTransactionByMessageId(selectedEmailId || "");
 
   const { data: banks = [] } = useBanks();
-  const { data: categories = [] } = useCategories();
   const { data: cards = [] } = useCards();
   const { data: budgets = [] } = useBudgets();
   const whitelistedEmails = useMemo(
@@ -456,7 +454,6 @@ function EmailsContent({ activeTab, setActiveTab }: { activeTab: Tab; setActiveT
           setEditingTransaction(null);
           setTimeout(() => setDeletingTransaction(tx), 0);
         }}
-        categories={categories}
         cards={cards}
         banks={banks}
         budgets={budgets}
@@ -471,7 +468,6 @@ function EmailsContent({ activeTab, setActiveTab }: { activeTab: Tab; setActiveT
           setCreateSheetOpen(open);
           if (!open) setExtractedData(null);
         }}
-        categories={categories}
         cards={cards}
         banks={banks}
         budgets={budgets}

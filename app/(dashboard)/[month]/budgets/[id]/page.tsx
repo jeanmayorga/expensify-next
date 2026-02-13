@@ -11,7 +11,6 @@ import {
   useTransactions,
   useUpdateTransaction,
 } from "../../transactions/hooks";
-import { useCategories } from "../../categories/hooks";
 import { useCards } from "../../cards/hooks";
 import { useBanks } from "../../banks/hooks";
 import { useBudgets } from "../hooks";
@@ -29,6 +28,7 @@ import {
   EditTransactionSheet,
   DeleteTransactionDialog,
 } from "../../transactions/components";
+import { EditBudgetModal } from "../components/EditBudgetModal";
 
 function formatCurrency(amount: number, currency = "USD") {
   return new Intl.NumberFormat("es-EC", {
@@ -62,7 +62,6 @@ export default function BudgetDetailPage() {
     isRefetching,
   } = useTransactions(filters);
 
-  const { data: categories = [], isLoading: loadingCat } = useCategories();
   const { data: cards = [], isLoading: loadingCards } = useCards();
   const { data: banks = [], isLoading: loadingBanks } = useBanks();
   const { data: budgets = [], isLoading: loadingBudgets } = useBudgets();
@@ -72,7 +71,6 @@ export default function BudgetDetailPage() {
   const loading =
     loadingBudget ||
     loadingTx ||
-    loadingCat ||
     loadingCards ||
     loadingBanks ||
     loadingBudgets;
@@ -95,6 +93,7 @@ export default function BudgetDetailPage() {
   const [deletingTx, setDeletingTx] = useState<TransactionWithRelations | null>(
     null,
   );
+  const [editingBudget, setEditingBudget] = useState<boolean>(false);
 
   const handleRowClick = (tx: TransactionWithRelations) => {
     setEditingTx(tx);
@@ -198,7 +197,7 @@ export default function BudgetDetailPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => router.push("edit")}
+              onClick={() => setEditingBudget(true)}
             >
               <Edit className="h-4 w-4 sm:mr-1" />
               <span className="hidden sm:inline">Editar</span>
@@ -362,7 +361,6 @@ export default function BudgetDetailPage() {
                       <TransactionRow
                         key={tx.id}
                         transaction={tx}
-                        categories={categories}
                         cards={cards}
                         banks={banks}
                         budgets={budgets}
@@ -389,7 +387,6 @@ export default function BudgetDetailPage() {
               setEditingTx(null);
               setDeletingTx(tx);
             }}
-            categories={categories}
             cards={cards}
             banks={banks}
             budgets={budgets}
@@ -398,6 +395,14 @@ export default function BudgetDetailPage() {
           <DeleteTransactionDialog
             transaction={deletingTx}
             onClose={() => setDeletingTx(null)}
+          />
+
+          <EditBudgetModal
+            budget={budget}
+            open={editingBudget}
+            onClose={() => setEditingBudget(false)}
+            onSuccess={() => setEditingBudget(false)}
+            onDeleted={() => router.push(budgetsListPath)}
           />
         </>
       )}

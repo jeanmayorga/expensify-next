@@ -193,40 +193,12 @@ export type Database = {
           },
         ]
       }
-      expensify_categories: {
-        Row: {
-          color: string | null
-          created_at: string
-          icon: string | null
-          id: string
-          name: string
-          updated_at: string
-        }
-        Insert: {
-          color?: string | null
-          created_at?: string
-          icon?: string | null
-          id?: string
-          name: string
-          updated_at?: string
-        }
-        Update: {
-          color?: string | null
-          created_at?: string
-          icon?: string | null
-          id?: string
-          name?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       expensify_transactions: {
         Row: {
           amount: number
           bank_id: string | null
           budget_id: string | null
           card_id: string | null
-          category_id: string | null
           comment: string | null
           created_at: string
           description: string
@@ -241,7 +213,6 @@ export type Database = {
           bank_id?: string | null
           budget_id?: string | null
           card_id?: string | null
-          category_id?: string | null
           comment?: string | null
           created_at?: string
           description: string
@@ -256,7 +227,6 @@ export type Database = {
           bank_id?: string | null
           budget_id?: string | null
           card_id?: string | null
-          category_id?: string | null
           comment?: string | null
           created_at?: string
           description?: string
@@ -288,20 +258,12 @@ export type Database = {
             referencedRelation: "expensify_cards"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "expensify_transactions_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "expensify_categories"
-            referencedColumns: ["id"]
-          },
         ]
       }
       transactions: {
         Row: {
           amount: number | null
           bank: string
-          category: string | null
           created_at: string
           description: string | null
           id: number
@@ -314,7 +276,6 @@ export type Database = {
         Insert: {
           amount?: number | null
           bank: string
-          category?: string | null
           created_at?: string
           description?: string | null
           id?: number
@@ -327,7 +288,6 @@ export type Database = {
         Update: {
           amount?: number | null
           bank?: string
-          category?: string | null
           created_at?: string
           description?: string | null
           id?: number

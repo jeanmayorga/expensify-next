@@ -9,14 +9,12 @@ export async function GET(request: NextRequest) {
     const filters: TransactionFilters = {};
 
     const date = searchParams.get("date");
-    const categoryId = searchParams.get("category_id");
     const cardId = searchParams.get("card_id");
     const bankId = searchParams.get("bank_id");
     const budgetId = searchParams.get("budget_id");
     const timezone = searchParams.get("timezone");
 
     if (date) filters.date = date;
-    if (categoryId) filters.category_id = categoryId;
     if (cardId) filters.card_id = cardId;
     if (bankId) filters.bank_id = bankId;
     if (budgetId) filters.budget_id = budgetId;

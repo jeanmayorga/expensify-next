@@ -18,7 +18,6 @@ import {
 } from "./TransactionForm";
 import { useCreateTransaction } from "../hooks";
 import { type TransactionInsert } from "../service";
-import { type Category } from "../../categories/service";
 import { type CardWithBank } from "../../cards/service";
 import { type Bank } from "../../banks/service";
 import { type Budget } from "../../budgets/service";
@@ -38,7 +37,6 @@ function transactionInsertToFormData(
     occurred_at: insert.occurred_at
       ? toEcuadorDateTimeLocal(insert.occurred_at)
       : toEcuadorDateTimeLocal(),
-    category_id: insert.category_id ?? "",
     card_id: insert.card_id ?? "",
     bank_id: insert.bank_id ?? "",
     budget_id: insert.budget_id ?? "",
@@ -49,7 +47,6 @@ function transactionInsertToFormData(
 interface CreateTransactionSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  categories: Category[];
   cards: CardWithBank[];
   banks: Bank[];
   budgets: Budget[];
@@ -62,7 +59,6 @@ interface CreateTransactionSheetProps {
 export function CreateTransactionSheet({
   open,
   onOpenChange,
-  categories,
   cards,
   banks,
   budgets,
@@ -102,7 +98,6 @@ export function CreateTransactionSheet({
       description: data.description,
       amount: data.amount,
       occurred_at: fromEcuadorDateTimeLocalToUTC(data.occurred_at),
-      category_id: data.category_id || null,
       card_id: data.card_id || null,
       bank_id: data.bank_id || null,
       budget_id: data.budget_id || null,
@@ -154,7 +149,6 @@ export function CreateTransactionSheet({
           <div className="flex-1 px-6 pt-0 overflow-y-auto">
             <TransactionForm
               form={form}
-              categories={categories}
               cards={cards}
               banks={banks}
               budgets={budgets}

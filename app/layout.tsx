@@ -5,6 +5,7 @@ import { QueryProvider } from "@/lib/query-provider";
 import { AuthProvider } from "@/lib/auth-context";
 import { AuthGuard } from "@/components/auth-guard";
 import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -35,7 +36,9 @@ export default function RootLayout({
         <AuthProvider>
           <AuthGuard>
             <NuqsAdapter>
-              <QueryProvider>{children}</QueryProvider>
+              <QueryProvider>
+                <TooltipProvider>{children}</TooltipProvider>
+              </QueryProvider>
             </NuqsAdapter>
           </AuthGuard>
         </AuthProvider>

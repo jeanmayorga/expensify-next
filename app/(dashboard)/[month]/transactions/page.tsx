@@ -11,7 +11,6 @@ import {
   Wallet,
   RefreshCw,
   ArrowLeft,
-  Tag,
   CreditCard,
   Building2,
   PiggyBank,
@@ -23,7 +22,6 @@ import {
 } from "lucide-react";
 import { useTransactions, useUpdateTransaction } from "./hooks";
 import { getEcuadorDate } from "@/utils/ecuador-time";
-import { useCategories } from "../categories/hooks";
 import { useCards } from "../cards/hooks";
 import { useBanks } from "../banks/hooks";
 import { useBudgets } from "../budgets/hooks";
@@ -77,7 +75,6 @@ export default function TransactionsPage() {
   const [viewMode, setViewMode] = useState<"list" | "chart">("list");
 
   // Filters
-  const [categoryFilter, setCategoryFilter] = useState<string>("__all__");
   const [cardFilter, setCardFilter] = useState<string>("__all__");
   const [bankFilter, setBankFilter] = useState<string>("__all__");
   const [budgetFilter, setBudgetFilter] = useState<string>("__all__");
@@ -87,7 +84,6 @@ export default function TransactionsPage() {
     date: format(selectedMonth, "yyyy-MM"),
     timezone: "America/Guayaquil",
   };
-  if (categoryFilter !== "__all__") filters.category_id = categoryFilter;
   if (cardFilter !== "__all__") filters.card_id = cardFilter;
   if (bankFilter !== "__all__") filters.bank_id = bankFilter;
   // In readonly mode, force the budget filter to the assigned budget
@@ -104,7 +100,6 @@ export default function TransactionsPage() {
     refetch,
     isRefetching,
   } = useTransactions(filters);
-  const { data: categories = [], isLoading: loadingCat } = useCategories();
   const { data: cards = [], isLoading: loadingCards } = useCards();
   const { data: banks = [], isLoading: loadingBanks } = useBanks();
   const { data: budgets = [], isLoading: loadingBudgets } = useBudgets();
@@ -112,7 +107,7 @@ export default function TransactionsPage() {
   const updateTransaction = useUpdateTransaction();
 
   const loading =
-    loadingTx || loadingCat || loadingCards || loadingBanks || loadingBudgets;
+    loadingTx || loadingCards || loadingBanks || loadingBudgets;
 
   // Filter transactions by type
   const filteredTransactions = useMemo(() => {
@@ -214,13 +209,11 @@ export default function TransactionsPage() {
   const incomeCount = transactions.filter((t) => t.type === "income").length;
 
   const hasActiveFilters =
-    categoryFilter !== "__all__" ||
     cardFilter !== "__all__" ||
     bankFilter !== "__all__" ||
     budgetFilter !== "__all__";
 
   const clearFilters = () => {
-    setCategoryFilter("__all__");
     setCardFilter("__all__");
     setBankFilter("__all__");
     setBudgetFilter("__all__");
@@ -379,34 +372,6 @@ export default function TransactionsPage() {
               </SelectItem>
             </SelectContent>
           </Select>
-          {/* Category Filter */}
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger
-              className={`h-8 text-xs shrink-0 min-w-[120px] ${
-                categoryFilter !== "__all__"
-                  ? "bg-primary/10 border-primary/30"
-                  : "bg-background"
-              }`}
-            >
-              <Tag className="h-3.5 w-3.5" />
-              <SelectValue placeholder="Categoría" />
-            </SelectTrigger>
-            <SelectContent position="popper" side="bottom" align="start">
-              <SelectItem value="__all__">Todas las categorías</SelectItem>
-              {categories.map((cat) => (
-                <SelectItem key={cat.id} value={cat.id}>
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="h-2.5 w-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: cat.color || "#888" }}
-                    />
-                    {cat.name}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
           {/* Card Filter */}
           <Select value={cardFilter} onValueChange={setCardFilter}>
             <SelectTrigger
@@ -580,7 +545,6 @@ export default function TransactionsPage() {
                       <TransactionRow
                         key={tx.id}
                         transaction={tx}
-                        categories={categories}
                         cards={cards}
                         banks={banks}
                         budgets={budgets}
@@ -843,7 +807,6 @@ export default function TransactionsPage() {
           <CreateTransactionSheet
             open={createOpen}
             onOpenChange={setCreateOpen}
-            categories={categories}
             cards={cards}
             banks={banks}
             budgets={budgets}
@@ -856,7 +819,6 @@ export default function TransactionsPage() {
               setEditingTx(null);
               setDeletingTx(tx);
             }}
-            categories={categories}
             cards={cards}
             banks={banks}
             budgets={budgets}

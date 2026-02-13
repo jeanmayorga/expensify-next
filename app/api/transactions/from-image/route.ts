@@ -7,7 +7,6 @@ import {
 } from "@/app/api/openai/service";
 import { BanksRepository } from "@/app/api/banks/repository";
 import { CardsRepository } from "@/app/api/cards/repository";
-import { CategoriesRepository } from "@/app/api/categories/repository";
 
 interface FromImageRequest {
   image: string;
@@ -41,10 +40,9 @@ export async function POST(request: NextRequest) {
     // Build context from database if not provided
     let context = body.context;
     if (!context) {
-      const [banks, cards, categories] = await Promise.all([
+      const [banks, cards] = await Promise.all([
         new BanksRepository().getAll(),
         new CardsRepository().getAll(),
-        new CategoriesRepository().getAll(),
       ]);
 
       context = {
@@ -55,7 +53,6 @@ export async function POST(request: NextRequest) {
           last4: c.last4,
           bank_id: c.bank_id,
         })),
-        categories: categories.map((c) => ({ id: c.id, name: c.name })),
       };
     }
 

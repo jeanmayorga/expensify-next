@@ -19,7 +19,6 @@ import {
   useTransactions,
   useUpdateTransaction,
 } from "../../transactions/hooks";
-import { useCategories } from "../../categories/hooks";
 import { useCards } from "../hooks";
 import { useBanks } from "../../banks/hooks";
 import { useBudgets } from "../../budgets/hooks";
@@ -68,7 +67,6 @@ export default function CardDetailPage() {
   } = useTransactions(filters);
 
   // Related data for transaction rows
-  const { data: categories = [], isLoading: loadingCat } = useCategories();
   const { data: cards = [], isLoading: loadingCards } = useCards();
   const { data: banks = [], isLoading: loadingBanks } = useBanks();
   const { data: budgets = [], isLoading: loadingBudgets } = useBudgets();
@@ -78,7 +76,6 @@ export default function CardDetailPage() {
   const loading =
     loadingCard ||
     loadingTx ||
-    loadingCat ||
     loadingCards ||
     loadingBanks ||
     loadingBudgets;
@@ -420,7 +417,6 @@ export default function CardDetailPage() {
                       <TransactionRow
                         key={tx.id}
                         transaction={tx}
-                        categories={categories}
                         cards={cards}
                         banks={banks}
                         budgets={budgets}
@@ -448,7 +444,6 @@ export default function CardDetailPage() {
               setEditingTx(null);
               setDeletingTx(tx);
             }}
-            categories={categories}
             cards={cards}
             banks={banks}
             budgets={budgets}

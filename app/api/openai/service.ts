@@ -13,7 +13,6 @@ export interface ExtractionContext {
     last4: string | null;
     bank_id: string | null;
   }>;
-  categories: Array<{ id: string; name: string }>;
 }
 
 /**
@@ -22,7 +21,6 @@ export interface ExtractionContext {
 function buildTransactionSchema(context: ExtractionContext) {
   const bankIds = context.banks.map((b) => b.id);
   const cardIds = context.cards.map((c) => c.id);
-  const categoryIds = context.categories.map((c) => c.id);
 
   return {
     type: "object",
@@ -61,12 +59,6 @@ function buildTransactionSchema(context: ExtractionContext) {
           "The UUID of the card used. Match by last 4 digits if present in the email. Return null if not found.",
         enum: [...cardIds, null],
       },
-      category_id: {
-        type: ["string", "null"],
-        description:
-          "The UUID of the category. Infer from the transaction description/merchant. Return null if uncertain.",
-        enum: [...categoryIds, null],
-      },
     },
     required: [
       "type",
@@ -75,7 +67,6 @@ function buildTransactionSchema(context: ExtractionContext) {
       "occurred_at",
       "bank_id",
       "card_id",
-      "category_id",
     ],
     additionalProperties: false,
   } as const;
@@ -88,13 +79,11 @@ export interface ParsedTransaction {
   occurred_at: string;
   bank_id: string;
   card_id: string | null;
-  category_id: string | null;
 }
 
 function buildContextInfo(context: ExtractionContext): {
   banksInfo: string;
   cardsInfo: string;
-  categoriesInfo: string;
 } {
   const banksInfo = context.banks
     .map((b) => `- ${b.name} (id: ${b.id})`)
@@ -108,15 +97,11 @@ function buildContextInfo(context: ExtractionContext): {
     })
     .join("\n");
 
-  const categoriesInfo = context.categories
-    .map((c) => `- ${c.name} (id: ${c.id})`)
-    .join("\n");
-
-  return { banksInfo, cardsInfo, categoriesInfo };
+  return { banksInfo, cardsInfo };
 }
 
 function buildExtractionPrompt(context: ExtractionContext): string {
-  const { banksInfo, cardsInfo, categoriesInfo } = buildContextInfo(context);
+  const { banksInfo, cardsInfo } = buildContextInfo(context);
 
   return `You are a helpful assistant that extracts transaction information from HTML emails.
 
@@ -126,17 +111,13 @@ ${banksInfo}
 ## Available Cards:
 ${cardsInfo}
 
-## Available Categories:
-${categoriesInfo}
-
 ## Instructions:
 1. Extract type (income/expense), description, amount, and date/time
 2. Match the bank by name from the email sender or content
 3. Match the card by last 4 digits if present (look for patterns like "****1234" or "ending in 1234")
-4. Infer the category based on the merchant/description (e.g., restaurants -> Food, supermarkets -> Groceries)
-5. For dates, convert Ecuador time (UTC-5) to UTC format
-6. For amounts, use positive numbers only
-7. Return null for card_id or category_id if you cannot determine them with confidence
+4. For dates, convert Ecuador time (UTC-5) to UTC format
+5. For amounts, use positive numbers only
+6. Return null for card_id if you cannot determine it with confidence
 `;
 }
 
@@ -144,7 +125,6 @@ export interface ImageExtractionHints {
   userContext?: string;
   preselectedBankId?: string | null;
   preselectedCardId?: string | null;
-  preselectedCategoryId?: string | null;
   preselectedBudgetId?: string | null;
 }
 
@@ -152,7 +132,7 @@ function buildImageExtractionPrompt(
   context: ExtractionContext,
   hints?: ImageExtractionHints,
 ): string {
-  const { banksInfo, cardsInfo, categoriesInfo } = buildContextInfo(context);
+  const { banksInfo, cardsInfo } = buildContextInfo(context);
 
   let hintsSection = "";
   if (hints?.userContext) {
@@ -170,14 +150,6 @@ function buildImageExtractionPrompt(
       hintsSection += `\n## Pre-selected card: ${card.name} (id: ${card.id}) - USE THIS card_id\n`;
     }
   }
-  if (hints?.preselectedCategoryId) {
-    const category = context.categories.find(
-      (c) => c.id === hints.preselectedCategoryId,
-    );
-    if (category) {
-      hintsSection += `\n## Pre-selected category: ${category.name} (id: ${category.id}) - USE THIS category_id\n`;
-    }
-  }
 
   return `You are a strict assistant that extracts transaction information from receipt or invoice images.
 
@@ -186,9 +158,6 @@ ${banksInfo}
 
 ## Available Cards:
 ${cardsInfo}
-
-## Available Categories:
-${categoriesInfo}
 ${hintsSection}
 ## CRITICAL INSTRUCTIONS FOR AMOUNT:
 - The amount MUST be the TOTAL amount paid, NOT subtotals, taxes, or tips separately
@@ -214,14 +183,13 @@ ${hintsSection}
 2. Description should be the merchant/store name visible on the receipt
 3. Match card by last 4 digits if visible (patterns: "****1234", "ending in 1234", "XXXX1234")
 4. If pre-selected values are provided above, USE THEM
-5. Return null for bank_id, card_id, or category_id ONLY if not pre-selected AND cannot be determined
+5. Return null for bank_id or card_id ONLY if not pre-selected AND cannot be determined
 `;
 }
 
 function buildBulkTransactionSchema(context: ExtractionContext) {
   const bankIds = context.banks.map((b) => b.id);
   const cardIds = context.cards.map((c) => c.id);
-  const categoryIds = context.categories.map((c) => c.id);
 
   return {
     type: "object",
@@ -264,12 +232,6 @@ function buildBulkTransactionSchema(context: ExtractionContext) {
                 "The UUID of the card if identifiable by last 4 digits, null otherwise",
               enum: [...cardIds, null],
             },
-            category_id: {
-              type: ["string", "null"],
-              description:
-                "The UUID of the category inferred from description, null if uncertain",
-              enum: [...categoryIds, null],
-            },
           },
           required: [
             "type",
@@ -278,7 +240,6 @@ function buildBulkTransactionSchema(context: ExtractionContext) {
             "occurred_at",
             "bank_id",
             "card_id",
-            "category_id",
           ],
           additionalProperties: false,
         },
@@ -293,7 +254,7 @@ function buildBulkImageExtractionPrompt(
   context: ExtractionContext,
   hints?: ImageExtractionHints,
 ): string {
-  const { banksInfo, cardsInfo, categoriesInfo } = buildContextInfo(context);
+  const { banksInfo, cardsInfo } = buildContextInfo(context);
 
   let hintsSection = "";
   if (hints?.userContext) {
@@ -311,14 +272,6 @@ function buildBulkImageExtractionPrompt(
       hintsSection += `\n## Pre-selected card: ${card.name} (id: ${card.id}) - USE THIS card_id FOR ALL TRANSACTIONS\n`;
     }
   }
-  if (hints?.preselectedCategoryId) {
-    const category = context.categories.find(
-      (c) => c.id === hints.preselectedCategoryId,
-    );
-    if (category) {
-      hintsSection += `\n## Pre-selected category: ${category.name} (id: ${category.id}) - USE THIS category_id FOR ALL TRANSACTIONS\n`;
-    }
-  }
 
   return `You are an expert assistant that extracts MULTIPLE transactions from bank statements, account statements, or images containing several transactions.
 
@@ -327,9 +280,6 @@ ${banksInfo}
 
 ## Available Cards:
 ${cardsInfo}
-
-## Available Categories:
-${categoriesInfo}
 ${hintsSection}
 ## CRITICAL INSTRUCTIONS:
 1. Extract ALL transactions visible in the image - do not skip any
@@ -355,11 +305,6 @@ ${hintsSection}
 - If there are separate Debit/Credit columns, use those values
 - Amount must be positive (absolute value)
 - Do NOT include currency symbols
-
-## CATEGORY INFERENCE:
-- Infer category from merchant/description when possible
-- Common mappings: Restaurants/Food, Supermarkets/Groceries, Gas stations/Transportation
-- Return null if uncertain
 
 ## If pre-selected values are provided above, apply them to ALL transactions.
 `;
@@ -415,7 +360,7 @@ export class OpenAIService {
         `OpenAIService->getTransactionFromEmail() ${emailContent.length} chars`,
       );
       console.log(
-        `Context: ${context.banks.length} banks, ${context.cards.length} cards, ${context.categories.length} categories`,
+        `Context: ${context.banks.length} banks, ${context.cards.length} cards`,
       );
 
       const response = await this.createStructuredResponse(
@@ -449,7 +394,7 @@ export class OpenAIService {
         `OpenAIService->getTransactionFromImage() mimeType=${mimeType}`,
       );
       console.log(
-        `Context: ${context.banks.length} banks, ${context.cards.length} cards, ${context.categories.length} categories`,
+        `Context: ${context.banks.length} banks, ${context.cards.length} cards`,
       );
       if (hints) {
         console.log(`Hints: ${JSON.stringify(hints)}`);
@@ -524,7 +469,7 @@ export class OpenAIService {
         `OpenAIService->getTransactionsFromImage() mimeType=${mimeType}`,
       );
       console.log(
-        `Context: ${context.banks.length} banks, ${context.cards.length} cards, ${context.categories.length} categories`,
+        `Context: ${context.banks.length} banks, ${context.cards.length} cards`,
       );
       if (hints) {
         console.log(`Hints: ${JSON.stringify(hints)}`);

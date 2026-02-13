@@ -8,11 +8,9 @@ import Image from "next/image";
 import { useTransactionsForMonth } from "./transactions/hooks";
 import { useMonth } from "@/lib/month-context";
 import { useAuth } from "@/lib/auth-context";
-import { useCategories } from "./categories/hooks";
 import { useBudgets } from "./budgets/hooks";
 import { useBanks } from "./banks/hooks";
 import { useCards } from "./cards/hooks";
-import { type Category } from "./categories/service";
 import { type Budget } from "./budgets/service";
 import { BudgetCard } from "./budgets/components/BudgetCard";
 import { type Bank } from "./banks/service";
@@ -33,8 +31,6 @@ import {
   TransactionRowSkeleton,
 } from "./transactions/components";
 import {
-  ArrowDownIcon,
-  ArrowUpIcon,
   TrendingDown,
   TrendingUp,
   Wallet,
@@ -42,109 +38,7 @@ import {
   CreditCard,
   Building2,
   Plus,
-  Tag,
-  ShoppingCart,
-  Utensils,
-  Car,
-  Home,
-  Zap,
-  Wifi,
-  Phone,
-  Tv,
-  Music,
-  Gamepad2,
-  Dumbbell,
-  Heart,
-  Pill,
-  GraduationCap,
-  Briefcase,
-  Plane,
-  Bus,
-  Fuel,
-  ParkingCircle,
-  ShoppingBag,
-  Shirt,
-  Scissors,
-  Gift,
-  Baby,
-  PawPrint,
-  Coffee,
-  Beer,
-  Pizza,
-  IceCream,
-  Cake,
-  Apple,
-  Salad,
-  Sandwich,
-  Popcorn,
-  UtensilsCrossed,
-  Banknote,
-  PiggyBank,
-  Receipt,
-  Landmark,
-  HandCoins,
-  Coins,
-  DollarSign,
-  CircleDollarSign,
-  type LucideIcon,
 } from "lucide-react";
-
-// Icon mapping for categories
-const CATEGORY_ICONS: Record<string, LucideIcon> = {
-  Tag,
-  ShoppingCart,
-  Utensils,
-  Car,
-  Home,
-  Zap,
-  Wifi,
-  Phone,
-  Tv,
-  Music,
-  Gamepad2,
-  Dumbbell,
-  Heart,
-  Pill,
-  GraduationCap,
-  Briefcase,
-  Plane,
-  Bus,
-  Fuel,
-  ParkingCircle,
-  ShoppingBag,
-  Shirt,
-  Scissors,
-  Gift,
-  Baby,
-  PawPrint,
-  Coffee,
-  Beer,
-  Pizza,
-  IceCream,
-  Cake,
-  Apple,
-  Salad,
-  Sandwich,
-  Popcorn,
-  UtensilsCrossed,
-  Banknote,
-  Wallet,
-  PiggyBank,
-  TrendingUp,
-  Receipt,
-  CreditCard,
-  Building2,
-  Landmark,
-  HandCoins,
-  Coins,
-  DollarSign,
-  CircleDollarSign,
-};
-
-function getIconComponent(iconName: string | null): LucideIcon {
-  if (!iconName) return Tag;
-  return CATEGORY_ICONS[iconName] ?? Tag;
-}
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-US", {
@@ -160,7 +54,6 @@ export default function HomePage() {
 
   const { data: allTransactions = [], isLoading: loadingTx } =
     useTransactionsForMonth(selectedMonth);
-  const { data: categories = [], isLoading: loadingCat } = useCategories();
   const { data: allBudgets = [], isLoading: loadingBudgets } = useBudgets();
   const { data: banks = [], isLoading: loadingBanks } = useBanks();
   const { data: cards = [], isLoading: loadingCards } = useCards();
@@ -181,7 +74,7 @@ export default function HomePage() {
   }, [allBudgets, accessMode, authBudgetId]);
 
   const loading =
-    loadingTx || loadingCat || loadingBudgets || loadingBanks || loadingCards;
+    loadingTx || loadingBudgets || loadingBanks || loadingCards;
 
   // Calculate stats
   const totalExpenses = transactions
@@ -236,25 +129,6 @@ export default function HomePage() {
       };
     });
   }, [budgets, transactions]);
-
-  // Category spending
-  const categorySpending = useMemo(() => {
-    const spending: Record<
-      string,
-      { category: Category; total: number; count: number }
-    > = {};
-    transactions
-      .filter((tx) => tx.type === "expense" && tx.category)
-      .forEach((tx) => {
-        const catId = tx.category_id!;
-        if (!spending[catId]) {
-          spending[catId] = { category: tx.category!, total: 0, count: 0 };
-        }
-        spending[catId].total += Math.abs(tx.amount);
-        spending[catId].count++;
-      });
-    return Object.values(spending).sort((a, b) => b.total - a.total);
-  }, [transactions]);
 
   // Bank spending
   const bankSpending = useMemo(() => {
@@ -428,7 +302,6 @@ export default function HomePage() {
                         <TransactionRow
                           key={tx.id}
                           transaction={tx}
-                          categories={categories}
                           cards={cards}
                           banks={banks}
                           budgets={budgets}
@@ -496,83 +369,6 @@ export default function HomePage() {
                     href={`budgets/${data.budget.id}`}
                   />
                 ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Category Spending - Horizontal Bars */}
-        <Card className="lg:col-span-1">
-          <CardHeader className="flex flex-wrap items-center justify-between gap-2 pb-2">
-            <div className="min-w-0">
-              <CardTitle className="text-base sm:text-lg truncate">
-                Por Categoría
-              </CardTitle>
-              <CardDescription className="text-xs sm:text-sm">
-                Distribución de gastos
-              </CardDescription>
-            </div>
-            <Button variant="ghost" size="sm" asChild className="shrink-0">
-              <Link href="/categories">
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-          </CardHeader>
-          <CardContent className="px-4 pb-4">
-            {loading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="space-y-1.5">
-                    <div className="flex justify-between">
-                      <Skeleton className="h-4 w-24" />
-                      <Skeleton className="h-4 w-16" />
-                    </div>
-                    <Skeleton className="h-2.5 w-full rounded-full" />
-                  </div>
-                ))}
-              </div>
-            ) : categorySpending.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">
-                Sin datos
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {categorySpending.slice(0, 6).map(({ category, total }) => {
-                  const percentage =
-                    totalExpenses > 0 ? (total / totalExpenses) * 100 : 0;
-                  const IconComponent = getIconComponent(category.icon);
-                  return (
-                    <Link
-                      key={category.id}
-                      href={`categories/${category.id}`}
-                      className="block group"
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <IconComponent
-                            className="h-4 w-4 shrink-0"
-                            style={{ color: category.color || "#6b7280" }}
-                          />
-                          <span className="text-sm font-medium truncate group-hover:text-primary transition-colors">
-                            {category.name}
-                          </span>
-                        </div>
-                        <span className="text-sm text-muted-foreground shrink-0 ml-2">
-                          {formatCurrency(total)}
-                        </span>
-                      </div>
-                      <div className="h-2.5 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all group-hover:opacity-80"
-                          style={{
-                            width: `${percentage}%`,
-                            backgroundColor: category.color || "#6366f1",
-                          }}
-                        />
-                      </div>
-                    </Link>
-                  );
-                })}
               </div>
             )}
           </CardContent>

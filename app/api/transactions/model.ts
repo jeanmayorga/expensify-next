@@ -10,7 +10,6 @@ export type TransactionUpdate =
 export interface TransactionFilters {
   /** Formato: YYYY-MM (ej: 2025-01) */
   date?: string;
-  category_id?: string;
   card_id?: string;
   bank_id?: string;
   budget_id?: string;

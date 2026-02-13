@@ -3,23 +3,21 @@
 import Link from "next/link";
 import { usePathname, useParams } from "next/navigation";
 import { format } from "date-fns";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/auth-context";
 import {
   Home,
   Receipt,
-  Tag,
   CreditCard,
   Landmark,
   PiggyBank,
   Cloud,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 // Routes under [month] segment
 const monthRoutes = [
   { name: "Inicio", path: "", icon: Home },
   { name: "Transacciones", path: "transactions", icon: Receipt },
-  { name: "Categorías", path: "categories", icon: Tag },
   { name: "Tarjetas", path: "cards", icon: CreditCard },
   { name: "Bancos", path: "banks", icon: Landmark },
   { name: "Presupuestos", path: "budgets", icon: PiggyBank },
@@ -36,84 +34,53 @@ export function Navigation() {
   const { accessMode } = useAuth();
   const monthParam = (params.month as string) || format(new Date(), "yyyy-MM");
 
-  // In readonly mode, hide emails and subscriptions
   const visibleOtherRoutes = accessMode === "readonly" ? [] : otherRoutes;
-  const gridCols = accessMode === "readonly" ? "sm:grid-cols-6" : "sm:grid-cols-7";
 
-  // Build href for month-based routes
   const getMonthHref = (path: string) =>
     path ? `/${monthParam}/${path}` : `/${monthParam}`;
 
-  // Determine current tab value based on pathname
-  const getCurrentTab = () => {
-    // Check month routes first
-    for (const route of monthRoutes) {
-      const href = getMonthHref(route.path);
-      if (
-        pathname === href ||
-        (route.path && pathname.startsWith(href + "/"))
-      ) {
-        return href;
-      }
-    }
-    // Check other routes
-    for (const route of otherRoutes) {
-      if (pathname === route.href || pathname.startsWith(route.href + "/")) {
-        return route.href;
-      }
-    }
-    return getMonthHref("");
+  const isActive = (href: string, path?: string) => {
+    if (pathname === href) return true;
+    if (path && pathname.startsWith(href + "/")) return true;
+    return false;
   };
 
-  const currentTab = getCurrentTab();
+  const allRoutes = [
+    ...monthRoutes.map((r) => ({
+      name: r.name,
+      href: getMonthHref(r.path),
+      icon: r.icon,
+      path: r.path,
+    })),
+    ...visibleOtherRoutes.map((r) => ({
+      name: r.name,
+      href: r.href,
+      icon: r.icon,
+      path: r.href,
+    })),
+  ];
 
   return (
-    <Tabs value={currentTab} className="w-full">
-      <TabsList className={`flex w-full overflow-x-auto overflow-y-hidden flex-nowrap gap-0.5 p-1 h-auto min-h-9 sm:grid ${gridCols} sm:overflow-visible [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20`}>
-        {monthRoutes.map((item) => {
-          const href = getMonthHref(item.path);
-          const Icon = item.icon;
-          return (
-            <TabsTrigger
-              key={item.path}
-              value={href}
-              asChild
-              className="shrink-0 flex-1 min-w-0 sm:min-w-0"
-            >
-              <Link
-                href={href}
-                className="flex items-center justify-center gap-1.5 px-2 py-2 sm:px-3"
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span className="hidden sm:inline truncate text-xs">
-                  {item.name}
-                </span>
-              </Link>
-            </TabsTrigger>
-          );
-        })}
-        {visibleOtherRoutes.map((item) => {
-          const Icon = item.icon;
-          return (
-            <TabsTrigger
-              key={item.href}
-              value={item.href}
-              asChild
-              className="shrink-0 flex-1 min-w-0 sm:min-w-0"
-            >
-              <Link
-                href={item.href}
-                className="flex items-center justify-center gap-1.5 px-2 py-2 sm:px-3"
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span className="hidden sm:inline truncate text-xs">
-                  {item.name}
-                </span>
-              </Link>
-            </TabsTrigger>
-          );
-        })}
-      </TabsList>
-    </Tabs>
+    <nav className="flex overflow-x-auto [&::-webkit-scrollbar]:h-0">
+      {allRoutes.map((item) => {
+        const Icon = item.icon;
+        const active = isActive(item.href, item.path);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={cn(
+              "flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors",
+              active
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground hover:border-border",
+            )}
+          >
+            <Icon className="h-4 w-4" />
+            {item.name}
+          </Link>
+        );
+      })}
+    </nav>
   );
 }

@@ -1,6 +1,5 @@
-import { Navigation } from "@/components/navigation";
-import { MonthPickerNav } from "@/components/month-picker-nav";
-import { LogoutButton } from "@/components/logout-button";
+import { AppSidebar } from "@/components/app-sidebar";
+import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 
 export default function DashboardLayout({
   children,
@@ -8,20 +7,14 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
-      <div className="container mx-auto max-w-6xl px-4 py-4 sm:py-6">
-        <header className="mb-6">
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-            <h1 className="text-2xl font-bold">Expensify</h1>
-            <div className="flex items-center gap-2">
-              <MonthPickerNav />
-              <LogoutButton />
-            </div>
-          </div>
-          <Navigation />
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <header className="flex h-12 items-center gap-2 border-b px-4 shrink-0">
+          <SidebarTrigger className="-ml-1" />
         </header>
-        <main>{children}</main>
-      </div>
-    </div>
+        <main className="flex-1 p-4 sm:p-6">{children}</main>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
