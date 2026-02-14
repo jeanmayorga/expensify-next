@@ -9,6 +9,8 @@ export async function GET(request: NextRequest) {
     const filters: TransactionFilters = {};
 
     const date = searchParams.get("date");
+    const dateFrom = searchParams.get("date_from");
+    const dateTo = searchParams.get("date_to");
     const search = searchParams.get("search");
     const cardId = searchParams.get("card_id");
     const bankId = searchParams.get("bank_id");
@@ -16,6 +18,8 @@ export async function GET(request: NextRequest) {
     const timezone = searchParams.get("timezone");
 
     if (date) filters.date = date;
+    if (dateFrom) filters.date_from = dateFrom;
+    if (dateTo) filters.date_to = dateTo;
     if (search) filters.search = search;
     if (cardId) filters.card_id = cardId;
     if (bankId) filters.bank_id = bankId;

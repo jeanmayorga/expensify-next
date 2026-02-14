@@ -4,7 +4,13 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { format, parseISO } from "date-fns";
+import {
+  format,
+  parseISO,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+} from "date-fns";
 import { es } from "date-fns/locale";
 import {
   Wallet,
@@ -31,6 +37,7 @@ import { useBanks } from "../banks/hooks";
 import { useBudgets } from "../budgets/hooks";
 import { BudgetLabel } from "../budgets/components/BudgetLabel";
 import { type TransactionWithRelations } from "./service";
+import type { DateRange } from "react-day-picker";
 import { useMonth } from "@/lib/month-context";
 import { useAuth, useCanEdit } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
@@ -46,6 +53,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -110,11 +118,31 @@ export default function TransactionsPage() {
   const [bankFilter, setBankFilter] = useState<string>("__all__");
   const [budgetFilter, setBudgetFilter] = useState<string>("__all__");
 
+  // Date range: default = inicio y fin del mes actual (selectedMonth)
+  const [dateRange, setDateRange] = useState<DateRange>(() => {
+    const start = startOfMonth(selectedMonth);
+    const end = endOfMonth(selectedMonth);
+    return { from: start, to: end };
+  });
+
+  // Sync dateRange when selectedMonth changes (e.g. navigation)
+  useEffect(() => {
+    setDateRange({
+      from: startOfMonth(selectedMonth),
+      to: endOfMonth(selectedMonth),
+    });
+  }, [selectedMonth]);
+
   // Build filters
   const filters: Record<string, string> = {
-    date: format(selectedMonth, "yyyy-MM"),
     timezone: "America/Guayaquil",
   };
+  if (dateRange.from && dateRange.to) {
+    filters.date_from = format(dateRange.from, "yyyy-MM-dd");
+    filters.date_to = format(dateRange.to, "yyyy-MM-dd");
+  } else {
+    filters.date = format(selectedMonth, "yyyy-MM");
+  }
   if (cardFilter !== "__all__") filters.card_id = cardFilter;
   if (bankFilter !== "__all__") filters.bank_id = bankFilter;
   if (budgetId) {
@@ -228,22 +256,21 @@ export default function TransactionsPage() {
     });
   }, [txId, loading, transactions]);
 
-  // Chart data
+  // Chart data - usa el rango de fechas seleccionado
   const chartData = useMemo(() => {
-    const year = format(selectedMonth, "yyyy");
-    const month = format(selectedMonth, "MM");
-    const daysInMonth = new Date(parseInt(year), parseInt(month), 0).getDate();
+    const from = dateRange.from ?? startOfMonth(selectedMonth);
+    const to = dateRange.to ?? endOfMonth(selectedMonth);
+    const days = eachDayOfInterval({ start: from, end: to });
 
-    const data = [];
-    for (let day = 1; day <= daysInMonth; day++) {
-      const dateStr = `${year}-${month}-${day.toString().padStart(2, "0")}`;
+    return days.map((d) => {
+      const dateStr = format(d, "yyyy-MM-dd");
       const dayTransactions = filteredTransactions.filter((tx) => {
         const ecuadorDate = parseDate(tx.occurred_at);
         return format(ecuadorDate, "yyyy-MM-dd") === dateStr;
       });
 
-      data.push({
-        day: day.toString(),
+      return {
+        day: format(d, "d"),
         date: dateStr,
         expenses: dayTransactions
           .filter((tx) => tx.type === "expense")
@@ -252,10 +279,16 @@ export default function TransactionsPage() {
           .filter((tx) => tx.type === "income")
           .reduce((sum, tx) => sum + tx.amount, 0),
         transactions: dayTransactions.length,
-      });
-    }
-    return data;
-  }, [filteredTransactions, selectedMonth]);
+      };
+    });
+  }, [filteredTransactions, dateRange, selectedMonth]);
+
+  const chartPeriodLabel = useMemo(() => {
+    if (!dateRange.from || !dateRange.to) return format(selectedMonth, "MMMM 'de' yyyy", { locale: es });
+    const fromStr = format(dateRange.from, "d MMM", { locale: es });
+    const toStr = format(dateRange.to, "d MMM yyyy", { locale: es });
+    return `${fromStr} – ${toStr}`;
+  }, [dateRange, selectedMonth]);
 
   // Sheet states
   const [createOpen, setCreateOpen] = useState(false);
@@ -453,12 +486,18 @@ export default function TransactionsPage() {
         />
       </div>
 
-      {/* Filters row: on desktop = type tabs + selects (left) | view mode (right) */}
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
-          {/* Type Filter (Todas, Gastos, Ingresos) + View Mode on same row on mobile */}
-          <div className="flex items-center justify-between gap-2 sm:justify-start">
-            <Tabs
+      {/* Date range + Type tabs + View mode */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
+        <DateRangePicker
+          value={dateRange}
+          onChange={(range) => {
+            if (range) setDateRange(range);
+            else setDateRange({ from: startOfMonth(selectedMonth), to: endOfMonth(selectedMonth) });
+          }}
+          placeholder="Rango de fechas"
+        />
+        <div className="flex items-center justify-between gap-2 sm:justify-start">
+          <Tabs
               value={typeFilter}
               onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}
             >
@@ -495,17 +534,34 @@ export default function TransactionsPage() {
             </Tabs>
           </div>
 
-          <div className="h-px bg-border sm:hidden" />
+        {/* View Mode (Lista / Gráfico) - right on desktop, hidden on mobile (shown above) */}
+        <Tabs
+          value={viewMode}
+          onValueChange={(v) => setViewMode(v as "list" | "chart")}
+          className="hidden sm:block sm:ml-auto"
+        >
+          <TabsList className="h-8 shrink-0">
+            <TabsTrigger value="list" className="gap-1.5 text-xs px-3">
+              <List className="h-3.5 w-3.5" />
+              Lista
+            </TabsTrigger>
+            <TabsTrigger value="chart" className="gap-1.5 text-xs px-3">
+              <BarChart3 className="h-3.5 w-3.5" />
+              Gráfico
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
 
-          {/* Filter dropdowns - full width on mobile, inline on desktop */}
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
-            <div className="flex items-center gap-1.5 text-muted-foreground shrink-0">
-              <Filter className="h-3.5 w-3.5" />
-              <span className="text-xs font-medium">Filtros</span>
-            </div>
+      {/* Filters - nueva línea */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
+        <div className="flex items-center gap-1.5 text-muted-foreground shrink-0">
+          <Filter className="h-3.5 w-3.5" />
+          <span className="text-xs font-medium">Filtros</span>
+        </div>
 
-            {/* Card Filter */}
-            <Select value={cardFilter} onValueChange={setCardFilter}>
+        {/* Card Filter */}
+        <Select value={cardFilter} onValueChange={setCardFilter}>
               <SelectTrigger
                 className={cn(
                   "w-full sm:w-auto sm:min-w-[140px] sm:shrink-0",
@@ -513,7 +569,7 @@ export default function TransactionsPage() {
                 )}
               >
                 <SelectValue placeholder="Tarjeta" />
-              </SelectTrigger>
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">Todas las tarjetas</SelectItem>
               {cards.map((card) => {
@@ -542,44 +598,44 @@ export default function TransactionsPage() {
                 );
               })}
             </SelectContent>
-          </Select>
+        </Select>
 
-            {/* Bank Filter */}
-            <Select value={bankFilter} onValueChange={setBankFilter}>
-              <SelectTrigger
-                className={cn(
-                  "w-full sm:w-auto sm:min-w-[140px] sm:shrink-0",
-                  bankFilter !== "__all__" && "bg-primary/10 border-primary/30",
-                )}
-              >
-                <SelectValue placeholder="Banco" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">Todos los bancos</SelectItem>
-              {banks.map((bank) => (
-                <SelectItem key={bank.id} value={bank.id}>
-                  <div className="flex items-center gap-2">
-                    {bank.image ? (
-                      <Image
-                        src={bank.image}
-                        alt={bank.name}
-                        width={16}
-                        height={16}
-                        className="h-4 w-4 rounded object-contain shrink-0"
-                      />
-                    ) : (
-                      <Building2 className="h-3.5 w-3.5 shrink-0" />
-                    )}
-                    {bank.name}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-            </Select>
+        {/* Bank Filter */}
+        <Select value={bankFilter} onValueChange={setBankFilter}>
+          <SelectTrigger
+            className={cn(
+              "w-full sm:w-auto sm:min-w-[140px] sm:shrink-0",
+              bankFilter !== "__all__" && "bg-primary/10 border-primary/30",
+            )}
+          >
+            <SelectValue placeholder="Banco" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todos los bancos</SelectItem>
+            {banks.map((bank) => (
+              <SelectItem key={bank.id} value={bank.id}>
+                <div className="flex items-center gap-2">
+                  {bank.image ? (
+                    <Image
+                      src={bank.image}
+                      alt={bank.name}
+                      width={16}
+                      height={16}
+                      className="h-4 w-4 rounded object-contain shrink-0"
+                    />
+                  ) : (
+                    <Building2 className="h-3.5 w-3.5 shrink-0" />
+                  )}
+                  {bank.name}
+              </div>
+            </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-            {/* Budget Filter - hidden when scoped to a single budget (key) */}
-            {!budgetId && (
-              <Select value={budgetFilter} onValueChange={setBudgetFilter}>
+        {/* Budget Filter - hidden when scoped to a single budget (key) */}
+        {!budgetId && (
+          <Select value={budgetFilter} onValueChange={setBudgetFilter}>
                 <SelectTrigger
                   className={cn(
                     "w-full sm:w-auto sm:min-w-[140px] sm:shrink-0",
@@ -587,8 +643,8 @@ export default function TransactionsPage() {
                   )}
                 >
                   <SelectValue placeholder="Presupuesto" />
-              </SelectTrigger>
-              <SelectContent>
+                </SelectTrigger>
+                <SelectContent>
                 <SelectItem value="__all__">Todos los presupuestos</SelectItem>
                 {budgets.map((budget) => (
                   <SelectItem key={budget.id} value={budget.id}>
@@ -599,38 +655,18 @@ export default function TransactionsPage() {
                   </SelectItem>
                 ))}
                 </SelectContent>
-              </Select>
-            )}
+          </Select>
+        )}
 
-            {hasActiveFilters && (
-              <button
+        {hasActiveFilters && (
+          <button
                 onClick={clearFilters}
                 className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0 w-fit"
               >
                 <X className="h-3 w-3" />
-                Limpiar ({activeFilterCount})
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* View Mode (Lista / Gráfico) - right on desktop, hidden on mobile (shown above) */}
-        <Tabs
-          value={viewMode}
-          onValueChange={(v) => setViewMode(v as "list" | "chart")}
-          className="hidden sm:block"
-        >
-          <TabsList className="h-8 shrink-0">
-            <TabsTrigger value="list" className="gap-1.5 text-xs px-3">
-              <List className="h-3.5 w-3.5" />
-              Lista
-            </TabsTrigger>
-            <TabsTrigger value="chart" className="gap-1.5 text-xs px-3">
-              <BarChart3 className="h-3.5 w-3.5" />
-              Gráfico
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+            Limpiar ({activeFilterCount})
+          </button>
+        )}
       </div>
 
       {/* Content */}
@@ -729,7 +765,7 @@ export default function TransactionsPage() {
                     Gastos diarios
                   </h3>
                   <p className="text-xs text-muted-foreground capitalize">
-                    {format(selectedMonth, "MMMM 'de' yyyy", { locale: es })}
+                    {chartPeriodLabel}
                   </p>
                 </div>
                 <ChartContainer
@@ -798,11 +834,11 @@ export default function TransactionsPage() {
                         content={({ active, payload, label }) => {
                           if (!active || !payload?.length) return null;
                           const data = payload[0].payload;
+                          const tooltipDate = parseISO(data.date);
                           return (
                             <div className="rounded-lg border border-border bg-background px-3 py-2.5 shadow-lg">
                               <p className="text-xs font-medium text-muted-foreground">
-                                Dia {label} ·{" "}
-                                {format(selectedMonth, "MMMM", {
+                                {format(tooltipDate, "EEEE d MMMM", {
                                   locale: es,
                                 })}
                               </p>
@@ -846,7 +882,7 @@ export default function TransactionsPage() {
                     Ingresos diarios
                   </h3>
                   <p className="text-xs text-muted-foreground capitalize">
-                    {format(selectedMonth, "MMMM 'de' yyyy", { locale: es })}
+                    {chartPeriodLabel}
                   </p>
                 </div>
                 <ChartContainer
@@ -915,11 +951,11 @@ export default function TransactionsPage() {
                         content={({ active, payload, label }) => {
                           if (!active || !payload?.length) return null;
                           const data = payload[0].payload;
+                          const tooltipDate = parseISO(data.date);
                           return (
                             <div className="rounded-lg border border-border bg-background px-3 py-2.5 shadow-lg">
                               <p className="text-xs font-medium text-muted-foreground">
-                                Dia {label} ·{" "}
-                                {format(selectedMonth, "MMMM", {
+                                {format(tooltipDate, "EEEE d MMMM", {
                                   locale: es,
                                 })}
                               </p>

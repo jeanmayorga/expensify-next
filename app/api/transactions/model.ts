@@ -8,8 +8,12 @@ export type TransactionUpdate =
   Database["public"]["Tables"]["expensify_transactions"]["Update"];
 
 export interface TransactionFilters {
-  /** Formato: YYYY-MM (ej: 2025-01) */
+  /** Formato: YYYY-MM (ej: 2025-01) - usado cuando no hay date_from/date_to */
   date?: string;
+  /** Formato: YYYY-MM-DD - inicio del rango (inclusivo) */
+  date_from?: string;
+  /** Formato: YYYY-MM-DD - fin del rango (inclusivo) */
+  date_to?: string;
   card_id?: string;
   bank_id?: string;
   budget_id?: string;

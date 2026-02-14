@@ -5,7 +5,7 @@ import {
   TransactionUpdate,
   TransactionFilters,
 } from "@/app/api/transactions/model";
-import { startOfMonth, endOfMonth, endOfDay, parse } from "date-fns";
+import { startOfMonth, endOfMonth, endOfDay, parse, startOfDay } from "date-fns";
 import { fromZonedTime } from "date-fns-tz";
 
 const DEFAULT_TIMEZONE = "America/Guayaquil";
@@ -32,6 +32,16 @@ export class TransactionsService {
         conditions.push(`amount.eq.${amountNum}`);
       }
       query = query.or(conditions.join(","));
+    } else if (filters.date_from && filters.date_to) {
+      const start = startOfDay(parse(filters.date_from, "yyyy-MM-dd", new Date()));
+      const end = endOfDay(parse(filters.date_to, "yyyy-MM-dd", new Date()));
+
+      const startUTC = fromZonedTime(start, timezone);
+      const endUTC = fromZonedTime(end, timezone);
+
+      query = query
+        .gte("occurred_at", startUTC.toISOString())
+        .lte("occurred_at", endUTC.toISOString());
     } else if (filters.date) {
       const parsed = parse(filters.date, "yyyy-MM", new Date());
       const start = startOfMonth(parsed);
