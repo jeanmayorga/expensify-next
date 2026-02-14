@@ -419,7 +419,7 @@ export default function TransactionsPage() {
       </div>
 
       {/* Search */}
-      <div className="relative max-w-md">
+      <div className="relative w-full max-w-md">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
         <Input
           type="search"
@@ -432,45 +432,65 @@ export default function TransactionsPage() {
 
       {/* Filters row: on desktop = type tabs + selects (left) | view mode (right) */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap items-center gap-2 overflow-x-auto">
-          {/* Type Filter (Todas, Gastos, Ingresos) */}
-          <Tabs
-            value={typeFilter}
-            onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}
-          >
-            <TabsList className="h-8">
-              <TabsTrigger value="all" className="gap-1.5 text-xs px-3">
-                <LayoutGrid className="h-3.5 w-3.5" />
-                Todas
-              </TabsTrigger>
-              <TabsTrigger value="expense" className="gap-1.5 text-xs px-3">
-                <ArrowDownRight className="h-3.5 w-3.5" />
-                Gastos
-              </TabsTrigger>
-              <TabsTrigger value="income" className="gap-1.5 text-xs px-3">
-                <ArrowUpRight className="h-3.5 w-3.5" />
-                Ingresos
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-
-          <div className="h-5 w-px bg-border hidden sm:block shrink-0" />
-
-          <div className="flex items-center gap-1.5 text-muted-foreground shrink-0">
-            <Filter className="h-3.5 w-3.5" />
-            <span className="text-xs font-medium">Filtros</span>
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
+          {/* Type Filter (Todas, Gastos, Ingresos) + View Mode on same row on mobile */}
+          <div className="flex items-center justify-between gap-2 sm:justify-start">
+            <Tabs
+              value={typeFilter}
+              onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}
+            >
+              <TabsList className="h-8">
+                <TabsTrigger value="all" className="gap-1.5 text-xs px-2 sm:px-3">
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                  Todas
+                </TabsTrigger>
+                <TabsTrigger value="expense" className="gap-1.5 text-xs px-2 sm:px-3">
+                  <ArrowDownRight className="h-3.5 w-3.5" />
+                  Gastos
+                </TabsTrigger>
+                <TabsTrigger value="income" className="gap-1.5 text-xs px-2 sm:px-3">
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                  Ingresos
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <Tabs
+              value={viewMode}
+              onValueChange={(v) => setViewMode(v as "list" | "chart")}
+              className="sm:hidden"
+            >
+              <TabsList className="h-8 shrink-0">
+                <TabsTrigger value="list" className="gap-1 text-xs px-2">
+                  <List className="h-3.5 w-3.5" />
+                  Lista
+                </TabsTrigger>
+                <TabsTrigger value="chart" className="gap-1 text-xs px-2">
+                  <BarChart3 className="h-3.5 w-3.5" />
+                  Gráfico
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
 
-          {/* Card Filter */}
-          <Select value={cardFilter} onValueChange={setCardFilter}>
-            <SelectTrigger
-              className={cn(
-                "shrink-0 min-w-[140px]",
-                cardFilter !== "__all__" && "bg-primary/10 border-primary/30",
-              )}
-            >
-              <SelectValue placeholder="Tarjeta" />
-            </SelectTrigger>
+          <div className="h-px bg-border sm:hidden" />
+
+          {/* Filter dropdowns - full width on mobile, inline on desktop */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
+            <div className="flex items-center gap-1.5 text-muted-foreground shrink-0">
+              <Filter className="h-3.5 w-3.5" />
+              <span className="text-xs font-medium">Filtros</span>
+            </div>
+
+            {/* Card Filter */}
+            <Select value={cardFilter} onValueChange={setCardFilter}>
+              <SelectTrigger
+                className={cn(
+                  "w-full sm:w-auto sm:min-w-[140px] sm:shrink-0",
+                  cardFilter !== "__all__" && "bg-primary/10 border-primary/30",
+                )}
+              >
+                <SelectValue placeholder="Tarjeta" />
+              </SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">Todas las tarjetas</SelectItem>
               {cards.map((card) => {
@@ -501,15 +521,15 @@ export default function TransactionsPage() {
             </SelectContent>
           </Select>
 
-          {/* Bank Filter */}
-          <Select value={bankFilter} onValueChange={setBankFilter}>
-            <SelectTrigger
-              className={cn(
-              "shrink-0 min-w-[140px]",
-              bankFilter !== "__all__" && "bg-primary/10 border-primary/30",
-            )}
-            >
-              <SelectValue placeholder="Banco" />
+            {/* Bank Filter */}
+            <Select value={bankFilter} onValueChange={setBankFilter}>
+              <SelectTrigger
+                className={cn(
+                  "w-full sm:w-auto sm:min-w-[140px] sm:shrink-0",
+                  bankFilter !== "__all__" && "bg-primary/10 border-primary/30",
+                )}
+              >
+                <SelectValue placeholder="Banco" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">Todos los bancos</SelectItem>
@@ -532,18 +552,18 @@ export default function TransactionsPage() {
                 </SelectItem>
               ))}
             </SelectContent>
-          </Select>
+            </Select>
 
-          {/* Budget Filter - hidden when scoped to a single budget (key) */}
-          {!budgetId && (
-            <Select value={budgetFilter} onValueChange={setBudgetFilter}>
-              <SelectTrigger
-                className={cn(
-                  "shrink-0 min-w-[140px]",
-                  budgetFilter !== "__all__" && "bg-primary/10 border-primary/30",
-                )}
-              >
-                <SelectValue placeholder="Presupuesto" />
+            {/* Budget Filter - hidden when scoped to a single budget (key) */}
+            {!budgetId && (
+              <Select value={budgetFilter} onValueChange={setBudgetFilter}>
+                <SelectTrigger
+                  className={cn(
+                    "w-full sm:w-auto sm:min-w-[140px] sm:shrink-0",
+                    budgetFilter !== "__all__" && "bg-primary/10 border-primary/30",
+                  )}
+                >
+                  <SelectValue placeholder="Presupuesto" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">Todos los presupuestos</SelectItem>
@@ -555,25 +575,27 @@ export default function TransactionsPage() {
                     />
                   </SelectItem>
                 ))}
-              </SelectContent>
-            </Select>
-          )}
+                </SelectContent>
+              </Select>
+            )}
 
-          {hasActiveFilters && (
-            <button
-              onClick={clearFilters}
-              className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
-            >
-              <X className="h-3 w-3" />
-              Limpiar ({activeFilterCount})
-            </button>
-          )}
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0 w-fit"
+              >
+                <X className="h-3 w-3" />
+                Limpiar ({activeFilterCount})
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* View Mode (Lista / Gráfico) - right on desktop */}
+        {/* View Mode (Lista / Gráfico) - right on desktop, hidden on mobile (shown above) */}
         <Tabs
           value={viewMode}
           onValueChange={(v) => setViewMode(v as "list" | "chart")}
+          className="hidden sm:block"
         >
           <TabsList className="h-8 shrink-0">
             <TabsTrigger value="list" className="gap-1.5 text-xs px-3">

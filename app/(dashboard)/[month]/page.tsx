@@ -63,6 +63,12 @@ import {
   EditTransactionSheet,
   DeleteTransactionDialog,
 } from "./transactions/components";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import {
   AreaChart,
@@ -148,6 +154,11 @@ export default function HomePage() {
 
   const [editingTx, setEditingTx] = useState<TransactionWithRelations | null>(null);
   const [deletingTx, setDeletingTx] = useState<TransactionWithRelations | null>(null);
+  const [daySheet, setDaySheet] = useState<{
+    date: Date;
+    label: string;
+    transactions: TransactionWithRelations[];
+  } | null>(null);
 
   const handleRowClick = (tx: TransactionWithRelations) => {
     setEditingTx(tx);
@@ -267,6 +278,41 @@ export default function HomePage() {
       return isSameDay(txDate, fourDaysAgo);
     });
   }, [expenses, fourDaysAgo]);
+
+  // All transactions per day (for day sheet - includes income + expense)
+  const todayTransactions = useMemo(
+    () =>
+      transactions.filter((tx) => {
+        const txDate = getEcuadorDate(tx.occurred_at);
+        return isSameDay(txDate, today);
+      }),
+    [transactions, today],
+  );
+  const yesterdayTransactions = useMemo(
+    () =>
+      transactions.filter((tx) => {
+        const txDate = getEcuadorDate(tx.occurred_at);
+        return isSameDay(txDate, yesterday);
+      }),
+    [transactions, yesterday],
+  );
+  const dayBeforeYesterdayTransactions = useMemo(
+    () =>
+      transactions.filter((tx) => {
+        const txDate = getEcuadorDate(tx.occurred_at);
+        return isSameDay(txDate, dayBeforeYesterday);
+      }),
+    [transactions, dayBeforeYesterday],
+  );
+  const threeDaysAgoTransactions = useMemo(
+    () =>
+      transactions.filter((tx) => {
+        const txDate = getEcuadorDate(tx.occurred_at);
+        return isSameDay(txDate, threeDaysAgo);
+      }),
+    [transactions, threeDaysAgo],
+  );
+
   const fourDaysAgoTotal = fourDaysAgoExpenses.reduce(
     (s, tx) => s + Math.abs(tx.amount),
     0,
@@ -787,7 +833,16 @@ export default function HomePage() {
 
       {/* Gastado hoy / ayer / anteayer / hace 3 días — 4 secciones */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-l-4 border-l-red-500">
+        <Card
+          className="border-l-4 border-l-red-500 cursor-pointer transition-colors hover:bg-muted/50"
+          onClick={() =>
+            setDaySheet({
+              date: today,
+              label: `Hoy · ${format(today, "d MMM", { locale: es })}`,
+              transactions: todayTransactions,
+            })
+          }
+        >
           <CardContent className="p-4">
             <p className="text-xs font-medium text-muted-foreground mb-1">
               Hoy · {format(today, "d MMM", { locale: es })}
@@ -800,7 +855,16 @@ export default function HomePage() {
             />
           </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-red-500">
+        <Card
+          className="border-l-4 border-l-red-500 cursor-pointer transition-colors hover:bg-muted/50"
+          onClick={() =>
+            setDaySheet({
+              date: yesterday,
+              label: `Ayer · ${format(yesterday, "d MMM", { locale: es })}`,
+              transactions: yesterdayTransactions,
+            })
+          }
+        >
           <CardContent className="p-4">
             <p className="text-xs font-medium text-muted-foreground mb-1">
               Ayer · {format(yesterday, "d MMM", { locale: es })}
@@ -813,7 +877,16 @@ export default function HomePage() {
             />
           </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-red-500">
+        <Card
+          className="border-l-4 border-l-red-500 cursor-pointer transition-colors hover:bg-muted/50"
+          onClick={() =>
+            setDaySheet({
+              date: dayBeforeYesterday,
+              label: `Anteayer · ${format(dayBeforeYesterday, "d MMM", { locale: es })}`,
+              transactions: dayBeforeYesterdayTransactions,
+            })
+          }
+        >
           <CardContent className="p-4">
             <p className="text-xs font-medium text-muted-foreground mb-1">
               Anteayer · {format(dayBeforeYesterday, "d MMM", { locale: es })}
@@ -826,7 +899,16 @@ export default function HomePage() {
             />
           </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-red-500">
+        <Card
+          className="border-l-4 border-l-red-500 cursor-pointer transition-colors hover:bg-muted/50"
+          onClick={() =>
+            setDaySheet({
+              date: threeDaysAgo,
+              label: `Hace 3 días · ${format(threeDaysAgo, "d MMM", { locale: es })}`,
+              transactions: threeDaysAgoTransactions,
+            })
+          }
+        >
           <CardContent className="p-4">
             <p className="text-xs font-medium text-muted-foreground mb-1">
               Hace 3 días · {format(threeDaysAgo, "d MMM", { locale: es })}
@@ -858,7 +940,7 @@ export default function HomePage() {
           </CardHeader>
           <CardContent className="p-0">
             {loading ? (
-              <div className="divide-y max-h-[28rem] overflow-y-auto">
+              <div className="divide-y lg:max-h-[28rem] lg:overflow-y-auto">
                 {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
                   <TransactionRowSkeleton key={i} />
                 ))}
@@ -870,7 +952,7 @@ export default function HomePage() {
                 </p>
               </div>
             ) : (
-              <div className="max-h-[28rem] overflow-y-auto">
+              <div className="lg:max-h-[28rem] lg:overflow-y-auto">
                 {groupTransactionsByDate(recentTx).map(
                   ([dateKey, txs], groupIndex) => {
                     const dayTotal = txs
@@ -949,7 +1031,7 @@ export default function HomePage() {
           </CardHeader>
           <CardContent className="p-0">
             {loading ? (
-              <div className="divide-y max-h-[28rem] overflow-y-auto">
+              <div className="divide-y lg:max-h-[28rem] lg:overflow-y-auto">
                 {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
                   <TransactionRowSkeleton key={i} />
                 ))}
@@ -961,7 +1043,7 @@ export default function HomePage() {
                 </p>
               </div>
             ) : (
-              <div className="max-h-[28rem] overflow-y-auto">
+              <div className="lg:max-h-[28rem] lg:overflow-y-auto">
                 {groupTransactionsByDate(topExpenses).map(
                   ([dateKey, txs], groupIndex) => {
                     const dayTotal = txs
@@ -1040,7 +1122,7 @@ export default function HomePage() {
           </CardHeader>
           <CardContent className="p-0">
             {loading ? (
-              <div className="divide-y max-h-[28rem] overflow-y-auto">
+              <div className="divide-y lg:max-h-[28rem] lg:overflow-y-auto">
                 {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
                   <TransactionRowSkeleton key={i} />
                 ))}
@@ -1052,7 +1134,7 @@ export default function HomePage() {
                 </p>
               </div>
             ) : (
-              <div className="max-h-[28rem] overflow-y-auto">
+              <div className="lg:max-h-[28rem] lg:overflow-y-auto">
                 {groupTransactionsByDate(txWithoutBudget).map(
                   ([dateKey, txs], groupIndex) => {
                     const dayTotal = txs
@@ -1355,6 +1437,61 @@ export default function HomePage() {
           </Card>
         </div>
       </div>
+
+      {/* Day transactions sheet */}
+      <Sheet open={!!daySheet} onOpenChange={(open) => !open && setDaySheet(null)}>
+        <SheetContent
+          side="right"
+          className="w-full sm:max-w-md flex flex-col p-0"
+        >
+          {daySheet && (
+            <>
+              <SheetHeader className="border-b px-4 py-4">
+                <SheetTitle className="flex items-center gap-2">
+                  <CalendarDays className="h-5 w-5 text-muted-foreground" />
+                  {daySheet.label}
+                </SheetTitle>
+                <p className="text-sm text-muted-foreground">
+                  {daySheet.transactions.length} transaccion
+                  {daySheet.transactions.length !== 1 ? "es" : ""}
+                </p>
+              </SheetHeader>
+              <div className="flex-1 overflow-y-auto">
+                {daySheet.transactions.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 px-4">
+                    <Receipt className="h-12 w-12 text-muted-foreground/50 mb-3" />
+                    <p className="text-sm text-muted-foreground text-center">
+                      No hay transacciones este día
+                    </p>
+                  </div>
+                ) : (
+                  <div className="divide-y">
+                    {[...daySheet.transactions]
+                      .sort(
+                        (a, b) =>
+                          new Date(b.occurred_at).getTime() -
+                          new Date(a.occurred_at).getTime(),
+                      )
+                      .map((tx) => (
+                        <TransactionRow
+                          key={tx.id}
+                          transaction={tx}
+                          cards={cards}
+                          banks={banks}
+                          budgets={allBudgets}
+                          onUpdate={canEdit ? handleQuickUpdate : undefined}
+                          onEdit={canEdit ? setEditingTx : undefined}
+                          onDelete={canEdit ? setDeletingTx : undefined}
+                          onClick={canEdit ? handleRowClick : undefined}
+                        />
+                      ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
 
       {/* Edit / Delete transaction modals */}
       {canEdit && (

@@ -8,11 +8,8 @@ import { getEcuadorDate } from "@/utils/ecuador-time";
 import { groupTransactionsByDate } from "@/utils/transactions";
 import {
   ArrowLeft,
-  Wallet,
   Edit,
   RefreshCw,
-  TrendingDown,
-  TrendingUp,
   CalendarDays,
 } from "lucide-react";
 import { useBudget } from "../hooks";
@@ -40,6 +37,7 @@ import {
   DeleteTransactionDialog,
 } from "../../transactions/components";
 import { EditBudgetModal } from "../components/EditBudgetModal";
+import { getBudgetIconComponent } from "../components/BudgetIconPicker";
 
 function formatCurrency(amount: number, currency = "USD") {
   return new Intl.NumberFormat("es-EC", {
@@ -117,24 +115,12 @@ export default function BudgetDetailPage() {
         .reduce((sum, t) => sum + Math.abs(t.amount), 0),
     [transactions],
   );
-  const totalIncome = useMemo(
-    () =>
-      transactions
-        .filter((t) => t.type === "income")
-        .reduce((sum, t) => sum + t.amount, 0),
-    [transactions],
-  );
-  const balance = totalIncome - totalExpenses;
-  const expenseCount = transactions.filter((t) => t.type === "expense").length;
-  const incomeCount = transactions.filter((t) => t.type === "income").length;
-
   const budgetAmount = budget?.amount ?? 0;
-  /** Balance del presupuesto = gastos - ingresos (net spending) */
-  const netSpending = totalExpenses - totalIncome;
-  const remaining = budgetAmount - netSpending;
+  /** Solo gastos (sin restar ingresos) */
+  const remaining = budgetAmount - totalExpenses;
   const isOverBudget = remaining < 0;
   const percentage =
-    budgetAmount > 0 ? Math.min((netSpending / budgetAmount) * 100, 100) : 0;
+    budgetAmount > 0 ? Math.min((totalExpenses / budgetAmount) * 100, 100) : 0;
 
   if (loadingBudget) {
     return (
@@ -185,7 +171,10 @@ export default function BudgetDetailPage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-muted flex items-center justify-center shrink-0">
-            <Wallet className="h-5 w-5 sm:h-6 sm:w-6 text-muted-foreground" />
+            {(() => {
+              const Icon = getBudgetIconComponent(budget.icon ?? null);
+              return <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-muted-foreground" />;
+            })()}
           </div>
           <div className="min-w-0">
             <h1 className="text-lg sm:text-2xl font-bold tracking-tight truncate">
@@ -210,80 +199,15 @@ export default function BudgetDetailPage() {
         )}
       </div>
 
-      {/* Tres cards: Gastos, Ingresos, Balance (como en home y transacciones) */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-500 to-red-600 p-5 text-white shadow-lg">
-          <div className="absolute top-3 right-3 opacity-20">
-            <TrendingDown className="h-16 w-16" />
-          </div>
-          <div className="relative">
-            <p className="text-sm font-medium text-white/80">Total Gastos</p>
-            {loading ? (
-              <Skeleton className="h-9 w-32 bg-white/20 mt-1" />
-            ) : (
-              <p className="text-2xl sm:text-3xl font-bold tracking-tight mt-1 truncate">
-                {formatCurrency(totalExpenses, budget.currency)}
-              </p>
-            )}
-            <p className="text-xs text-white/70 mt-2">
-              {expenseCount} transacción{expenseCount !== 1 ? "es" : ""}
-            </p>
-          </div>
-        </div>
-
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 p-5 text-white shadow-lg">
-          <div className="absolute top-3 right-3 opacity-20">
-            <TrendingUp className="h-16 w-16" />
-          </div>
-          <div className="relative">
-            <p className="text-sm font-medium text-white/80">Total Ingresos</p>
-            {loading ? (
-              <Skeleton className="h-9 w-32 bg-white/20 mt-1" />
-            ) : (
-              <p className="text-2xl sm:text-3xl font-bold tracking-tight mt-1 truncate">
-                {formatCurrency(totalIncome, budget.currency)}
-              </p>
-            )}
-            <p className="text-xs text-white/70 mt-2">
-              {incomeCount} transacción{incomeCount !== 1 ? "es" : ""}
-            </p>
-          </div>
-        </div>
-
-        <div
-          className={`relative overflow-hidden rounded-2xl p-5 text-white shadow-lg ${
-            balance >= 0
-              ? "bg-gradient-to-br from-blue-500 to-blue-600"
-              : "bg-gradient-to-br from-orange-500 to-orange-600"
-          }`}
-        >
-          <div className="absolute top-3 right-3 opacity-20">
-            <Wallet className="h-16 w-16" />
-          </div>
-          <div className="relative">
-            <p className="text-sm font-medium text-white/80">Balance</p>
-            {loading ? (
-              <Skeleton className="h-9 w-32 bg-white/20 mt-1" />
-            ) : (
-              <p className="text-2xl sm:text-3xl font-bold tracking-tight mt-1 truncate">
-                {balance >= 0 ? "+" : ""}
-                {formatCurrency(Math.abs(balance), budget.currency)}
-              </p>
-            )}
-            <p className="text-xs text-white/70 mt-2">
-              {transactions.length} transacción
-              {transactions.length !== 1 ? "es" : ""} en este presupuesto
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* Presupuesto del mes */}
       <div
         className={`relative overflow-hidden rounded-2xl p-6 text-white shadow-lg bg-gradient-to-br ${statusBg}`}
       >
         <div className="absolute top-4 right-4 opacity-10">
-          <Wallet className="h-24 w-24" />
+          {(() => {
+            const Icon = getBudgetIconComponent(budget.icon ?? null);
+            return <Icon className="h-24 w-24" />;
+          })()}
         </div>
         <div className="relative space-y-4">
           <p className="text-sm font-medium text-white/80 uppercase tracking-wider">
@@ -293,7 +217,7 @@ export default function BudgetDetailPage() {
           {/* Monto gastado grande */}
           <div>
             <p className="text-4xl sm:text-5xl font-extrabold tracking-tight">
-              {formatCurrency(netSpending, budget.currency)}
+              {formatCurrency(totalExpenses, budget.currency)}
             </p>
             <p className="text-sm text-white/70 mt-1">
               de {formatCurrency(budgetAmount, budget.currency)} presupuestado
