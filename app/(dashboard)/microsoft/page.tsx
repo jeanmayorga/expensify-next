@@ -10,11 +10,6 @@ import {
   useTransactionByMessageId,
   useExtractTransactionData,
 } from "../emails/hooks";
-import {
-  useSubscriptions,
-  useCreateSubscription,
-} from "../subscriptions/hooks";
-import { SubscriptionRow } from "../subscriptions/SubscriptionRow";
 import { useBanks } from "../[month]/banks/hooks";
 import { useCards } from "../[month]/cards/hooks";
 import { useBudgets } from "../[month]/budgets/hooks";
@@ -28,24 +23,15 @@ import { EditTransactionSheet } from "../[month]/transactions/components/EditTra
 import { DeleteTransactionDialog } from "../[month]/transactions/components/DeleteTransactionDialog";
 import { CreateTransactionSheet } from "../[month]/transactions/components/CreateTransactionSheet";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Table,
-  TableBody,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   Mail,
-  Bell,
   Loader2,
   RefreshCw,
   Sparkles,
   Eye,
-  Plus,
   List,
 } from "lucide-react";
 import {
@@ -58,11 +44,9 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { EmailList } from "./components/EmailList";
 
-type Tab = "emails" | "subscriptions";
-
 const getTodayDate = () => format(new Date(), "yyyy-MM-dd");
 
-function EmailsContent({ activeTab, setActiveTab }: { activeTab: Tab; setActiveTab: (tab: Tab) => void }) {
+function EmailsContent() {
   const [selectedDate, setSelectedDate] = useQueryState(
     "date",
     parseAsString.withDefault(getTodayDate()),
@@ -150,26 +134,8 @@ function EmailsContent({ activeTab, setActiveTab }: { activeTab: Tab; setActiveT
 
   return (
     <>
-      {/* Tab Buttons + Date Picker */}
+      {/* Date Picker */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex gap-2">
-          <Button
-            variant={activeTab === "emails" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setActiveTab("emails")}
-          >
-            <Mail className="h-4 w-4" />
-            Emails
-          </Button>
-          <Button
-            variant={activeTab === "subscriptions" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setActiveTab("subscriptions")}
-          >
-            <Bell className="h-4 w-4" />
-            Subscriptions
-          </Button>
-        </div>
         <Input
           type="date"
           value={selectedDate}
@@ -482,130 +448,6 @@ function EmailsContent({ activeTab, setActiveTab }: { activeTab: Tab; setActiveT
   );
 }
 
-function SubscriptionsContent({ activeTab, setActiveTab }: { activeTab: Tab; setActiveTab: (tab: Tab) => void }) {
-  const {
-    data: subscriptions = [],
-    isLoading,
-    error,
-    refetch,
-    isRefetching,
-  } = useSubscriptions();
-  const createMutation = useCreateSubscription();
-
-  if (error) {
-    return (
-      <Card>
-        <CardContent className="py-8">
-          <p className="text-center text-muted-foreground">
-            Error al cargar las subscriptions. Asegúrate de estar autenticado
-            con Microsoft.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <>
-      {/* Tab Buttons + Actions */}
-      <div className="flex items-center justify-between">
-        <div className="flex gap-2">
-          <Button
-            variant={activeTab === "emails" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setActiveTab("emails")}
-          >
-            <Mail className="h-4 w-4" />
-            Emails
-          </Button>
-          <Button
-            variant={activeTab === "subscriptions" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setActiveTab("subscriptions")}
-          >
-            <Bell className="h-4 w-4" />
-            Subscriptions
-          </Button>
-        </div>
-        <div className="flex gap-2">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => refetch()}
-          disabled={isLoading || isRefetching}
-        >
-          <RefreshCw className={isRefetching ? "animate-spin" : ""} />
-        </Button>
-        <Button
-          onClick={() => createMutation.mutate()}
-          disabled={createMutation.isPending}
-        >
-          {createMutation.isPending ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <Plus className="h-4 w-4 mr-2" />
-          )}
-          Nueva Subscription
-        </Button>
-        </div>
-      </div>
-
-      {/* Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Subscriptions activas</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            </div>
-          ) : subscriptions.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              No hay subscriptions activas
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Resource</TableHead>
-                  <TableHead>Expira (Ecuador)</TableHead>
-                  <TableHead>Notification URL</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {subscriptions.map((subscription) => (
-                  <SubscriptionRow
-                    key={subscription.id}
-                    subscription={subscription}
-                  />
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-    </>
-  );
-}
-
-function MicrosoftPageContent() {
-  const [activeTab, setActiveTab] = useState<Tab>("emails");
-
-  return (
-    <div className="space-y-4">
-      {activeTab === "emails"
-        ? <EmailsContent activeTab={activeTab} setActiveTab={setActiveTab} />
-        : <SubscriptionsContent activeTab={activeTab} setActiveTab={setActiveTab} />
-      }
-    </div>
-  );
-}
-
 function MicrosoftPageSkeleton() {
   return (
     <div className="space-y-4">
@@ -639,7 +481,9 @@ function MicrosoftPageSkeleton() {
 export default function MicrosoftPage() {
   return (
     <Suspense fallback={<MicrosoftPageSkeleton />}>
-      <MicrosoftPageContent />
+      <div className="space-y-4">
+        <EmailsContent />
+      </div>
     </Suspense>
   );
 }
