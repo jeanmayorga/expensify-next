@@ -68,6 +68,11 @@ export function BudgetCard({
     : percentage > 80
       ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300"
       : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300";
+  const statusAmount = isOverBudget
+    ? "text-red-600 dark:text-red-400"
+    : percentage > 80
+      ? "text-orange-600 dark:text-orange-400"
+      : "text-emerald-600 dark:text-emerald-400";
 
   const content = (
     <>
@@ -123,14 +128,7 @@ export function BudgetCard({
         <span className="text-muted-foreground">
           {isOverBudget ? "Excedido por" : "Disponible"}
         </span>
-        <span
-          className={cn(
-            "font-semibold",
-            isOverBudget
-              ? "text-red-600 dark:text-red-400"
-              : "text-emerald-600 dark:text-emerald-400",
-          )}
-        >
+        <span className={cn("font-semibold", statusAmount)}>
           {isOverBudget && "-"}
           {formatBudgetCurrency(Math.abs(remaining), budget.currency)}
         </span>

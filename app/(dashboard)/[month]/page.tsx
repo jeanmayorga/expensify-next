@@ -549,7 +549,7 @@ export default function HomePage() {
   const currentMonth = format(selectedMonth, "MMMM yyyy", { locale: es });
 
   return (
-    <div className="min-w-0 w-full max-w-full space-y-6">
+    <div className="min-w-0 w-full max-w-full space-y-8">
       {/* Header */}
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight capitalize">
