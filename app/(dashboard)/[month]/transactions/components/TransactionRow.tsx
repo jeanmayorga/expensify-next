@@ -17,6 +17,7 @@ import {
   X,
   StickyNote,
   Merge,
+  RefreshCw,
 } from "lucide-react";
 import { BudgetLabel } from "@/app/(dashboard)/[month]/budgets/components/BudgetLabel";
 import { type TransactionWithRelations } from "../service";
@@ -75,6 +76,8 @@ interface TransactionRowProps {
   mergePair?: MergePairInfo;
   /** Called when user clicks Fusionar (removes both transactions) */
   onMerge?: (ids: [number, number]) => void;
+  /** Called when user wants to create a subscription from this transaction */
+  onCreateSubscription?: (tx: TransactionWithRelations) => void;
 }
 
 function parseDate(date: string | Date): Date {
@@ -110,6 +113,7 @@ export function TransactionRow({
   highlighted = false,
   mergePair,
   onMerge,
+  onCreateSubscription,
 }: TransactionRowProps) {
   const isExpense = tx.type === "expense";
   const date = parseDate(tx.occurred_at);
@@ -378,6 +382,16 @@ export function TransactionRow({
                   </p>
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
+
+              {onCreateSubscription && tx.type === "expense" && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => onCreateSubscription(tx)}>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Crear suscripción
+                  </DropdownMenuItem>
+                </>
+              )}
 
               {(onEdit || onDelete) && (
                 <>

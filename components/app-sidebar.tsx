@@ -14,6 +14,7 @@ import {
   LogOut,
   Wallet,
   Eye,
+  RefreshCw,
 } from "lucide-react";
 import {
   Sidebar,
@@ -36,6 +37,7 @@ const monthRoutes = [
   { name: "Tarjetas", path: "cards", icon: CreditCard },
   { name: "Bancos", path: "banks", icon: Landmark },
   { name: "Presupuestos", path: "budgets", icon: PiggyBank },
+  { name: "Suscripciones", path: "subscriptions", icon: RefreshCw },
 ];
 
 const otherRoutes = [

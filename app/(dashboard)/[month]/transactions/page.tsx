@@ -68,6 +68,8 @@ import {
   DeleteTransactionDialog,
   MergeConfirmDialog,
 } from "./components";
+import { CreateSubscriptionDialog } from "../subscriptions/components/CreateSubscriptionDialog";
+import type { SubscriptionFormData } from "../subscriptions/components/CreateSubscriptionDialog";
 
 const fmt = (amount: number) =>
   new Intl.NumberFormat("en-US", {
@@ -266,6 +268,19 @@ export default function TransactionsPage() {
   const [mergeConfirmIds, setMergeConfirmIds] = useState<
     [number, number] | null
   >(null);
+  const [subDefaults, setSubDefaults] = useState<Partial<SubscriptionFormData> | null>(null);
+
+  const handleCreateSubscription = (tx: TransactionWithRelations) => {
+    const ecuadorDate = getEcuadorDate(parseISO(tx.occurred_at));
+    setSubDefaults({
+      name: tx.description,
+      amount: tx.amount,
+      billing_day: ecuadorDate.getDate(),
+      billing_cycle: "monthly",
+      card_id: tx.card_id || "",
+      budget_id: tx.budget_id || "",
+    });
+  };
 
   const handleRowClick = (tx: TransactionWithRelations) => {
     setEditingTx(tx);
@@ -694,6 +709,9 @@ export default function TransactionsPage() {
                           onMerge={
                             canEdit ? handleMergePair : undefined
                           }
+                          onCreateSubscription={
+                            canEdit ? handleCreateSubscription : undefined
+                          }
                         />
                       ))}
                     </div>
@@ -980,6 +998,14 @@ export default function TransactionsPage() {
           <MergeConfirmDialog
             mergeIds={mergeConfirmIds}
             onClose={() => setMergeConfirmIds(null)}
+          />
+
+          <CreateSubscriptionDialog
+            open={!!subDefaults}
+            onOpenChange={(open) => {
+              if (!open) setSubDefaults(null);
+            }}
+            defaultValues={subDefaults ?? undefined}
           />
         </>
       )}

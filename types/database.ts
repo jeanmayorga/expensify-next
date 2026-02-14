@@ -199,6 +199,63 @@ export type Database = {
           },
         ]
       }
+      expensify_subscriptions: {
+        Row: {
+          id: string
+          name: string
+          amount: number
+          billing_day: number
+          billing_cycle: string
+          card_id: string | null
+          budget_id: string | null
+          is_active: boolean
+          icon: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          amount: number
+          billing_day: number
+          billing_cycle?: string
+          card_id?: string | null
+          budget_id?: string | null
+          is_active?: boolean
+          icon?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          amount?: number
+          billing_day?: number
+          billing_cycle?: string
+          card_id?: string | null
+          budget_id?: string | null
+          is_active?: boolean
+          icon?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expensify_subscriptions_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "expensify_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expensify_subscriptions_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "expensify_budgets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expensify_transactions: {
         Row: {
           amount: number
