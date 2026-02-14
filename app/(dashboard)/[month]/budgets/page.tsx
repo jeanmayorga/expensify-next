@@ -9,6 +9,8 @@ import { useTransactions } from "../transactions/hooks";
 import { useAuth, useCanEdit } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 import { useMonth } from "@/lib/month-context";
 import { Wallet, Plus } from "lucide-react";
 import {
@@ -67,6 +69,15 @@ export default function BudgetsPage() {
   const [deletingBudget, setDeletingBudget] = useState<Budget | null>(null);
 
   const totalBudget = filteredBudgets.reduce((sum, b) => sum + b.amount, 0);
+  const totalSpent = budgetSpending.reduce((sum, b) => sum + b.spent, 0);
+  const totalPercentage =
+    totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
+  const isOverBudget = totalSpent > totalBudget;
+  const statusBg = isOverBudget
+    ? "from-red-500 to-red-600"
+    : totalPercentage > 80
+      ? "from-orange-500 to-orange-600"
+      : "from-emerald-500 to-emerald-600";
   const loading = isLoading || loadingTx;
 
   return (
@@ -99,15 +110,30 @@ export default function BudgetsPage() {
                   Total presupuestado ·{" "}
                   {format(selectedMonth, "MMMM yyyy", { locale: es })}
                 </p>
-                <p className="text-2xl font-bold tracking-tight mt-1">
-                  {formatBudgetCurrency(totalBudget)}
-                </p>
+                <div className="flex items-baseline gap-1 flex-wrap mt-1">
+                  <span className="text-2xl font-bold tracking-tight">
+                    {formatBudgetCurrency(totalSpent)}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    / {formatBudgetCurrency(totalBudget)}
+                  </span>
+                </div>
               </div>
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">
                   {filteredBudgets.length} presupuesto{filteredBudgets.length !== 1 ? "s" : ""}
                 </p>
+                <p className="text-sm font-semibold mt-0.5">
+                  {totalPercentage.toFixed(0)}%
+                </p>
               </div>
+            </div>
+            <div className="mt-3">
+              <Progress
+                value={Math.min(totalPercentage, 100)}
+                className="h-2.5"
+                indicatorClassName={cn("bg-gradient-to-r", statusBg)}
+              />
             </div>
           </CardContent>
         </Card>
