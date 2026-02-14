@@ -7,6 +7,7 @@ import {
   startOfMonth,
   endOfMonth,
   isSameDay,
+  subDays,
 } from "date-fns";
 import { es } from "date-fns/locale";
 import Link from "next/link";
@@ -59,6 +60,67 @@ const fmt = (amount: number) =>
     currency: "USD",
     minimumFractionDigits: 2,
   }).format(amount);
+
+function DailySpentContent({
+  loading,
+  total,
+  count,
+  pctChange,
+}: {
+  loading: boolean;
+  total: number;
+  count: number;
+  pctChange: number | null;
+}) {
+  const isBetter = pctChange !== null && pctChange < 0;
+  const isWorse = pctChange !== null && pctChange > 0;
+  const isSame = pctChange !== null && pctChange === 0;
+
+  return (
+    <div className="flex flex-row items-center justify-between gap-3">
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
+          <CalendarDays className="h-5 w-5 text-red-600 dark:text-red-400" />
+        </div>
+        <div>
+          {loading ? (
+            <Skeleton className="h-7 w-24" />
+          ) : (
+            <p className="text-xl font-bold tabular-nums">{fmt(total)}</p>
+          )}
+          {!loading && pctChange !== null && (
+            <p className="text-xs mt-0.5 flex items-center gap-1">
+              {isSame && (
+                <span className="text-muted-foreground">Igual</span>
+              )}
+              {isBetter && (
+                <>
+                  <ArrowDownRight className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-emerald-600 dark:text-emerald-400">
+                    {Math.abs(pctChange).toFixed(1)}% mejor
+                  </span>
+                </>
+              )}
+              {isWorse && (
+                <>
+                  <ArrowUpRight className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
+                  <span className="text-red-600 dark:text-red-400">
+                    {pctChange.toFixed(1)}% peor
+                  </span>
+                </>
+              )}
+            </p>
+          )}
+        </div>
+      </div>
+      {!loading && count > 0 && (
+        <span className="text-xs text-muted-foreground shrink-0">
+          {count} transaccion{count !== 1 ? "es" : ""}
+        </span>
+      )}
+    </div>
+  );
+}
 
 export default function HomePage() {
   const { selectedMonth, monthStr } = useMonth();
@@ -127,15 +189,83 @@ export default function HomePage() {
 
   const dailyAvg = totalExpenses / daysElapsed;
 
-  // Gastado hoy
+  // Gastado hoy, ayer, anteayer
+  const today = useMemo(() => getEcuadorDate(), []);
+  const yesterday = useMemo(() => subDays(today, 1), [today]);
+  const dayBeforeYesterday = useMemo(() => subDays(today, 2), [today]);
+  const threeDaysAgo = useMemo(() => subDays(today, 3), [today]);
+  const fourDaysAgo = useMemo(() => subDays(today, 4), [today]);
+
   const todayExpenses = useMemo(() => {
-    const today = getEcuadorDate();
     return expenses.filter((tx) => {
       const txDate = getEcuadorDate(tx.occurred_at);
       return isSameDay(txDate, today);
     });
-  }, [expenses]);
+  }, [expenses, today]);
   const todayTotal = todayExpenses.reduce((s, tx) => s + Math.abs(tx.amount), 0);
+
+  const yesterdayExpenses = useMemo(() => {
+    return expenses.filter((tx) => {
+      const txDate = getEcuadorDate(tx.occurred_at);
+      return isSameDay(txDate, yesterday);
+    });
+  }, [expenses, yesterday]);
+  const yesterdayTotal = yesterdayExpenses.reduce(
+    (s, tx) => s + Math.abs(tx.amount),
+    0,
+  );
+
+  const dayBeforeYesterdayExpenses = useMemo(() => {
+    return expenses.filter((tx) => {
+      const txDate = getEcuadorDate(tx.occurred_at);
+      return isSameDay(txDate, dayBeforeYesterday);
+    });
+  }, [expenses, dayBeforeYesterday]);
+  const dayBeforeYesterdayTotal = dayBeforeYesterdayExpenses.reduce(
+    (s, tx) => s + Math.abs(tx.amount),
+    0,
+  );
+
+  const threeDaysAgoExpenses = useMemo(() => {
+    return expenses.filter((tx) => {
+      const txDate = getEcuadorDate(tx.occurred_at);
+      return isSameDay(txDate, threeDaysAgo);
+    });
+  }, [expenses, threeDaysAgo]);
+  const threeDaysAgoTotal = threeDaysAgoExpenses.reduce(
+    (s, tx) => s + Math.abs(tx.amount),
+    0,
+  );
+
+  const fourDaysAgoExpenses = useMemo(() => {
+    return expenses.filter((tx) => {
+      const txDate = getEcuadorDate(tx.occurred_at);
+      return isSameDay(txDate, fourDaysAgo);
+    });
+  }, [expenses, fourDaysAgo]);
+  const fourDaysAgoTotal = fourDaysAgoExpenses.reduce(
+    (s, tx) => s + Math.abs(tx.amount),
+    0,
+  );
+
+  // Porcentaje vs día anterior
+  const todayVsYesterdayPct =
+    yesterdayTotal > 0
+      ? ((todayTotal - yesterdayTotal) / yesterdayTotal) * 100
+      : null;
+  const yesterdayVsAnteayerPct =
+    dayBeforeYesterdayTotal > 0
+      ? ((yesterdayTotal - dayBeforeYesterdayTotal) / dayBeforeYesterdayTotal) *
+        100
+      : null;
+  const anteayerVsThreeDaysPct =
+    threeDaysAgoTotal > 0
+      ? ((dayBeforeYesterdayTotal - threeDaysAgoTotal) / threeDaysAgoTotal) * 100
+      : null;
+  const threeDaysVsFourDaysPct =
+    fourDaysAgoTotal > 0
+      ? ((threeDaysAgoTotal - fourDaysAgoTotal) / fourDaysAgoTotal) * 100
+      : null;
 
   // Unassigned transactions
   const unassignedCount = expenses.filter(
@@ -321,33 +451,61 @@ export default function HomePage() {
         </Card>
       )}
 
-      {/* Gastado hoy */}
-      <Card className="border-l-4 border-l-red-500">
-        <CardContent className="flex flex-row items-center justify-between p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-              <CalendarDays className="h-5 w-5 text-red-600 dark:text-red-400" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">
-                Gastado hoy
-              </p>
-              {loading ? (
-                <Skeleton className="h-7 w-24 mt-1" />
-              ) : (
-                <p className="text-xl font-bold tabular-nums">
-                  {fmt(todayTotal)}
-                </p>
-              )}
-            </div>
-          </div>
-          {!loading && todayExpenses.length > 0 && (
-            <span className="text-xs text-muted-foreground">
-              {todayExpenses.length} transaccion{todayExpenses.length !== 1 ? "es" : ""}
-            </span>
-          )}
-        </CardContent>
-      </Card>
+      {/* Gastado hoy / ayer / anteayer / hace 3 días — 4 secciones */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="border-l-4 border-l-red-500">
+          <CardContent className="p-4">
+            <p className="text-xs font-medium text-muted-foreground mb-1">
+              Hoy · {format(today, "d MMM", { locale: es })}
+            </p>
+            <DailySpentContent
+              loading={loading}
+              total={todayTotal}
+              count={todayExpenses.length}
+              pctChange={todayVsYesterdayPct}
+            />
+          </CardContent>
+        </Card>
+        <Card className="border-l-4 border-l-red-500">
+          <CardContent className="p-4">
+            <p className="text-xs font-medium text-muted-foreground mb-1">
+              Ayer · {format(yesterday, "d MMM", { locale: es })}
+            </p>
+            <DailySpentContent
+              loading={loading}
+              total={yesterdayTotal}
+              count={yesterdayExpenses.length}
+              pctChange={yesterdayVsAnteayerPct}
+            />
+          </CardContent>
+        </Card>
+        <Card className="border-l-4 border-l-red-500">
+          <CardContent className="p-4">
+            <p className="text-xs font-medium text-muted-foreground mb-1">
+              Anteayer · {format(dayBeforeYesterday, "d MMM", { locale: es })}
+            </p>
+            <DailySpentContent
+              loading={loading}
+              total={dayBeforeYesterdayTotal}
+              count={dayBeforeYesterdayExpenses.length}
+              pctChange={anteayerVsThreeDaysPct}
+            />
+          </CardContent>
+        </Card>
+        <Card className="border-l-4 border-l-red-500">
+          <CardContent className="p-4">
+            <p className="text-xs font-medium text-muted-foreground mb-1">
+              Hace 3 días · {format(threeDaysAgo, "d MMM", { locale: es })}
+            </p>
+            <DailySpentContent
+              loading={loading}
+              total={threeDaysAgoTotal}
+              count={threeDaysAgoExpenses.length}
+              pctChange={threeDaysVsFourDaysPct}
+            />
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Main Grid — col-span-12 en mobile (100%), 50/50 desde lg */}
       <div className="grid w-full grid-cols-12 gap-4">
