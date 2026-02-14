@@ -122,10 +122,14 @@ export default function SubscriptionsPage() {
     [subscriptions],
   );
 
-  const monthlyTotal = useMemo(() => {
-    return activeSubscriptions
-      .filter((s) => s.billing_cycle === "monthly")
-      .reduce((sum, s) => sum + s.amount, 0);
+  // Expected money: suma total de montos (equivalente mensual)
+  const expectedMoney = useMemo(() => {
+    return activeSubscriptions.reduce((sum, s) => {
+      if (s.billing_cycle === "monthly") return sum + s.amount;
+      if (s.billing_cycle === "weekly") return sum + s.amount * 4.33;
+      if (s.billing_cycle === "yearly") return sum + s.amount / 12;
+      return sum + s.amount;
+    }, 0);
   }, [activeSubscriptions]);
 
   const nextDue = useMemo(() => {
@@ -144,7 +148,7 @@ export default function SubscriptionsPage() {
     return sorted[0];
   }, [activeSubscriptions, today]);
 
-  // Map subscriptions to their matching transactions
+  // Map subscriptions to their matching transactions (must be before expectedMoney/currentMoney)
   const matchMap = useMemo(() => {
     const map = new Map<string, TransactionWithRelations[]>();
     for (const sub of subscriptions) {
@@ -152,6 +156,19 @@ export default function SubscriptionsPage() {
     }
     return map;
   }, [subscriptions, transactions]);
+
+  // Current money: suma total de lo cobrado (transacciones que coinciden)
+  const currentMoney = useMemo(() => {
+    const chargedTxIds = new Set<number>();
+    for (const [, txs] of matchMap) {
+      for (const tx of txs) {
+        chargedTxIds.add(tx.id);
+      }
+    }
+    return transactions
+      .filter((tx) => chargedTxIds.has(tx.id))
+      .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+  }, [matchMap, transactions]);
 
   const handleDelete = async () => {
     if (!deletingSub) return;
@@ -181,14 +198,30 @@ export default function SubscriptionsPage() {
 
       {/* Summary Cards */}
       {activeSubscriptions.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground mb-1">
-                Total mensual
+                Expected money
               </p>
               <p className="text-2xl font-bold tracking-tight">
-                ${monthlyTotal.toFixed(2)}
+                ${expectedMoney.toFixed(2)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Suma total de los montos
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground mb-1">
+                Current money
+              </p>
+              <p className="text-2xl font-bold tracking-tight">
+                ${currentMoney.toFixed(2)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Suma total de lo cobrado
               </p>
             </CardContent>
           </Card>

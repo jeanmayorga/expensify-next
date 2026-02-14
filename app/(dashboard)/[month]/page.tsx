@@ -28,6 +28,8 @@ import { useBudgets } from "./budgets/hooks";
 import { useBanks } from "./banks/hooks";
 import { useCards } from "./cards/hooks";
 import { useSubscriptions } from "./subscriptions/hooks";
+import { BudgetLabel } from "./budgets/components/BudgetLabel";
+import { CARD_TYPES, CARD_KINDS } from "./cards/utils";
 import { type Bank } from "./banks/service";
 import { type CardWithBank } from "./cards/service";
 import { type TransactionWithRelations } from "./transactions/service";
@@ -81,6 +83,21 @@ import {
   YAxis,
   CartesianGrid,
 } from "recharts";
+
+function formatCardLabel(card: {
+  name: string;
+  last4: string | null;
+  card_kind: string | null;
+  card_type: string | null;
+  bank?: { name: string } | null;
+}) {
+  const kindLabel =
+    CARD_KINDS.find((k) => k.value === card.card_kind)?.label ?? null;
+  const typeLabel =
+    CARD_TYPES.find((t) => t.value === card.card_type)?.label ?? null;
+  const parts = [kindLabel, typeLabel, card.last4 ?? null].filter(Boolean);
+  return parts.length > 0 ? parts.join(" ") : card.name;
+}
 
 const fmt = (amount: number) =>
   new Intl.NumberFormat("en-US", {
@@ -728,7 +745,7 @@ export default function HomePage() {
         <Card>
           <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-x-2 gap-y-1 pb-2 pt-4 px-4">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <RefreshCw className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" />
               Próximas suscripciones
             </CardTitle>
             <Link
@@ -739,10 +756,9 @@ export default function HomePage() {
             </Link>
           </CardHeader>
           <CardContent className="px-4 pb-4">
-            <div className="flex gap-3 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-x-visible">
+            <div className="space-y-2">
               {upcomingSubscriptions.map((sub) => {
                 const isDueToday = sub.billing_day === todayDay;
-                // Check if charged this month by matching description
                 const subName = sub.name.toLowerCase();
                 const isCharged = transactions.some((tx) => {
                   if (tx.type !== "expense") return false;
@@ -754,30 +770,79 @@ export default function HomePage() {
                     key={sub.id}
                     href={`/${monthStr}/subscriptions`}
                     className={cn(
-                      "flex flex-col gap-1.5 rounded-xl border px-4 py-3 min-w-[160px] shrink-0 sm:shrink sm:min-w-0 sm:flex-1 sm:max-w-[220px] hover:bg-muted/50 transition-colors",
-                      isDueToday && "border-amber-300 bg-amber-50/50 dark:bg-amber-950/20",
+                      "flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 hover:bg-muted/50 transition-colors group",
+                      isDueToday && "border-amber-300/70 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-300/30",
                     )}
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-semibold truncate">{sub.name}</p>
-                      {isCharged ? (
-                        <Check className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                      ) : (
-                        <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      )}
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="h-9 w-9 shrink-0 rounded-lg bg-muted flex items-center justify-center">
+                        <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">
+                          {sub.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                          {isDueToday ? (
+                            <span className="font-medium text-amber-600 dark:text-amber-400">Hoy</span>
+                          ) : (
+                            <>Día {sub.billing_day}</>
+                          )}
+                          {(sub.bank || sub.card?.bank) && (
+                            <span className="inline-flex items-center gap-1">
+                              <span className="text-muted-foreground/50">·</span>
+                              {(sub.bank?.image ?? sub.card?.bank?.image) ? (
+                                <Image
+                                  src={(sub.bank?.image ?? sub.card?.bank?.image)!}
+                                  alt={sub.bank?.name ?? sub.card?.bank?.name ?? ""}
+                                  width={14}
+                                  height={14}
+                                  className="h-3.5 w-3.5 rounded object-contain shrink-0"
+                                />
+                              ) : (
+                                <Building2 className="h-3 w-3 shrink-0 text-muted-foreground" />
+                              )}
+                              <span>{sub.bank?.name ?? sub.card?.bank?.name}</span>
+                            </span>
+                          )}
+                          {sub.card && (
+                            <span className="inline-flex items-center gap-1">
+                              <span className="text-muted-foreground/50">·</span>
+                              <CreditCard className="h-3 w-3 shrink-0 text-muted-foreground" />
+                              <span>{formatCardLabel(sub.card)}</span>
+                            </span>
+                          )}
+                          {sub.budget && (
+                            <span className="inline-flex items-center gap-1">
+                              <span className="text-muted-foreground/50">·</span>
+                              <BudgetLabel
+                                budget={sub.budget}
+                                iconClassName="h-3 w-3"
+                              />
+                            </span>
+                          )}
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-lg font-bold tabular-nums">{fmt(sub.amount)}</p>
-                    <div className="flex items-center gap-1.5">
-                      <CalendarDays className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground">
-                        {isDueToday ? "Hoy" : `Día ${sub.billing_day}`}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-sm font-bold tabular-nums">
+                        {fmt(sub.amount)}
                       </span>
-                      {isCharged && (
+                      {isCharged ? (
                         <Badge
                           variant="outline"
-                          className="text-emerald-600 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 text-[10px] px-1.5 ml-auto"
+                          className="text-emerald-600 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 text-[10px] px-1.5 gap-0.5"
                         >
+                          <Check className="h-3 w-3" />
                           Cobrado
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="text-muted-foreground border-muted text-[10px] px-1.5 gap-0.5"
+                        >
+                          <Clock className="h-3 w-3" />
+                          Pendiente
                         </Badge>
                       )}
                     </div>
