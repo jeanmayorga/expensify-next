@@ -79,10 +79,14 @@ export class MessagesService {
     date?: string,
     cursor?: string,
     timezoneOffset: number = 0,
+    dateFrom?: string,
+    dateTo?: string,
   ): Promise<PaginatedMessages> {
     try {
       console.log("MessagesService->getMessages()->", {
         date,
+        dateFrom,
+        dateTo,
         cursor,
         timezoneOffset,
       });
@@ -99,30 +103,29 @@ export class MessagesService {
         let url =
           "/?$select=id,sender,receivedDateTime,subject&$orderby=receivedDateTime desc&$top=25";
 
-        // Filter by date if provided (format: YYYY-MM-DD)
-        // Convert local date to UTC range using timezone offset
-        if (date) {
-          const [year, month, day] = date.split("-").map(Number);
+        let startDate: string;
+        let endDate: string;
 
-          // Create UTC timestamps for midnight and end of day
-          const baseUtcStart = Date.UTC(year, month - 1, day, 0, 0, 0);
-          const baseUtcEnd = Date.UTC(year, month - 1, day, 23, 59, 59);
-
-          // Add timezone offset to convert user's local time to UTC
-          // e.g., for UTC-5 (offset=300): local midnight = UTC 05:00
+        if (dateFrom && dateTo) {
+          const [y1, m1, d1] = dateFrom.split("-").map(Number);
+          const [y2, m2, d2] = dateTo.split("-").map(Number);
+          const baseUtcStart = Date.UTC(y1, m1 - 1, d1, 0, 0, 0);
+          const baseUtcEnd = Date.UTC(y2, m2 - 1, d2, 23, 59, 59);
           const startUtc = baseUtcStart + timezoneOffset * 60 * 1000;
           const endUtc = baseUtcEnd + timezoneOffset * 60 * 1000;
+          startDate = new Date(startUtc).toISOString();
+          endDate = new Date(endUtc).toISOString();
+        } else if (date) {
+          const [year, month, day] = date.split("-").map(Number);
+          const baseUtcStart = Date.UTC(year, month - 1, day, 0, 0, 0);
+          const baseUtcEnd = Date.UTC(year, month - 1, day, 23, 59, 59);
+          const startUtc = baseUtcStart + timezoneOffset * 60 * 1000;
+          const endUtc = baseUtcEnd + timezoneOffset * 60 * 1000;
+          startDate = new Date(startUtc).toISOString();
+          endDate = new Date(endUtc).toISOString();
+        }
 
-          const startDate = new Date(startUtc).toISOString();
-          const endDate = new Date(endUtc).toISOString();
-
-          console.log("Date filter:", {
-            date,
-            timezoneOffset,
-            startDate,
-            endDate,
-          });
-
+        if ((dateFrom && dateTo) || date) {
           url += `&$filter=receivedDateTime ge ${startDate} and receivedDateTime le ${endDate}`;
         }
 

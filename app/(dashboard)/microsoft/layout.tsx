@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Mail, Bell, FileSearch, Cloud } from "lucide-react";
+import { Mail, Bell, FileSearch, CalendarDays, Cloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +10,7 @@ const tabs = [
   { href: "/microsoft", label: "Emails", icon: Mail },
   { href: "/microsoft/subscriptions", label: "Subscriptions", icon: Bell },
   { href: "/microsoft/daily-mailer-extractor", label: "Daily Extractor", icon: FileSearch },
+  { href: "/microsoft/monthly-mailer-extractor", label: "Monthly Extractor", icon: CalendarDays },
 ];
 
 export default function MicrosoftLayout({
@@ -20,14 +21,17 @@ export default function MicrosoftLayout({
   const pathname = usePathname();
 
   const isDailyExtractor = pathname.includes("daily-mailer-extractor");
+  const isMonthlyExtractor = pathname.includes("monthly-mailer-extractor");
   const isSubscriptions = pathname.includes("subscriptions");
 
   const pageSubtitle =
     isDailyExtractor
       ? "Extrae transacciones de emails del día"
-      : isSubscriptions
-        ? "Webhooks y notificaciones"
-        : "Emails de bancos y convert to transaction";
+      : isMonthlyExtractor
+        ? "Extrae transacciones de emails del mes"
+        : isSubscriptions
+          ? "Webhooks y notificaciones"
+          : "Emails de bancos y convert to transaction";
 
   return (
     <div className="space-y-4">

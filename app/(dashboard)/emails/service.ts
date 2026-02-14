@@ -29,6 +29,20 @@ export async function getEmails(date: string, cursor?: string) {
   return data.data;
 }
 
+export async function getEmailsForMonth(month: string, cursor?: string) {
+  const { data } = await api.get<{ data: PaginatedMessages }>(
+    "/microsoft/me/messages",
+    {
+      params: {
+        month,
+        tz: new Date().getTimezoneOffset(),
+        cursor,
+      },
+    },
+  );
+  return data.data;
+}
+
 export async function getEmail(id: string) {
   const { data } = await api.get<{ data: MicrosoftMeMessage }>(
     `/microsoft/me/messages/${id}`,

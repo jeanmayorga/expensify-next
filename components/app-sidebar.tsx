@@ -15,6 +15,7 @@ import {
   Wallet,
   Eye,
   RefreshCw,
+  BarChart3,
 } from "lucide-react";
 import {
   Sidebar,
@@ -34,6 +35,7 @@ import { SidebarSearch } from "@/components/sidebar-search";
 const monthRoutes = [
   { name: "Inicio", path: "", icon: Home },
   { name: "Transacciones", path: "transactions", icon: Receipt },
+  { name: "Reportes", path: "reports", icon: BarChart3 },
   { name: "Tarjetas", path: "cards", icon: CreditCard },
   { name: "Bancos", path: "banks", icon: Landmark },
   { name: "Presupuestos", path: "budgets", icon: PiggyBank },
