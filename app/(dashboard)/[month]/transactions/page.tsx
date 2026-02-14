@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { useTransactions, useUpdateTransaction } from "./hooks";
 import { getEcuadorDate } from "@/utils/ecuador-time";
-import { groupTransactionsByDate } from "@/utils/transactions";
+import { groupTransactionsByDate, findExpenseReimbursementPairs } from "@/utils/transactions";
 import { useCards } from "../cards/hooks";
 import { CARD_TYPES, CARD_KINDS } from "../cards/utils";
 import { useBanks } from "../banks/hooks";
@@ -66,6 +66,7 @@ import {
   CreateTransactionSheet,
   EditTransactionSheet,
   DeleteTransactionDialog,
+  MergeConfirmDialog,
 } from "./components";
 
 const fmt = (amount: number) =>
@@ -262,6 +263,9 @@ export default function TransactionsPage() {
   const [deletingTx, setDeletingTx] = useState<TransactionWithRelations | null>(
     null,
   );
+  const [mergeConfirmIds, setMergeConfirmIds] = useState<
+    [number, number] | null
+  >(null);
 
   const handleRowClick = (tx: TransactionWithRelations) => {
     setEditingTx(tx);
@@ -272,6 +276,10 @@ export default function TransactionsPage() {
     data: Record<string, string | null>,
   ) => {
     await updateTransaction.mutateAsync({ id, data });
+  };
+
+  const handleMergePair = (ids: [number, number]) => {
+    setMergeConfirmIds(ids);
   };
 
   // Summary calculations
@@ -638,6 +646,10 @@ export default function TransactionsPage() {
                 const dayTotal = txs
                   .filter((tx) => tx.type === "expense")
                   .reduce((s, tx) => s + tx.amount, 0);
+                const mergePairsMap = findExpenseReimbursementPairs(
+                  txs,
+                  dateKey,
+                );
                 return (
                   <div key={dateKey}>
                     <div className={cn("sticky top-0 z-10 bg-muted/60 backdrop-blur-sm px-4 py-2 border-b flex items-center justify-between", groupIndex > 0 && "border-t")}>
@@ -678,6 +690,10 @@ export default function TransactionsPage() {
                           onDelete={canEdit ? setDeletingTx : undefined}
                           onClick={canEdit ? handleRowClick : undefined}
                           highlighted={tx.id === txId}
+                          mergePair={mergePairsMap.get(tx.id)}
+                          onMerge={
+                            canEdit ? handleMergePair : undefined
+                          }
                         />
                       ))}
                     </div>
@@ -959,6 +975,11 @@ export default function TransactionsPage() {
           <DeleteTransactionDialog
             transaction={deletingTx}
             onClose={() => setDeletingTx(null)}
+          />
+
+          <MergeConfirmDialog
+            mergeIds={mergeConfirmIds}
+            onClose={() => setMergeConfirmIds(null)}
           />
         </>
       )}

@@ -16,10 +16,17 @@ import {
   Check,
   X,
   StickyNote,
+  Merge,
 } from "lucide-react";
 import { BudgetLabel } from "@/app/(dashboard)/[month]/budgets/components/BudgetLabel";
 import { type TransactionWithRelations } from "../service";
+import {
+  type MergePairInfo,
+  MERGE_BUTTON_STYLE,
+  MERGE_ROW_TINT,
+} from "@/utils/transactions";
 import { CARD_TYPES, CARD_KINDS } from "@/app/(dashboard)/[month]/cards/utils";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -64,6 +71,10 @@ interface TransactionRowProps {
   onClick?: (tx: TransactionWithRelations) => void;
   /** When true, row is highlighted (e.g. from search deep link) */
   highlighted?: boolean;
+  /** When present, shows Fusionar button for expense-reimbursement pair */
+  mergePair?: MergePairInfo;
+  /** Called when user clicks Fusionar (removes both transactions) */
+  onMerge?: (ids: [number, number]) => void;
 }
 
 function parseDate(date: string | Date): Date {
@@ -97,6 +108,8 @@ export function TransactionRow({
   onDelete,
   onClick,
   highlighted = false,
+  mergePair,
+  onMerge,
 }: TransactionRowProps) {
   const isExpense = tx.type === "expense";
   const date = parseDate(tx.occurred_at);
@@ -112,7 +125,12 @@ export function TransactionRow({
   return (
     <div
       data-transaction-id={tx.id}
-      className={`group flex items-start gap-3 px-4 py-3 hover:bg-muted/30 transition-colors min-w-0 overflow-hidden ${onClick ? "cursor-pointer" : ""} ${highlighted ? "bg-primary/15 ring-1 ring-primary/30 ring-inset" : ""}`}
+      className={cn(
+        "group flex items-start gap-3 px-4 py-3 hover:bg-muted/30 transition-colors min-w-0 overflow-hidden",
+        onClick && "cursor-pointer",
+        highlighted && "bg-primary/15 ring-1 ring-primary/30 ring-inset",
+        mergePair && MERGE_ROW_TINT,
+      )}
       onClick={onClick ? handleRowClick : undefined}
     >
       {/* Time */}
@@ -178,8 +196,22 @@ export function TransactionRow({
         </p>
       </div>
 
-      {/* Amount */}
-      <div className="shrink-0 self-center">
+      {/* Amount + Fusionar */}
+      <div className="shrink-0 self-center flex items-center gap-2">
+        {mergePair && onMerge && (
+          <Button
+            variant="outline"
+            size="icon"
+            className={cn("h-7 w-7 shrink-0", MERGE_BUTTON_STYLE)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onMerge(mergePair.ids);
+            }}
+          >
+            <Merge className="h-3.5 w-3.5" />
+            <span className="sr-only">Fusionar</span>
+          </Button>
+        )}
         <span
           className={`text-sm font-semibold tracking-tight ${
             isExpense ? "text-red-600" : "text-emerald-600"

@@ -1,5 +1,6 @@
 export { TransactionRow } from "./TransactionRow";
 export { TransactionRowSkeleton } from "./TransactionRowSkeleton";
+export { MergeConfirmDialog } from "./MergeConfirmDialog";
 export { EmptyState } from "./EmptyState";
 export {
   TransactionForm,
