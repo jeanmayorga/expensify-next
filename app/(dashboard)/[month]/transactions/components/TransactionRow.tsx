@@ -12,10 +12,12 @@ import {
   Trash2,
   Building2,
   CreditCard,
-  Wallet,
+  PiggyBank,
   Check,
   X,
+  StickyNote,
 } from "lucide-react";
+import { BudgetLabel } from "@/app/(dashboard)/[month]/budgets/components/BudgetLabel";
 import { type TransactionWithRelations } from "../service";
 import { CARD_TYPES, CARD_KINDS } from "@/app/(dashboard)/[month]/cards/utils";
 import { Button } from "@/components/ui/button";
@@ -29,7 +31,6 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-
 interface Card {
   id: string;
   name: string;
@@ -49,6 +50,7 @@ interface Bank {
 interface Budget {
   id: string;
   name: string;
+  icon?: string | null;
 }
 
 interface TransactionRowProps {
@@ -60,6 +62,8 @@ interface TransactionRowProps {
   onEdit?: (tx: TransactionWithRelations) => void;
   onDelete?: (tx: TransactionWithRelations) => void;
   onClick?: (tx: TransactionWithRelations) => void;
+  /** When true, row is highlighted (e.g. from search deep link) */
+  highlighted?: boolean;
 }
 
 function parseDate(date: string | Date): Date {
@@ -92,6 +96,7 @@ export function TransactionRow({
   onEdit,
   onDelete,
   onClick,
+  highlighted = false,
 }: TransactionRowProps) {
   const isExpense = tx.type === "expense";
   const date = parseDate(tx.occurred_at);
@@ -106,7 +111,8 @@ export function TransactionRow({
 
   return (
     <div
-      className={`group flex items-start gap-3 px-4 py-3 hover:bg-muted/30 transition-colors min-w-0 overflow-hidden ${onClick ? "cursor-pointer" : ""}`}
+      data-transaction-id={tx.id}
+      className={`group flex items-start gap-3 px-4 py-3 hover:bg-muted/30 transition-colors min-w-0 overflow-hidden ${onClick ? "cursor-pointer" : ""} ${highlighted ? "bg-primary/15 ring-1 ring-primary/30 ring-inset" : ""}`}
       onClick={onClick ? handleRowClick : undefined}
     >
       {/* Time */}
@@ -133,7 +139,7 @@ export function TransactionRow({
       <div className="flex flex-col min-w-0 flex-1 gap-0.5 overflow-hidden">
         {/* Línea referentes: Banco – Tarjeta – Presupuesto */}
         {(tx.bank || tx.card || tx.budget) && (
-          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground min-w-0 overflow-hidden">
+          <div className="flex flex-col gap-0.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-0.5 text-xs text-muted-foreground min-w-0 overflow-hidden">
             {tx.bank && (
               <span className="inline-flex items-center gap-1.5 shrink-0">
                 {tx.bank.image ? (
@@ -150,23 +156,18 @@ export function TransactionRow({
                 {tx.bank.name}
               </span>
             )}
-            {tx.bank && (tx.card || tx.budget) && (
-              <span className="shrink-0">–</span>
-            )}
             {tx.card && (
               <span className="inline-flex items-center gap-1.5 shrink-0">
                 <CreditCard className="h-3 w-3" />
                 {formatCardLabel(tx.card)}
               </span>
             )}
-            {tx.card && tx.budget && (
-              <span className="shrink-0">–</span>
-            )}
             {tx.budget && (
-              <span className="inline-flex items-center gap-1.5 shrink-0">
-                <Wallet className="h-3 w-3" />
-                {tx.budget.name}
-              </span>
+              <BudgetLabel
+                budget={tx.budget}
+                iconClassName="h-3 w-3"
+                className="shrink-0"
+              />
             )}
           </div>
         )}
@@ -189,8 +190,8 @@ export function TransactionRow({
         </span>
       </div>
 
-      {/* Actions Dropdown - only show if there are any action handlers */}
-      {(onUpdate || onEdit || onDelete) && (
+      {/* Actions Dropdown - show when has actions or has notes */}
+      {(onUpdate || onEdit || onDelete || tx.comment?.trim()) && (
         <div
           data-slot="dropdown-menu"
           className="self-center"
@@ -204,6 +205,8 @@ export function TransactionRow({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
+              {onUpdate && (
+              <>
               {/* Card Submenu */}
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>
@@ -289,7 +292,7 @@ export function TransactionRow({
               {/* Budget Submenu */}
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>
-                  <Wallet className="mr-2 h-4 w-4" />
+                  <PiggyBank className="mr-2 h-4 w-4" />
                   Presupuesto
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent className="max-h-64 overflow-y-auto">
@@ -307,8 +310,10 @@ export function TransactionRow({
                       key={budget.id}
                       onClick={() => handleAssign("budget_id", budget.id)}
                     >
-                      <Wallet className="mr-2 h-4 w-4" />
-                      {budget.name}
+                      <BudgetLabel
+                        budget={budget}
+                        iconClassName="h-4 w-4 shrink-0"
+                      />
                       {tx.budget_id === budget.id && (
                         <Check className="ml-auto h-4 w-4" />
                       )}
@@ -318,21 +323,50 @@ export function TransactionRow({
               </DropdownMenuSub>
 
               <DropdownMenuSeparator />
+              </>
+              )}
 
-              {/* Edit */}
-              <DropdownMenuItem onClick={() => onEdit?.(tx)}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Editar
-              </DropdownMenuItem>
+              {/* Notas */}
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger
+                  disabled={!tx.comment?.trim()}
+                  className={!tx.comment?.trim() ? "opacity-50 cursor-not-allowed" : ""}
+                >
+                  <StickyNote className="mr-2 h-4 w-4" />
+                  Notas
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent
+                  className="w-72 max-w-[min(90vw,320px)] p-4"
+                >
+                  <p className="text-xs font-medium text-muted-foreground mb-2">
+                    Notas
+                  </p>
+                  <p className="text-sm whitespace-pre-wrap break-words">
+                    {tx.comment?.trim() || "Sin notas"}
+                  </p>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
 
-              {/* Delete */}
-              <DropdownMenuItem
-                onClick={() => onDelete?.(tx)}
-                className="text-red-600 focus:text-red-600"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Eliminar
-              </DropdownMenuItem>
+              {(onEdit || onDelete) && (
+                <>
+                  <DropdownMenuSeparator />
+                  {onEdit && (
+                    <DropdownMenuItem onClick={() => onEdit(tx)}>
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Editar
+                    </DropdownMenuItem>
+                  )}
+                  {onDelete && (
+                    <DropdownMenuItem
+                      onClick={() => onDelete(tx)}
+                      className="text-red-600 focus:text-red-600"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Eliminar
+                    </DropdownMenuItem>
+                  )}
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

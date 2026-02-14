@@ -2,23 +2,13 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { useBudgets, useCreateBudget } from "./hooks";
+import { useBudgets } from "./hooks";
 import { useTransactions } from "../transactions/hooks";
-import { type Budget } from "./service";
 import { useAuth, useCanEdit } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetFooter,
-} from "@/components/ui/sheet";
-import { Input } from "@/components/ui/input";
 import { useMonth } from "@/lib/month-context";
 import { Wallet, Plus } from "lucide-react";
 import {
@@ -26,16 +16,10 @@ import {
   BudgetCardSkeleton,
   formatBudgetCurrency,
 } from "./components/BudgetCard";
-
-interface BudgetFormData {
-  name: string;
-  amount: number;
-}
-
-const defaultFormValues: BudgetFormData = {
-  name: "",
-  amount: 0,
-};
+import { CreateBudgetDialog } from "./components/CreateBudgetDialog";
+import { EditBudgetModal } from "./components/EditBudgetModal";
+import { DeleteBudgetDialog } from "./components/DeleteBudgetDialog";
+import type { Budget } from "./service";
 
 export default function BudgetsPage() {
   const router = useRouter();
@@ -43,7 +27,6 @@ export default function BudgetsPage() {
   const { budgetId } = useAuth();
   const canEdit = useCanEdit();
   const { data: budgets = [], isLoading } = useBudgets();
-  const createBudget = useCreateBudget();
 
   const filters = useMemo(
     () => ({
@@ -80,71 +63,11 @@ export default function BudgetsPage() {
   }, [filteredBudgets, transactions]);
 
   const [isCreating, setIsCreating] = useState(false);
-
-  const form = useForm<BudgetFormData>({ defaultValues: defaultFormValues });
-  const { register, watch, reset, handleSubmit } = form;
-  const amount = watch("amount") || 0;
+  const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
+  const [deletingBudget, setDeletingBudget] = useState<Budget | null>(null);
 
   const totalBudget = filteredBudgets.reduce((sum, b) => sum + b.amount, 0);
   const loading = isLoading || loadingTx;
-
-  const onCreateSubmit = async (data: BudgetFormData) => {
-    await createBudget.mutateAsync({
-      name: data.name,
-      amount: data.amount,
-    });
-    setIsCreating(false);
-    reset(defaultFormValues);
-  };
-
-  const openCreate = () => {
-    reset(defaultFormValues);
-    setIsCreating(true);
-  };
-
-  const FormFields = () => (
-    <div className="space-y-4">
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium">Name *</label>
-        <Input {...register("name")} placeholder="Monthly Groceries" />
-      </div>
-
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium">Amount *</label>
-        <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-            $
-          </span>
-          <Input
-            type="number"
-            step="0.01"
-            min="0"
-            {...register("amount", { valueAsNumber: true })}
-            placeholder="0.00"
-            className="pl-7"
-          />
-        </div>
-      </div>
-
-      {/* Preview */}
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium">Preview</label>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
-                <Wallet className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <span className="font-medium">
-                {watch("name") || "Budget Name"}
-              </span>
-            </div>
-            <p className="text-xl font-bold">{formatBudgetCurrency(amount)}</p>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
 
   return (
     <div className="space-y-6">
@@ -158,7 +81,7 @@ export default function BudgetsPage() {
         </div>
         {canEdit && (
           <div className="flex items-center gap-2">
-            <Button onClick={openCreate} size="sm">
+            <Button onClick={() => setIsCreating(true)} size="sm">
               <Plus className="h-4 w-4 mr-1" />
               Agregar
             </Button>
@@ -204,7 +127,7 @@ export default function BudgetsPage() {
           </div>
           <p className="text-muted-foreground mb-4">No hay presupuestos</p>
           {canEdit && (
-            <Button onClick={openCreate} size="sm">
+            <Button onClick={() => setIsCreating(true)} size="sm">
               <Plus className="h-4 w-4 mr-1" />
               Agregar presupuesto
             </Button>
@@ -217,43 +140,39 @@ export default function BudgetsPage() {
               key={data.budget.id}
               data={data}
               onClick={() => router.push(`budgets/${data.budget.id}`)}
+              onEdit={canEdit ? (b) => setEditingBudget(b) : undefined}
+              onDelete={canEdit ? (b) => setDeletingBudget(b) : undefined}
             />
           ))}
         </div>
       )}
 
-      {/* Create Sheet - only in edit mode */}
+      {/* Create Budget Dialog */}
       {canEdit && (
-        <Sheet open={isCreating} onOpenChange={setIsCreating}>
-          <SheetContent className="sm:max-w-md">
-            <SheetHeader>
-              <SheetTitle>New Budget</SheetTitle>
-            </SheetHeader>
-            <form
-              onSubmit={handleSubmit(onCreateSubmit)}
-              className="flex flex-col flex-1 overflow-hidden"
-            >
-              <div className="flex-1 px-4 pb-4 overflow-y-auto">
-                <FormFields />
-              </div>
-              <SheetFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsCreating(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={createBudget.isPending || !watch("name")}
-                >
-                  {createBudget.isPending ? "Creating..." : "Create"}
-                </Button>
-              </SheetFooter>
-            </form>
-          </SheetContent>
-        </Sheet>
+        <CreateBudgetDialog
+          open={isCreating}
+          onOpenChange={setIsCreating}
+        />
+      )}
+
+      {/* Edit Budget Modal */}
+      {canEdit && (
+        <EditBudgetModal
+          budget={editingBudget}
+          open={!!editingBudget}
+          onClose={() => setEditingBudget(null)}
+          onSuccess={() => setEditingBudget(null)}
+          onDeleted={() => setEditingBudget(null)}
+        />
+      )}
+
+      {/* Delete Budget Dialog */}
+      {canEdit && (
+        <DeleteBudgetDialog
+          budget={deletingBudget}
+          onClose={() => setDeletingBudget(null)}
+          onDeleted={() => setDeletingBudget(null)}
+        />
       )}
     </div>
   );

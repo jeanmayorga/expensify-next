@@ -20,7 +20,19 @@ export class TransactionsService {
       );
     const timezone = filters.timezone || DEFAULT_TIMEZONE;
 
-    if (filters.date) {
+    if (filters.search?.trim()) {
+      const rawTerm = filters.search.trim();
+      const term = `%${rawTerm}%`;
+      const conditions: string[] = [
+        `description.ilike.${term}`,
+        `comment.ilike.${term}`,
+      ];
+      const amountNum = parseFloat(rawTerm.replace(/,/g, "."));
+      if (!Number.isNaN(amountNum)) {
+        conditions.push(`amount.eq.${amountNum}`);
+      }
+      query = query.or(conditions.join(","));
+    } else if (filters.date) {
       const parsed = parse(filters.date, "yyyy-MM", new Date());
       const start = startOfMonth(parsed);
       const end = endOfDay(endOfMonth(parsed));

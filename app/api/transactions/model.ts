@@ -15,4 +15,6 @@ export interface TransactionFilters {
   budget_id?: string;
   /** Timezone IANA (ej: America/Guayaquil, America/New_York). Default: America/Guayaquil */
   timezone?: string;
+  /** Buscar en description y comment (ignora date cuando se usa) */
+  search?: string;
 }

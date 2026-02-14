@@ -3,16 +3,24 @@
 import { useState, useMemo } from "react";
 import {
   format,
+  parseISO,
   differenceInDays,
   startOfMonth,
   endOfMonth,
   isSameDay,
   subDays,
+  subMonths,
+  getDaysInMonth,
 } from "date-fns";
+import { groupTransactionsByDate } from "@/utils/transactions";
 import { es } from "date-fns/locale";
 import Link from "next/link";
 import Image from "next/image";
-import { useTransactionsForMonth, useUpdateTransaction } from "./transactions/hooks";
+import {
+  useTransactionsForMonth,
+  useTransactions,
+  useUpdateTransaction,
+} from "./transactions/hooks";
 import { getEcuadorDate } from "@/utils/ecuador-time";
 import { useMonth } from "@/lib/month-context";
 import { useAuth, useCanEdit } from "@/lib/auth-context";
@@ -46,6 +54,8 @@ import {
   CalendarDays,
   BarChart3,
   Tag,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
 import {
   TransactionRow,
@@ -53,6 +63,14 @@ import {
   EditTransactionSheet,
   DeleteTransactionDialog,
 } from "./transactions/components";
+import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+} from "recharts";
 
 const fmt = (amount: number) =>
   new Intl.NumberFormat("en-US", {
@@ -144,6 +162,12 @@ export default function HomePage() {
 
   const { data: allTransactions = [], isLoading: loadingTx } =
     useTransactionsForMonth(selectedMonth);
+  const prevMonth = useMemo(() => subMonths(selectedMonth, 1), [selectedMonth]);
+  const { data: prevMonthTransactions = [] } = useTransactions({
+    date: format(prevMonth, "yyyy-MM"),
+    timezone: "America/Guayaquil",
+    ...(authBudgetId ? { budget_id: authBudgetId } : {}),
+  });
   const { data: allBudgets = [], isLoading: loadingBudgets } = useBudgets();
   const { data: banks = [], isLoading: loadingBanks } = useBanks();
   const { data: cards = [], isLoading: loadingCards } = useCards();
@@ -296,6 +320,58 @@ export default function HomePage() {
   const budgetUsagePct =
     totalBudgeted > 0 ? (totalBudgetSpent / totalBudgeted) * 100 : 0;
 
+  // Presupuestos en riesgo (>80% o excedidos)
+  const budgetsAtRisk = useMemo(
+    () =>
+      budgetSpending.filter((b) => b.rawPercentage >= 80 || b.isOverBudget),
+    [budgetSpending],
+  );
+
+  // Proyección de fin de mes
+  const daysInMonth = getDaysInMonth(selectedMonth);
+  const daysRemaining = Math.max(daysInMonth - daysElapsed, 0);
+  const projectedMonthEnd = dailyAvg * daysInMonth;
+
+  // Comparación con mes anterior
+  const prevMonthExpenses = useMemo(
+    () =>
+      prevMonthTransactions
+        .filter((tx) => tx.type === "expense")
+        .reduce((s, tx) => s + Math.abs(tx.amount), 0),
+    [prevMonthTransactions],
+  );
+  const vsPrevMonthPct =
+    prevMonthExpenses > 0
+      ? ((totalExpenses - prevMonthExpenses) / prevMonthExpenses) * 100
+      : null;
+
+  // Chart data: evolución de gastos por día
+  const expensesChartData = useMemo(() => {
+    const year = format(selectedMonth, "yyyy");
+    const month = format(selectedMonth, "MM");
+    const days = getDaysInMonth(selectedMonth);
+    const data = [];
+    for (let day = 1; day <= days; day++) {
+      const dateStr = `${year}-${month}-${day.toString().padStart(2, "0")}`;
+      const dayTx = expenses.filter((tx) => {
+        const d = getEcuadorDate(
+          typeof tx.occurred_at === "string"
+            ? parseISO(tx.occurred_at)
+            : tx.occurred_at,
+        );
+        return format(d, "yyyy-MM-dd") === dateStr;
+      });
+      const dayTotal = dayTx.reduce((s, tx) => s + Math.abs(tx.amount), 0);
+      data.push({
+        day: day.toString(),
+        date: dateStr,
+        expenses: dayTotal,
+        transactions: dayTx.length,
+      });
+    }
+    return data;
+  }, [expenses, selectedMonth]);
+
   // Bank spending
   const bankSpending = useMemo(() => {
     const map: Record<string, { bank: Bank; total: number; count: number }> =
@@ -328,16 +404,16 @@ export default function HomePage() {
     return Object.values(map).sort((a, b) => b.total - a.total);
   }, [expenses]);
 
-  // Top 5 biggest expenses
+  // Top 8 biggest expenses
   const topExpenses = useMemo(
     () =>
       [...expenses]
         .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
-        .slice(0, 5),
+        .slice(0, 8),
     [expenses],
   );
 
-  // Recent 5 transactions
+  // Recent 8 transactions
   const recentTx = useMemo(
     () =>
       [...transactions]
@@ -346,9 +422,22 @@ export default function HomePage() {
             new Date(b.occurred_at).getTime() -
             new Date(a.occurred_at).getTime(),
         )
-        .slice(0, 5),
+        .slice(0, 8),
     [transactions],
   );
+
+  // Transactions without budget assigned (expenses only)
+  const txWithoutBudget = useMemo(() => {
+    const allExpenses = allTransactions.filter((tx) => tx.type === "expense");
+    return [...allExpenses]
+      .filter((tx) => !tx.budget_id)
+      .sort(
+        (a, b) =>
+          new Date(b.occurred_at).getTime() -
+          new Date(a.occurred_at).getTime(),
+      )
+      .slice(0, 8);
+  }, [allTransactions]);
 
   const currentMonth = format(selectedMonth, "MMMM yyyy", { locale: es });
 
@@ -451,6 +540,251 @@ export default function HomePage() {
         </Card>
       )}
 
+      {/* Proyección fin de mes + Comparación mes anterior */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <p className="text-sm font-semibold">Proyección fin de mes</p>
+            </div>
+            {loading ? (
+              <Skeleton className="h-8 w-32" />
+            ) : (
+              <>
+                <p className="text-xl font-bold tabular-nums">
+                  {fmt(projectedMonthEnd)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Si mantienes el ritmo actual ({fmt(dailyAvg)}/día) ·{" "}
+                  {daysRemaining} días restantes
+                </p>
+                {totalBudgeted > 0 && (
+                  <p
+                    className={cn(
+                      "text-xs font-medium mt-1",
+                      projectedMonthEnd > totalBudgeted
+                        ? "text-red-600 dark:text-red-400"
+                        : "text-emerald-600 dark:text-emerald-400",
+                    )}
+                  >
+                    {projectedMonthEnd > totalBudgeted
+                      ? `Excederías el presupuesto en ${fmt(projectedMonthEnd - totalBudgeted)}`
+                      : `Dentro del presupuesto (${fmt(totalBudgeted - projectedMonthEnd)} de margen)`}
+                  </p>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              <p className="text-sm font-semibold">vs mes anterior</p>
+            </div>
+            {loading ? (
+              <Skeleton className="h-8 w-32" />
+            ) : vsPrevMonthPct !== null ? (
+              <>
+                <p
+                  className={cn(
+                    "text-xl font-bold tabular-nums flex items-center gap-1",
+                    vsPrevMonthPct > 0
+                      ? "text-red-600 dark:text-red-400"
+                      : vsPrevMonthPct < 0
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-muted-foreground",
+                  )}
+                >
+                  {vsPrevMonthPct > 0 && (
+                    <TrendingUp className="h-4 w-4" />
+                  )}
+                  {vsPrevMonthPct < 0 && (
+                    <TrendingDown className="h-4 w-4" />
+                  )}
+                  {vsPrevMonthPct > 0 ? "+" : ""}
+                  {vsPrevMonthPct.toFixed(1)}%
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {format(prevMonth, "MMMM", { locale: es })}: {fmt(prevMonthExpenses)} → Este mes: {fmt(totalExpenses)}
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Sin datos del mes anterior para comparar
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Presupuestos en riesgo */}
+      {budgetsAtRisk.length > 0 && (
+        <Card>
+          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-x-2 gap-y-1 pb-2 pt-4 px-4">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-muted-foreground" />
+              Presupuestos en riesgo
+            </CardTitle>
+            <Link
+              href={`/${monthStr}/budgets`}
+              className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+            >
+              Ver todos <ArrowRight className="h-3 w-3" />
+            </Link>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <div className="flex flex-wrap gap-2">
+              {budgetsAtRisk.map(({ budget, spent, rawPercentage, isOverBudget }) => (
+                <Link
+                  key={budget.id}
+                  href={`/${monthStr}/budgets/${budget.id}`}
+                  className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
+                >
+                  <span className="font-medium">{budget.name}</span>
+                  <Badge
+                    variant="secondary"
+                    className={cn(
+                      "text-xs",
+                      isOverBudget
+                        ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
+                        : "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
+                    )}
+                  >
+                    {rawPercentage.toFixed(0)}%
+                  </Badge>
+                  <span className="text-muted-foreground text-xs">
+                    {fmt(spent)}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Gráfico evolución de gastos */}
+      <Card>
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-x-2 gap-y-1 pb-2 pt-4 px-4">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 shrink-0 text-muted-foreground" />
+            Evolución de gastos
+          </CardTitle>
+          <Link
+            href={`/${monthStr}/transactions`}
+            className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+          >
+            Ver detalle <ArrowRight className="h-3 w-3" />
+          </Link>
+        </CardHeader>
+        <CardContent className="px-4 pb-4">
+          {loading ? (
+            <Skeleton className="h-[200px] w-full rounded-lg" />
+          ) : (
+            <ChartContainer
+              config={{
+                expenses: {
+                  label: "Gastos",
+                  color: "hsl(0 84% 60%)",
+                },
+              }}
+              className="h-[200px] w-full"
+            >
+              <AreaChart
+                  data={expensesChartData}
+                  margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                >
+                  <defs>
+                    <linearGradient
+                      id="fillExpensesEvolutionChart"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop
+                        offset="0%"
+                        stopColor="hsl(0 84% 60%)"
+                        stopOpacity={0.35}
+                      />
+                      <stop
+                        offset="100%"
+                        stopColor="hsl(0 84% 60%)"
+                        stopOpacity={0}
+                      />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    className="stroke-muted opacity-50"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="day"
+                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                    tickFormatter={(v) =>
+                      new Intl.NumberFormat("es-EC", {
+                        style: "currency",
+                        currency: "USD",
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0,
+                      }).format(v)
+                    }
+                    tickLine={false}
+                    axisLine={false}
+                    width={48}
+                  />
+                  <ChartTooltip
+                    cursor={{
+                      stroke: "hsl(var(--border))",
+                      strokeWidth: 1,
+                    }}
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload?.length) return null;
+                      const data = payload[0].payload;
+                      return (
+                        <div className="rounded-lg border border-border bg-background px-3 py-2.5 shadow-lg">
+                          <p className="text-xs font-medium text-muted-foreground">
+                            Día {label} · {format(selectedMonth, "MMMM", { locale: es })}
+                          </p>
+                          <p className="mt-1 text-base font-semibold text-red-600 dark:text-red-400">
+                            {fmt(data.expenses)}
+                          </p>
+                          {data.transactions > 0 && (
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {data.transactions} transaccion
+                              {data.transactions !== 1 ? "es" : ""}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="expenses"
+                    stroke="hsl(0 84% 60%)"
+                    strokeWidth={2}
+                    fill="url(#fillExpensesEvolutionChart)"
+                    dot={{ fill: "hsl(0 84% 60%)", strokeWidth: 0, r: 2 }}
+                    activeDot={{
+                      r: 4,
+                      strokeWidth: 2,
+                      stroke: "hsl(var(--background))",
+                    }}
+                  />
+                </AreaChart>
+            </ChartContainer>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Gastado hoy / ayer / anteayer / hace 3 días — 4 secciones */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="border-l-4 border-l-red-500">
@@ -507,11 +841,286 @@ export default function HomePage() {
         </Card>
       </div>
 
+      {/* Últimas transacciones, Transacciones más grandes, Transacciones sin presupuesto — debajo de hoy/ayer/anteayer */}
+      <div className="grid w-full min-w-0 grid-cols-1 gap-4 lg:grid-cols-3">
+        <Card className="min-w-0 overflow-hidden gap-0">
+          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b py-4 !pb-4 px-4">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Receipt className="h-4 w-4 shrink-0 text-muted-foreground" />
+              Últimas transacciones
+            </CardTitle>
+            <Link
+              href={`/${monthStr}/transactions`}
+              className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 shrink-0"
+            >
+              Ver todas <ArrowRight className="h-3 w-3" />
+            </Link>
+          </CardHeader>
+          <CardContent className="p-0">
+            {loading ? (
+              <div className="divide-y max-h-[28rem] overflow-y-auto">
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                  <TransactionRowSkeleton key={i} />
+                ))}
+              </div>
+            ) : recentTx.length === 0 ? (
+              <div className="flex min-h-[28rem] flex-col items-center justify-center px-4">
+                <p className="text-sm text-muted-foreground text-center">
+                  No hay transacciones este mes
+                </p>
+              </div>
+            ) : (
+              <div className="max-h-[28rem] overflow-y-auto">
+                {groupTransactionsByDate(recentTx).map(
+                  ([dateKey, txs], groupIndex) => {
+                    const dayTotal = txs
+                      .filter((tx) => tx.type === "expense")
+                      .reduce((s, tx) => s + Math.abs(tx.amount), 0);
+                    return (
+                      <div key={dateKey}>
+                        <div
+                          className={cn(
+                            "sticky top-0 z-10 bg-muted/60 backdrop-blur-sm px-4 py-2 border-b flex items-center justify-between",
+                            groupIndex > 0 && "border-t",
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                              {format(
+                                parseISO(dateKey),
+                                "EEEE, d 'de' MMMM",
+                                { locale: es },
+                              )}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] h-5 px-1.5 font-normal"
+                            >
+                              {txs.length} tx
+                            </Badge>
+                            {dayTotal > 0 && (
+                              <span className="text-xs font-medium text-muted-foreground tabular-nums">
+                                -{fmt(dayTotal)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="divide-y">
+                          {txs.map((tx) => (
+                            <TransactionRow
+                              key={tx.id}
+                              transaction={tx}
+                              cards={cards}
+                              banks={banks}
+                              budgets={budgets}
+                              onUpdate={
+                                canEdit ? handleQuickUpdate : undefined
+                              }
+                              onEdit={canEdit ? setEditingTx : undefined}
+                              onDelete={canEdit ? setDeletingTx : undefined}
+                              onClick={canEdit ? handleRowClick : undefined}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  },
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="min-w-0 overflow-hidden gap-0">
+          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b py-4 !pb-4 px-4">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <CircleDollarSign className="h-4 w-4 shrink-0 text-muted-foreground" />
+              Transacciones más grandes
+            </CardTitle>
+            <Link
+              href={`/${monthStr}/transactions`}
+              className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 shrink-0"
+            >
+              Ver todas <ArrowRight className="h-3 w-3" />
+            </Link>
+          </CardHeader>
+          <CardContent className="p-0">
+            {loading ? (
+              <div className="divide-y max-h-[28rem] overflow-y-auto">
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                  <TransactionRowSkeleton key={i} />
+                ))}
+              </div>
+            ) : topExpenses.length === 0 ? (
+              <div className="flex min-h-[28rem] flex-col items-center justify-center px-4">
+                <p className="text-sm text-muted-foreground text-center">
+                  Sin datos
+                </p>
+              </div>
+            ) : (
+              <div className="max-h-[28rem] overflow-y-auto">
+                {groupTransactionsByDate(topExpenses).map(
+                  ([dateKey, txs], groupIndex) => {
+                    const dayTotal = txs
+                      .filter((tx) => tx.type === "expense")
+                      .reduce((s, tx) => s + Math.abs(tx.amount), 0);
+                    return (
+                      <div key={dateKey}>
+                        <div
+                          className={cn(
+                            "sticky top-0 z-10 bg-muted/60 backdrop-blur-sm px-4 py-2 border-b flex items-center justify-between",
+                            groupIndex > 0 && "border-t",
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                              {format(
+                                parseISO(dateKey),
+                                "EEEE, d 'de' MMMM",
+                                { locale: es },
+                              )}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] h-5 px-1.5 font-normal"
+                            >
+                              {txs.length} tx
+                            </Badge>
+                            {dayTotal > 0 && (
+                              <span className="text-xs font-medium text-muted-foreground tabular-nums">
+                                -{fmt(dayTotal)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="divide-y">
+                          {txs.map((tx) => (
+                            <TransactionRow
+                              key={tx.id}
+                              transaction={tx}
+                              cards={cards}
+                              banks={banks}
+                              budgets={budgets}
+                              onUpdate={
+                                canEdit ? handleQuickUpdate : undefined
+                              }
+                              onEdit={canEdit ? setEditingTx : undefined}
+                              onDelete={canEdit ? setDeletingTx : undefined}
+                              onClick={canEdit ? handleRowClick : undefined}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  },
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="min-w-0 overflow-hidden gap-0">
+          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b py-4 !pb-4 px-4">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Tag className="h-4 w-4 shrink-0 text-muted-foreground" />
+              Transacciones sin presupuesto
+            </CardTitle>
+            <Link
+              href={`/${monthStr}/transactions`}
+              className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 shrink-0"
+            >
+              Ver todas <ArrowRight className="h-3 w-3" />
+            </Link>
+          </CardHeader>
+          <CardContent className="p-0">
+            {loading ? (
+              <div className="divide-y max-h-[28rem] overflow-y-auto">
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                  <TransactionRowSkeleton key={i} />
+                ))}
+              </div>
+            ) : txWithoutBudget.length === 0 ? (
+              <div className="flex min-h-[28rem] flex-col items-center justify-center px-4">
+                <p className="text-sm text-muted-foreground text-center">
+                  No hay transacciones sin presupuesto
+                </p>
+              </div>
+            ) : (
+              <div className="max-h-[28rem] overflow-y-auto">
+                {groupTransactionsByDate(txWithoutBudget).map(
+                  ([dateKey, txs], groupIndex) => {
+                    const dayTotal = txs
+                      .filter((tx) => tx.type === "expense")
+                      .reduce((s, tx) => s + Math.abs(tx.amount), 0);
+                    return (
+                      <div key={dateKey}>
+                        <div
+                          className={cn(
+                            "sticky top-0 z-10 bg-muted/60 backdrop-blur-sm px-4 py-2 border-b flex items-center justify-between",
+                            groupIndex > 0 && "border-t",
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                              {format(
+                                parseISO(dateKey),
+                                "EEEE, d 'de' MMMM",
+                                { locale: es },
+                              )}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] h-5 px-1.5 font-normal"
+                            >
+                              {txs.length} tx
+                            </Badge>
+                            {dayTotal > 0 && (
+                              <span className="text-xs font-medium text-muted-foreground tabular-nums">
+                                -{fmt(dayTotal)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="divide-y">
+                          {txs.map((tx) => (
+                            <TransactionRow
+                              key={tx.id}
+                              transaction={tx}
+                              cards={cards}
+                              banks={banks}
+                              budgets={allBudgets}
+                              onUpdate={
+                                canEdit ? handleQuickUpdate : undefined
+                              }
+                              onEdit={canEdit ? setEditingTx : undefined}
+                              onDelete={canEdit ? setDeletingTx : undefined}
+                              onClick={canEdit ? handleRowClick : undefined}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  },
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Main Grid — col-span-12 en mobile (100%), 50/50 desde lg */}
       <div className="grid w-full grid-cols-12 gap-4">
-        {/* Left column: Presupuestos */}
-        <div className="col-span-12 min-w-0 w-full space-y-4 lg:col-span-6">
-          {/* Budget Cards */}
+        {/* Presupuestos — full width */}
+        <div className="col-span-12 min-w-0 w-full space-y-4">
           {budgets.length > 0 && (
             <Card className="w-full">
               <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-x-2 gap-y-1 pb-2 pt-4 px-4">
@@ -528,14 +1137,14 @@ export default function HomePage() {
               </CardHeader>
               <CardContent className="px-4 pb-4">
                 {loading ? (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {[1, 2].map((i) => (
+                  <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+                    {[1, 2, 3, 4].map((i) => (
                       <Skeleton key={i} className="h-36 rounded-xl" />
                     ))}
                   </div>
                 ) : (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {budgetSpending.slice(0, 4).map((data) => (
+                  <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+                    {budgetSpending.map((data) => (
                       <BudgetMiniCard
                         key={data.budget.id}
                         data={data}
@@ -547,11 +1156,10 @@ export default function HomePage() {
               </CardContent>
             </Card>
           )}
-
         </div>
 
-        {/* Right column: Resumen rápido, Por banco, Por tarjeta */}
-        <div className="col-span-12 min-w-0 w-full space-y-4 lg:col-span-6">
+        {/* Resumen rápido, Por banco, Por tarjeta — grid 3 cols */}
+        <div className="col-span-12 grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-3">
           {/* Quick Stats */}
           <Card>
             <CardHeader className="pb-2 pt-4 px-4">
@@ -741,91 +1349,6 @@ export default function HomePage() {
                       </Link>
                     );
                   })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Últimas transacciones + Gastos más grandes — 50/50 en desktop, apiladas en tablet/móvil */}
-        <div className="col-span-12 grid min-w-0 gap-4 lg:grid-cols-2">
-          <Card className="min-w-0 overflow-hidden">
-            <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-x-2 gap-y-1 pb-2 pt-4 px-4">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <Receipt className="h-4 w-4 shrink-0 text-muted-foreground" />
-                Últimas transacciones
-              </CardTitle>
-              <Link
-                href={`/${monthStr}/transactions`}
-                className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
-              >
-                Ver todas <ArrowRight className="h-3 w-3" />
-              </Link>
-            </CardHeader>
-            <CardContent className="p-0">
-              {loading ? (
-                <div className="divide-y">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <TransactionRowSkeleton key={i} />
-                  ))}
-                </div>
-              ) : recentTx.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8 px-4">
-                  No hay transacciones este mes
-                </p>
-              ) : (
-                <div className="divide-y">
-                  {recentTx.map((tx) => (
-                    <TransactionRow
-                      key={tx.id}
-                      transaction={tx}
-                      cards={cards}
-                      banks={banks}
-                      budgets={budgets}
-                      onUpdate={canEdit ? handleQuickUpdate : undefined}
-                      onEdit={canEdit ? setEditingTx : undefined}
-                      onDelete={canEdit ? setDeletingTx : undefined}
-                      onClick={canEdit ? handleRowClick : undefined}
-                    />
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="min-w-0 overflow-hidden">
-            <CardHeader className="pb-2 pt-4 px-4">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
-                Gastos más grandes
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              {loading ? (
-                <div className="divide-y">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <TransactionRowSkeleton key={i} />
-                  ))}
-                </div>
-              ) : topExpenses.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8 px-4">
-                  Sin datos
-                </p>
-              ) : (
-                <div className="divide-y">
-                  {topExpenses.map((tx) => (
-                    <TransactionRow
-                      key={tx.id}
-                      transaction={tx}
-                      cards={cards}
-                      banks={banks}
-                      budgets={budgets}
-                      onUpdate={canEdit ? handleQuickUpdate : undefined}
-                      onEdit={canEdit ? setEditingTx : undefined}
-                      onDelete={canEdit ? setDeletingTx : undefined}
-                      onClick={canEdit ? handleRowClick : undefined}
-                    />
-                  ))}
                 </div>
               )}
             </CardContent>

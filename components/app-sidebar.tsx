@@ -28,6 +28,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { MonthPickerNav } from "@/components/month-picker-nav";
+import { SidebarSearch } from "@/components/sidebar-search";
 
 const monthRoutes = [
   { name: "Inicio", path: "", icon: Home },
@@ -73,6 +74,10 @@ export function AppSidebar() {
         {/* Month Picker */}
         <div className="px-3 py-2 group-data-[collapsible=icon]:hidden">
           <MonthPickerNav />
+        </div>
+        {/* Search */}
+        <div className="px-3 py-2 group-data-[collapsible=icon]:hidden">
+          <SidebarSearch />
         </div>
 
         <SidebarGroup>

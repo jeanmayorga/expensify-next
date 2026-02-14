@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { Wallet, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,21 +15,26 @@ import { Input } from "@/components/ui/input";
 import { useUpdateBudget, useDeleteBudget } from "../hooks";
 import type { Budget } from "../service";
 import { formatBudgetCurrency } from "./BudgetCard";
+import { getBudgetIconComponent } from "./BudgetIconPicker";
+import { BudgetIconPicker } from "./BudgetIconPicker";
 
 export interface BudgetFormData {
   name: string;
   amount: number;
+  icon: string | null;
 }
 
 const defaultFormValues: BudgetFormData = {
   name: "",
   amount: 0,
+  icon: null,
 };
 
 function budgetToForm(budget: Budget): BudgetFormData {
   return {
     name: budget.name,
     amount: budget.amount,
+    icon: budget.icon ?? null,
   };
 }
 
@@ -58,8 +63,9 @@ export function EditBudgetModal({
   const form = useForm<BudgetFormData>({
     defaultValues: defaultFormValues,
   });
-  const { register, watch, reset, handleSubmit, formState } = form;
+  const { register, watch, reset, handleSubmit, formState, setValue } = form;
   const amount = watch("amount");
+  const icon = watch("icon");
   const amountNum = typeof amount === "number" && !Number.isNaN(amount) ? amount : 0;
 
   useEffect(() => {
@@ -76,6 +82,7 @@ export function EditBudgetModal({
       data: {
         name: data.name.trim(),
         amount: Number(data.amount),
+        icon: data.icon || null,
       },
     });
     onSuccess?.();
@@ -105,7 +112,10 @@ export function EditBudgetModal({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
-                <Wallet className="h-4 w-4 text-muted-foreground" />
+                {(() => {
+                  const Icon = getBudgetIconComponent(budget.icon);
+                  return <Icon className="h-4 w-4 text-muted-foreground" />;
+                })()}
               </div>
               Editar presupuesto
             </DialogTitle>
@@ -157,6 +167,11 @@ export function EditBudgetModal({
                 </p>
               )}
             </div>
+
+            <BudgetIconPicker
+              value={icon}
+              onChange={(v) => setValue("icon", v)}
+            />
 
             <div className="rounded-lg border bg-muted/40 p-3">
               <p className="text-xs font-medium text-muted-foreground mb-1">

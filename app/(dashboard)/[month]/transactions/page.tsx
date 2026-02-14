@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import {
@@ -19,13 +20,16 @@ import {
   CalendarDays,
   Filter,
   LayoutGrid,
+  Search,
 } from "lucide-react";
 import { useTransactions, useUpdateTransaction } from "./hooks";
 import { getEcuadorDate } from "@/utils/ecuador-time";
+import { groupTransactionsByDate } from "@/utils/transactions";
 import { useCards } from "../cards/hooks";
 import { CARD_TYPES, CARD_KINDS } from "../cards/utils";
 import { useBanks } from "../banks/hooks";
 import { useBudgets } from "../budgets/hooks";
+import { BudgetLabel } from "../budgets/components/BudgetLabel";
 import { type TransactionWithRelations } from "./service";
 import { useMonth } from "@/lib/month-context";
 import { useAuth, useCanEdit } from "@/lib/auth-context";
@@ -41,6 +45,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -83,12 +88,21 @@ export default function TransactionsPage() {
   const { selectedMonth } = useMonth();
   const { budgetId } = useAuth();
   const canEdit = useCanEdit();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const transactionIdParam = searchParams.get("transactionId");
+  const txId = transactionIdParam ? parseInt(transactionIdParam, 10) : null;
+  const hasScrolledToTx = useRef(false);
+
   const [typeFilter, setTypeFilter] = useState<"all" | "expense" | "income">(
     "all",
   );
   const [viewMode, setViewMode] = useState<"list" | "chart">("list");
 
   // Filters
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [cardFilter, setCardFilter] = useState<string>("__all__");
   const [bankFilter, setBankFilter] = useState<string>("__all__");
   const [budgetFilter, setBudgetFilter] = useState<string>("__all__");
@@ -119,14 +133,61 @@ export default function TransactionsPage() {
 
   const updateTransaction = useUpdateTransaction();
 
+  // Debounce search input (300ms)
+  useEffect(() => {
+    const t = setTimeout(() => setSearchQuery(searchInput), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
   const loading =
     loadingTx || loadingCards || loadingBanks || loadingBudgets;
 
-  // Filter transactions by type
+  // Filter transactions by type and search
   const filteredTransactions = useMemo(() => {
-    if (typeFilter === "all") return transactions;
-    return transactions.filter((t) => t.type === typeFilter);
-  }, [transactions, typeFilter]);
+    let result = transactions;
+    if (typeFilter !== "all") {
+      result = result.filter((t) => t.type === typeFilter);
+    }
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      result = result.filter((tx) => {
+        const desc = (tx.description ?? "").toLowerCase();
+        const comment = (tx.comment ?? "").toLowerCase();
+        const bankName = (tx.bank?.name ?? "").toLowerCase();
+        const budgetName = (tx.budget?.name ?? "").toLowerCase();
+        const cardLabel = [
+          CARD_KINDS.find((k) => k.value === tx.card?.card_kind)?.label,
+          CARD_TYPES.find((t) => t.value === tx.card?.card_type)?.label,
+          tx.card?.bank?.name,
+          tx.card?.last4,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        const amountStr = tx.amount.toString();
+        return (
+          desc.includes(q) ||
+          comment.includes(q) ||
+          bankName.includes(q) ||
+          budgetName.includes(q) ||
+          cardLabel.includes(q) ||
+          amountStr.includes(q)
+        );
+      });
+    }
+    // When deep-linking to a transaction, ensure it's visible even if filtered out
+    if (txId && !result.some((t) => t.id === txId)) {
+      const targetTx = transactions.find((t) => t.id === txId);
+      if (targetTx) {
+        result = [...result, targetTx].sort(
+          (a, b) =>
+            new Date(b.occurred_at).getTime() -
+            new Date(a.occurred_at).getTime(),
+        );
+      }
+    }
+    return result;
+  }, [transactions, typeFilter, searchQuery, txId]);
 
   // Helper to parse date correctly for Ecuador timezone
   const parseDate = (date: string | Date): Date => {
@@ -138,16 +199,31 @@ export default function TransactionsPage() {
   };
 
   // Group transactions by date
-  const groupedTransactions = useMemo(() => {
-    const groups: Record<string, TransactionWithRelations[]> = {};
-    filteredTransactions.forEach((tx) => {
-      const ecuadorDate = parseDate(tx.occurred_at);
-      const dateKey = format(ecuadorDate, "yyyy-MM-dd");
-      if (!groups[dateKey]) groups[dateKey] = [];
-      groups[dateKey].push(tx);
+  const groupedTransactions = useMemo(
+    () => groupTransactionsByDate(filteredTransactions),
+    [filteredTransactions],
+  );
+
+  // When landing with transactionId: ensure list view, scroll to tx, open sheet
+  useEffect(() => {
+    if (!txId) return;
+    setViewMode("list");
+    hasScrolledToTx.current = false;
+  }, [txId]);
+
+  useEffect(() => {
+    if (!txId || loading || hasScrolledToTx.current) return;
+    const targetTx = transactions.find((t) => t.id === txId);
+    if (!targetTx) return;
+    hasScrolledToTx.current = true;
+    setEditingTx(targetTx);
+    requestAnimationFrame(() => {
+      const el = document.querySelector(
+        `[data-transaction-id="${txId}"]`,
+      );
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
     });
-    return Object.entries(groups).sort(([a], [b]) => b.localeCompare(a));
-  }, [filteredTransactions]);
+  }, [txId, loading, transactions]);
 
   // Chart data
   const chartData = useMemo(() => {
@@ -212,15 +288,21 @@ export default function TransactionsPage() {
   const incomeCount = transactions.filter((t) => t.type === "income").length;
 
   const hasActiveFilters =
+    searchInput.trim() !== "" ||
     cardFilter !== "__all__" ||
     bankFilter !== "__all__" ||
     budgetFilter !== "__all__";
 
-  const activeFilterCount = [cardFilter, bankFilter, budgetFilter].filter(
-    (f) => f !== "__all__",
-  ).length;
+  const activeFilterCount = [
+    searchInput.trim() !== "",
+    cardFilter !== "__all__",
+    bankFilter !== "__all__",
+    budgetFilter !== "__all__",
+  ].filter(Boolean).length;
 
   const clearFilters = () => {
+    setSearchInput("");
+    setSearchQuery("");
     setCardFilter("__all__");
     setBankFilter("__all__");
     setBudgetFilter("__all__");
@@ -336,165 +418,174 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2">
-        {/* View Mode */}
+      {/* Search */}
+      <div className="relative max-w-md">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <Input
+          type="search"
+          placeholder="Buscar transacciones..."
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          className="pl-8 h-8 text-sm"
+        />
+      </div>
+
+      {/* Filters row: on desktop = type tabs + selects (left) | view mode (right) */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-wrap items-center gap-2 overflow-x-auto">
+          {/* Type Filter (Todas, Gastos, Ingresos) */}
+          <Tabs
+            value={typeFilter}
+            onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}
+          >
+            <TabsList className="h-8">
+              <TabsTrigger value="all" className="gap-1.5 text-xs px-3">
+                <LayoutGrid className="h-3.5 w-3.5" />
+                Todas
+              </TabsTrigger>
+              <TabsTrigger value="expense" className="gap-1.5 text-xs px-3">
+                <ArrowDownRight className="h-3.5 w-3.5" />
+                Gastos
+              </TabsTrigger>
+              <TabsTrigger value="income" className="gap-1.5 text-xs px-3">
+                <ArrowUpRight className="h-3.5 w-3.5" />
+                Ingresos
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          <div className="h-5 w-px bg-border hidden sm:block shrink-0" />
+
+          <div className="flex items-center gap-1.5 text-muted-foreground shrink-0">
+            <Filter className="h-3.5 w-3.5" />
+            <span className="text-xs font-medium">Filtros</span>
+          </div>
+
+          {/* Card Filter */}
+          <Select value={cardFilter} onValueChange={setCardFilter}>
+            <SelectTrigger
+              className={cn(
+                "shrink-0 min-w-[140px]",
+                cardFilter !== "__all__" && "bg-primary/10 border-primary/30",
+              )}
+            >
+              <SelectValue placeholder="Tarjeta" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todas las tarjetas</SelectItem>
+              {cards.map((card) => {
+              const kindLabel = CARD_KINDS.find((k) => k.value === card.card_kind)?.label ?? null;
+              const typeLabel = CARD_TYPES.find((t) => t.value === card.card_type)?.label ?? null;
+              const cardLabel = [kindLabel, typeLabel, card.bank?.name ?? null, card.last4 ?? null]
+                .filter(Boolean)
+                .join(" ");
+                return (
+                  <SelectItem key={card.id} value={card.id}>
+                    <div className="flex items-center gap-2">
+                      {card.bank?.image ? (
+                        <Image
+                          src={card.bank.image}
+                          alt={card.bank.name}
+                          width={20}
+                          height={20}
+                          className="h-5 w-5 shrink-0 rounded object-contain"
+                        />
+                      ) : (
+                        <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      )}
+                      <span>{cardLabel || card.name}</span>
+                    </div>
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+
+          {/* Bank Filter */}
+          <Select value={bankFilter} onValueChange={setBankFilter}>
+            <SelectTrigger
+              className={cn(
+              "shrink-0 min-w-[140px]",
+              bankFilter !== "__all__" && "bg-primary/10 border-primary/30",
+            )}
+            >
+              <SelectValue placeholder="Banco" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos los bancos</SelectItem>
+              {banks.map((bank) => (
+                <SelectItem key={bank.id} value={bank.id}>
+                  <div className="flex items-center gap-2">
+                    {bank.image ? (
+                      <Image
+                        src={bank.image}
+                        alt={bank.name}
+                        width={16}
+                        height={16}
+                        className="h-4 w-4 rounded object-contain shrink-0"
+                      />
+                    ) : (
+                      <Building2 className="h-3.5 w-3.5 shrink-0" />
+                    )}
+                    {bank.name}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Budget Filter - hidden when scoped to a single budget (key) */}
+          {!budgetId && (
+            <Select value={budgetFilter} onValueChange={setBudgetFilter}>
+              <SelectTrigger
+                className={cn(
+                  "shrink-0 min-w-[140px]",
+                  budgetFilter !== "__all__" && "bg-primary/10 border-primary/30",
+                )}
+              >
+                <SelectValue placeholder="Presupuesto" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Todos los presupuestos</SelectItem>
+                {budgets.map((budget) => (
+                  <SelectItem key={budget.id} value={budget.id}>
+                    <BudgetLabel
+                      budget={budget}
+                      iconClassName="h-3.5 w-3.5 shrink-0"
+                    />
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            >
+              <X className="h-3 w-3" />
+              Limpiar ({activeFilterCount})
+            </button>
+          )}
+        </div>
+
+        {/* View Mode (Lista / Gráfico) - right on desktop */}
         <Tabs
           value={viewMode}
           onValueChange={(v) => setViewMode(v as "list" | "chart")}
         >
-          <TabsList className="h-8">
+          <TabsList className="h-8 shrink-0">
             <TabsTrigger value="list" className="gap-1.5 text-xs px-3">
               <List className="h-3.5 w-3.5" />
               Lista
             </TabsTrigger>
             <TabsTrigger value="chart" className="gap-1.5 text-xs px-3">
               <BarChart3 className="h-3.5 w-3.5" />
-              Grafico
+              Gráfico
             </TabsTrigger>
           </TabsList>
         </Tabs>
-
-        <div className="h-5 w-px bg-border hidden sm:block" />
-
-        {/* Type Filter */}
-        <Tabs
-          value={typeFilter}
-          onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}
-        >
-          <TabsList className="h-8">
-            <TabsTrigger value="all" className="gap-1.5 text-xs px-3">
-              <LayoutGrid className="h-3.5 w-3.5" />
-              Todas
-            </TabsTrigger>
-            <TabsTrigger value="expense" className="gap-1.5 text-xs px-3">
-              <ArrowDownRight className="h-3.5 w-3.5" />
-              Gastos
-            </TabsTrigger>
-            <TabsTrigger value="income" className="gap-1.5 text-xs px-3">
-              <ArrowUpRight className="h-3.5 w-3.5" />
-              Ingresos
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        <div className="flex-1" />
-      </div>
-
-      {/* Filter Dropdowns */}
-      <div className="flex items-center gap-2 overflow-x-auto">
-        <div className="flex items-center gap-1.5 text-muted-foreground shrink-0">
-          <Filter className="h-3.5 w-3.5" />
-          <span className="text-xs font-medium">Filtros</span>
-        </div>
-
-        {/* Card Filter */}
-        <Select value={cardFilter} onValueChange={setCardFilter}>
-          <SelectTrigger
-            className={cn(
-              "shrink-0 min-w-[140px]",
-              cardFilter !== "__all__" && "bg-primary/10 border-primary/30",
-            )}
-          >
-            <SelectValue placeholder="Tarjeta" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">Todas las tarjetas</SelectItem>
-            {cards.map((card) => {
-              const kindLabel = CARD_KINDS.find((k) => k.value === card.card_kind)?.label ?? null;
-              const typeLabel = CARD_TYPES.find((t) => t.value === card.card_type)?.label ?? null;
-              const cardLabel = [kindLabel, typeLabel, card.bank?.name ?? null, card.last4 ?? null]
-                .filter(Boolean)
-                .join(" ");
-              return (
-                <SelectItem key={card.id} value={card.id}>
-                  <div className="flex items-center gap-2">
-                    {card.bank?.image ? (
-                      <Image
-                        src={card.bank.image}
-                        alt={card.bank.name}
-                        width={20}
-                        height={20}
-                        className="h-5 w-5 shrink-0 rounded object-contain"
-                      />
-                    ) : (
-                      <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    )}
-                    <span>{cardLabel || card.name}</span>
-                  </div>
-                </SelectItem>
-              );
-            })}
-          </SelectContent>
-        </Select>
-
-        {/* Bank Filter */}
-        <Select value={bankFilter} onValueChange={setBankFilter}>
-          <SelectTrigger
-            className={cn(
-              "shrink-0 min-w-[140px]",
-              bankFilter !== "__all__" && "bg-primary/10 border-primary/30",
-            )}
-          >
-            <SelectValue placeholder="Banco" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">Todos los bancos</SelectItem>
-            {banks.map((bank) => (
-              <SelectItem key={bank.id} value={bank.id}>
-                <div className="flex items-center gap-2">
-                  {bank.image ? (
-                    <Image
-                      src={bank.image}
-                      alt={bank.name}
-                      width={16}
-                      height={16}
-                      className="h-4 w-4 rounded object-contain shrink-0"
-                    />
-                  ) : (
-                    <Building2 className="h-3.5 w-3.5 shrink-0" />
-                  )}
-                  {bank.name}
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* Budget Filter - hidden when scoped to a single budget (key) */}
-        {!budgetId && (
-          <Select value={budgetFilter} onValueChange={setBudgetFilter}>
-            <SelectTrigger
-              className={cn(
-                "shrink-0 min-w-[140px]",
-                budgetFilter !== "__all__" && "bg-primary/10 border-primary/30",
-              )}
-            >
-              <SelectValue placeholder="Presupuesto" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">Todos los presupuestos</SelectItem>
-              {budgets.map((budget) => (
-                <SelectItem key={budget.id} value={budget.id}>
-                  <div className="flex items-center gap-2">
-                    <Wallet className="h-3.5 w-3.5 shrink-0 text-blue-500" />
-                    {budget.name}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-
-        {hasActiveFilters && (
-          <button
-            onClick={clearFilters}
-            className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
-          >
-            <X className="h-3 w-3" />
-            Limpiar ({activeFilterCount})
-          </button>
-        )}
       </div>
 
       {/* Content */}
@@ -564,6 +655,7 @@ export default function TransactionsPage() {
                           onEdit={canEdit ? setEditingTx : undefined}
                           onDelete={canEdit ? setDeletingTx : undefined}
                           onClick={canEdit ? handleRowClick : undefined}
+                          highlighted={tx.id === txId}
                         />
                       ))}
                     </div>
@@ -827,7 +919,12 @@ export default function TransactionsPage() {
 
           <EditTransactionSheet
             transaction={editingTx}
-            onClose={() => setEditingTx(null)}
+            onClose={() => {
+              setEditingTx(null);
+              if (txId) {
+                router.replace(pathname);
+              }
+            }}
             onDelete={(tx) => {
               setEditingTx(null);
               setDeletingTx(tx);

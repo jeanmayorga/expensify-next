@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Wallet } from "lucide-react";
+import { Edit, Trash2 } from "lucide-react";
+import { getBudgetIconComponent } from "./BudgetIconPicker";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -26,45 +28,54 @@ export type BudgetCardData = {
 };
 
 const cardBaseClass =
-  "relative block p-4 rounded-xl border bg-card text-card-foreground hover:shadow-md transition-all overflow-hidden cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2";
+  "relative block p-4 rounded-xl border border-border bg-card text-card-foreground hover:border-muted-foreground/50 transition-all overflow-hidden cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2";
 
 type BudgetCardProps = {
   data: BudgetCardData;
   href?: string;
   onClick?: () => void;
+  onEdit?: (budget: Budget) => void;
+  onDelete?: (budget: Budget) => void;
   className?: string;
 };
 
-export function BudgetCard({ data, href, onClick, className }: BudgetCardProps) {
+export function BudgetCard({
+  data,
+  href,
+  onClick,
+  onEdit,
+  onDelete,
+  className,
+}: BudgetCardProps) {
   const { budget, spent, remaining, percentage, isOverBudget } = data;
   const statusBg = isOverBudget
     ? "from-red-500 to-red-600"
     : percentage > 80
       ? "from-orange-500 to-orange-600"
       : "from-emerald-500 to-emerald-600";
-  const statusBox =
-    isOverBudget
-      ? "bg-red-100 dark:bg-red-900/30"
-      : percentage > 80
-        ? "bg-orange-100 dark:bg-orange-900/30"
-        : "bg-emerald-100 dark:bg-emerald-900/30";
-  const statusIcon =
-    isOverBudget
-      ? "text-red-600"
-      : percentage > 80
-        ? "text-orange-600"
-        : "text-emerald-600";
-  const statusBadge =
-    isOverBudget
-      ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
-      : percentage > 80
-        ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300"
-        : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300";
+  const statusBox = isOverBudget
+    ? "bg-red-100 dark:bg-red-900/30"
+    : percentage > 80
+      ? "bg-orange-100 dark:bg-orange-900/30"
+      : "bg-emerald-100 dark:bg-emerald-900/30";
+  const statusIcon = isOverBudget
+    ? "text-red-600"
+    : percentage > 80
+      ? "text-orange-600"
+      : "text-emerald-600";
+  const statusBadge = isOverBudget
+    ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
+    : percentage > 80
+      ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300"
+      : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300";
 
   const content = (
     <>
       <div
-        className={cn("absolute top-0 left-0 w-1 h-full bg-gradient-to-b rounded-l-xl", statusBg)}
+        className={cn(
+          "absolute top-0 left-0 w-1 h-full bg-gradient-to-b rounded-l-xl",
+          statusBg,
+        )}
       />
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2">
@@ -74,14 +85,20 @@ export function BudgetCard({ data, href, onClick, className }: BudgetCardProps) 
               statusBox,
             )}
           >
-            <Wallet className={cn("h-4 w-4", statusIcon)} />
+            {(() => {
+              const Icon = getBudgetIconComponent(budget.icon);
+              return <Icon className={cn("h-4 w-4", statusIcon)} />;
+            })()}
           </div>
           <div>
             <p className="font-semibold text-sm">{budget.name}</p>
             <p className="text-xs text-muted-foreground">{budget.currency}</p>
           </div>
         </div>
-        <Badge variant="secondary" className={cn("text-xs shrink-0", statusBadge)}>
+        <Badge
+          variant="secondary"
+          className={cn("text-xs shrink-0", statusBadge)}
+        >
           {percentage.toFixed(0)}%
         </Badge>
       </div>
@@ -109,13 +126,51 @@ export function BudgetCard({ data, href, onClick, className }: BudgetCardProps) 
         <span
           className={cn(
             "font-semibold",
-            isOverBudget ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400",
+            isOverBudget
+              ? "text-red-600 dark:text-red-400"
+              : "text-emerald-600 dark:text-emerald-400",
           )}
         >
           {isOverBudget && "-"}
           {formatBudgetCurrency(Math.abs(remaining), budget.currency)}
         </span>
       </div>
+
+      {(onEdit || onDelete) && (
+        <div
+          className="flex items-center gap-1 mt-3 pt-3 border-t"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {onEdit && (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-7 w-7 shrink-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(budget);
+              }}
+            >
+              <Edit className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {onDelete && (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-7 w-7 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10 hover:border-destructive/30"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(budget);
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+      )}
     </>
   );
 

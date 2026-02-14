@@ -17,7 +17,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Trash2, Wallet } from "lucide-react";
+import { ArrowLeft, Trash2 } from "lucide-react";
+import { getBudgetIconComponent } from "../../components/BudgetIconPicker";
+import { BudgetIconPicker } from "../../components/BudgetIconPicker";
 
 function formatCurrency(amount: number, currency = "USD") {
   return new Intl.NumberFormat("es-EC", {
@@ -31,17 +33,20 @@ function formatCurrency(amount: number, currency = "USD") {
 interface BudgetFormData {
   name: string;
   amount: number;
+  icon: string | null;
 }
 
 const defaultFormValues: BudgetFormData = {
   name: "",
   amount: 0,
+  icon: null,
 };
 
 function budgetToForm(budget: Budget): BudgetFormData {
   return {
     name: budget.name,
     amount: budget.amount,
+    icon: budget.icon ?? null,
   };
 }
 
@@ -72,7 +77,7 @@ export default function EditBudgetPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const form = useForm<BudgetFormData>({ defaultValues: defaultFormValues });
-  const { register, watch, reset, handleSubmit } = form;
+  const { register, watch, reset, handleSubmit, setValue } = form;
   const amount = watch("amount") || 0;
 
   useEffect(() => {
@@ -88,6 +93,7 @@ export default function EditBudgetPage() {
       data: {
         name: data.name,
         amount: data.amount,
+        icon: data.icon || null,
       },
     });
     router.push("..");
@@ -143,7 +149,10 @@ export default function EditBudgetPage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center">
-            <Wallet className="h-6 w-6 text-muted-foreground" />
+            {(() => {
+              const Icon = getBudgetIconComponent(budget.icon);
+              return <Icon className="h-6 w-6 text-muted-foreground" />;
+            })()}
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">
@@ -182,13 +191,21 @@ export default function EditBudgetPage() {
               </div>
             </div>
 
+            <BudgetIconPicker
+              value={watch("icon")}
+              onChange={(v) => setValue("icon", v)}
+            />
+
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Vista previa</label>
               <Card>
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
-                      <Wallet className="h-4 w-4 text-muted-foreground" />
+                      {(() => {
+                        const Icon = getBudgetIconComponent(watch("icon"));
+                        return <Icon className="h-4 w-4 text-muted-foreground" />;
+                      })()}
                     </div>
                     <span className="font-medium">
                       {watch("name") || "Nombre del presupuesto"}

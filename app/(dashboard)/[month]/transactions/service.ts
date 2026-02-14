@@ -25,6 +25,7 @@ export type TransactionWithRelations = Transaction & {
 export async function getTransactions(filters: TransactionFilters = {}) {
   const params = new URLSearchParams();
   if (filters.date) params.set("date", filters.date);
+  if (filters.search) params.set("search", filters.search);
   if (filters.card_id) params.set("card_id", filters.card_id);
   if (filters.bank_id) params.set("bank_id", filters.bank_id);
   if (filters.budget_id) params.set("budget_id", filters.budget_id);

@@ -33,6 +33,7 @@ import {
 import { useCards } from "../../cards/hooks";
 import { useBanks } from "../../banks/hooks";
 import { useBudgets } from "../../budgets/hooks";
+import { BudgetLabel } from "../../budgets/components/BudgetLabel";
 import { useExtractBulkFromImage, useCreateTransactions } from "../hooks";
 import type {
   ParsedTransaction,
@@ -465,7 +466,10 @@ export default function FromImagePage() {
                       <SelectItem value="__none__">Sin preselección</SelectItem>
                       {budgets.map((budget) => (
                         <SelectItem key={budget.id} value={budget.id}>
-                          {budget.name}
+                          <BudgetLabel
+                            budget={budget}
+                            iconClassName="h-3.5 w-3.5"
+                          />
                         </SelectItem>
                       ))}
                     </SelectContent>

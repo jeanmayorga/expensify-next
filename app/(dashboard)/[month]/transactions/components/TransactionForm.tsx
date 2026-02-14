@@ -11,6 +11,7 @@ import {
   PiggyBank,
   MessageSquare,
 } from "lucide-react";
+import { BudgetLabel } from "@/app/(dashboard)/[month]/budgets/components/BudgetLabel";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -249,7 +250,7 @@ export function TransactionForm({
               <SelectItem value="__none__">Ninguno</SelectItem>
               {budgets.map((budget) => (
                 <SelectItem key={budget.id} value={budget.id}>
-                  {budget.name}
+                  <BudgetLabel budget={budget} iconClassName="h-3.5 w-3.5" />
                 </SelectItem>
               ))}
             </SelectContent>

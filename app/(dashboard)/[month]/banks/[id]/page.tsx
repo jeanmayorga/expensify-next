@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { getEcuadorDate } from "@/utils/ecuador-time";
+import { groupTransactionsByDate } from "@/utils/transactions";
 import {
   ArrowLeft,
   TrendingDown,
@@ -81,17 +82,10 @@ export default function BankDetailPage() {
     loadingBanks ||
     loadingBudgets;
 
-  const groupedTransactions = useMemo(() => {
-    const groups: Record<string, TransactionWithRelations[]> = {};
-    transactions.forEach((tx) => {
-      const utcDate = parseISO(tx.occurred_at);
-      const ecuadorDate = getEcuadorDate(utcDate);
-      const dateKey = format(ecuadorDate, "yyyy-MM-dd");
-      if (!groups[dateKey]) groups[dateKey] = [];
-      groups[dateKey].push(tx);
-    });
-    return Object.entries(groups).sort(([a], [b]) => b.localeCompare(a));
-  }, [transactions]);
+  const groupedTransactions = useMemo(
+    () => groupTransactionsByDate(transactions),
+    [transactions],
+  );
 
   const [editingTx, setEditingTx] = useState<TransactionWithRelations | null>(
     null,
