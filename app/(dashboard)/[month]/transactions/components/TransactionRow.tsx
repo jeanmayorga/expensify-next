@@ -10,7 +10,7 @@ import {
   MoreVertical,
   Pencil,
   Trash2,
-  Building2,
+  Landmark,
   CreditCard,
   PiggyBank,
   Check,
@@ -173,7 +173,7 @@ export function TransactionRow({
                     className="h-3.5 w-3.5 rounded object-contain"
                   />
                 ) : (
-                  <Building2 className="h-3 w-3" />
+                  <Landmark className="h-3 w-3" />
                 )}
                 {tx.bank.name}
               </span>
@@ -273,7 +273,7 @@ export function TransactionRow({
                           className="mr-2 h-4 w-4 rounded object-contain shrink-0"
                         />
                       ) : (
-                        <Building2 className="mr-2 h-4 w-4 shrink-0" />
+                        <Landmark className="mr-2 h-4 w-4 shrink-0" />
                       )}
                       {formatCardLabel(card, { includeBankName: true })}
                       {tx.card_id === card.id && (
@@ -287,7 +287,7 @@ export function TransactionRow({
               {/* Bank Submenu */}
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>
-                  <Building2 className="mr-2 h-4 w-4" />
+                  <Landmark className="mr-2 h-4 w-4" />
                   Banco
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent className="max-h-64 overflow-y-auto">
@@ -314,7 +314,7 @@ export function TransactionRow({
                           className="mr-2 h-4 w-4 rounded object-contain"
                         />
                       ) : (
-                        <Building2 className="mr-2 h-4 w-4" />
+                        <Landmark className="mr-2 h-4 w-4" />
                       )}
                       {bank.name}
                       {tx.bank_id === bank.id && (

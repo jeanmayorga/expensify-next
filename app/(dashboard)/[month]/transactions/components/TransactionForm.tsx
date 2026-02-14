@@ -1,7 +1,6 @@
 import Image from "next/image";
 import { UseFormReturn } from "react-hook-form";
 import {
-  Building2,
   TrendingDown,
   TrendingUp,
   DollarSign,
@@ -181,7 +180,7 @@ export function TransactionForm({
                           className="h-5 w-5 shrink-0 rounded object-contain"
                         />
                       ) : (
-                        <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <Landmark className="h-4 w-4 shrink-0 text-muted-foreground" />
                       )}
                       <span>{cardLabel || card.name}</span>
                     </div>
@@ -221,7 +220,7 @@ export function TransactionForm({
                         className="h-5 w-5 shrink-0 rounded object-contain"
                       />
                     ) : (
-                      <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <Landmark className="h-4 w-4 shrink-0 text-muted-foreground" />
                     )}
                     <span>{bank.name}</span>
                   </div>

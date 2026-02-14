@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import Image from "next/image";
 import { useForm } from "react-hook-form";
-import { Building2 } from "lucide-react";
+import { Landmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -211,7 +211,7 @@ export function CreateSubscriptionDialog({
               value={watch("billing_cycle")}
               onValueChange={(v) => setValue("billing_cycle", v)}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -231,7 +231,7 @@ export function CreateSubscriptionDialog({
                 setValue("bank_id", v === "none" ? "" : v)
               }
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Ninguno" />
               </SelectTrigger>
               <SelectContent>
@@ -248,7 +248,7 @@ export function CreateSubscriptionDialog({
                           className="h-4 w-4 rounded object-contain shrink-0"
                         />
                       ) : (
-                        <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <Landmark className="h-4 w-4 shrink-0 text-muted-foreground" />
                       )}
                       {bank.name}
                     </div>
@@ -267,7 +267,7 @@ export function CreateSubscriptionDialog({
                 setValue("card_id", v === "none" ? "" : v)
               }
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Ninguna" />
               </SelectTrigger>
               <SelectContent>
@@ -284,7 +284,7 @@ export function CreateSubscriptionDialog({
                           className="h-4 w-4 rounded object-contain shrink-0"
                         />
                       ) : (
-                        <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <Landmark className="h-4 w-4 shrink-0 text-muted-foreground" />
                       )}
                       {formatCardLabel(card)}
                     </div>
@@ -303,7 +303,7 @@ export function CreateSubscriptionDialog({
                 setValue("budget_id", v === "none" ? "" : v)
               }
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Ninguno" />
               </SelectTrigger>
               <SelectContent>

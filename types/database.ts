@@ -152,6 +152,9 @@ export type Database = {
           color: string | null
           created_at: string
           credit_limit: number | null
+          cut_end_day: number | null
+          cut_start_day: number | null
+          payment_due_day: number | null
           expiration_date: string | null
           id: string
           last4: string | null
@@ -167,6 +170,9 @@ export type Database = {
           color?: string | null
           created_at?: string
           credit_limit?: number | null
+          cut_end_day?: number | null
+          cut_start_day?: number | null
+          payment_due_day?: number | null
           expiration_date?: string | null
           id?: string
           last4?: string | null
@@ -182,6 +188,9 @@ export type Database = {
           color?: string | null
           created_at?: string
           credit_limit?: number | null
+          cut_end_day?: number | null
+          cut_start_day?: number | null
+          payment_due_day?: number | null
           expiration_date?: string | null
           id?: string
           last4?: string | null

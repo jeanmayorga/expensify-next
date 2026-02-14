@@ -16,9 +16,18 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, CreditCard } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Plus, CreditCard, Wallet } from "lucide-react";
 import { type CardWithBank } from "./service";
-import { CreditCardVisual, CardForm, defaultCardFormValues, type CardFormData } from "./components";
+import {
+  CreditCardTile,
+  DebitCardTile,
+  CardForm,
+  defaultCardFormValues,
+  type CardFormData,
+} from "./components";
+import { formatCurrency } from "./utils";
+import { cn } from "@/lib/utils";
 
 function formToPayload(form: CardFormData) {
   return {
@@ -32,6 +41,11 @@ function formToPayload(form: CardFormData) {
     expiration_date: form.expiration_date || null,
     outstanding_balance: form.outstanding_balance ? parseFloat(form.outstanding_balance) : null,
     credit_limit: form.credit_limit ? parseFloat(form.credit_limit) : null,
+    cut_start_day: form.cut_start_day ? parseInt(form.cut_start_day, 10) : null,
+    cut_end_day: form.cut_end_day ? parseInt(form.cut_end_day, 10) : null,
+    payment_due_day: form.payment_due_day
+      ? parseInt(form.payment_due_day, 10)
+      : null,
   };
 }
 
@@ -60,6 +74,31 @@ export default function CardsPage() {
     });
     return map;
   }, [transactions, budgetId]);
+
+  const { creditCards, debitCards, creditStats } = useMemo(() => {
+    const credit = cards.filter((c) => c.card_kind === "credit");
+    const debit = cards.filter((c) => c.card_kind !== "credit");
+    const totalLimit = credit.reduce(
+      (s, c) => s + (Number(c.credit_limit) || 0),
+      0
+    );
+    const totalOutstanding = credit.reduce(
+      (s, c) => s + (Number(c.outstanding_balance) || 0),
+      0
+    );
+    const totalAvailable = totalLimit - totalOutstanding;
+    const usagePct =
+      totalLimit > 0 ? (totalOutstanding / totalLimit) * 100 : 0;
+    const availablePct = totalLimit > 0 ? 100 - usagePct : 0;
+    return {
+      creditCards: credit,
+      debitCards: debit,
+      creditStats:
+        credit.length > 0 && totalLimit > 0
+          ? { totalLimit, totalOutstanding, totalAvailable, usagePct, availablePct }
+          : null,
+    };
+  }, [cards]);
 
   const createCard = useCreateCard();
 
@@ -99,10 +138,10 @@ export default function CardsPage() {
         )}
       </div>
 
-      {/* Cards Grid */}
+      {/* Stats de crédito - arriba del grid de tarjetas */}
       {isLoading ? (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 min-w-0">
-          {Array.from({ length: 3 }).map((_, i) => (
+        <div className="grid gap-5 grid-cols-2 min-w-0">
+          {Array.from({ length: 4 }).map((_, i) => (
             <CardSkeleton key={i} />
           ))}
         </div>
@@ -120,14 +159,114 @@ export default function CardsPage() {
           )}
         </div>
       ) : (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 min-w-0">
-          {cards.map((card) => (
-            <CreditCardVisual
-              key={card.id}
-              card={card}
-              spentThisMonth={spendingByCard[card.id] ?? 0}
-            />
-          ))}
+        <div className="space-y-8">
+          {/* Stats de crédito - arriba de las tarjetas */}
+          {creditStats && (
+            <div className="rounded-xl border bg-card p-4 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <Wallet className="h-5 w-5 text-muted-foreground" />
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                  Resumen tarjetas de crédito
+                </h2>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">Total deuda</p>
+                  <p className="text-xl font-bold tabular-nums text-destructive">
+                    {formatCurrency(creditStats.totalOutstanding)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Disponible</p>
+                  <p
+                    className={`text-xl font-bold tabular-nums ${
+                      creditStats.totalAvailable < 0
+                        ? "text-destructive"
+                        : "text-emerald-600"
+                    }`}
+                  >
+                    {formatCurrency(Math.abs(creditStats.totalAvailable))}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">% disponible</p>
+                  <p
+                    className={`text-xl font-bold tabular-nums ${
+                      creditStats.availablePct < 0
+                        ? "text-destructive"
+                        : "text-emerald-600"
+                    }`}
+                  >
+                    {creditStats.availablePct.toFixed(0)}%
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">% utilizado</p>
+                  <p className="text-xl font-bold tabular-nums text-muted-foreground">
+                    {creditStats.usagePct.toFixed(0)}%
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 space-y-1.5">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {formatCurrency(creditStats.totalOutstanding)} / {formatCurrency(creditStats.totalLimit)}
+                  </span>
+                  <span className="font-medium">
+                    {creditStats.usagePct.toFixed(0)}% cupo utilizado
+                  </span>
+                </div>
+                <Progress
+                  value={Math.min(creditStats.usagePct, 100)}
+                  className="h-3"
+                  indicatorClassName={cn(
+                    "bg-gradient-to-r",
+                    creditStats.usagePct >= 100
+                      ? "from-red-500 to-red-600"
+                      : creditStats.usagePct >= 80
+                        ? "from-amber-500 to-amber-600"
+                        : "from-emerald-500 to-emerald-600",
+                  )}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Tarjetas de crédito */}
+          {creditCards.length > 0 && (
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+                Tarjetas de crédito ({creditCards.length})
+              </h2>
+              <div className="grid gap-5 grid-cols-2 min-w-0">
+                {creditCards.map((card) => (
+                  <CreditCardTile
+                    key={card.id}
+                    card={card}
+                    spentThisMonth={spendingByCard[card.id] ?? 0}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Tarjetas de débito */}
+          {debitCards.length > 0 && (
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+                Tarjetas de débito ({debitCards.length})
+              </h2>
+              <div className="grid gap-5 grid-cols-2 min-w-0">
+                {debitCards.map((card) => (
+                  <DebitCardTile
+                    key={card.id}
+                    card={card}
+                    spentThisMonth={spendingByCard[card.id] ?? 0}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

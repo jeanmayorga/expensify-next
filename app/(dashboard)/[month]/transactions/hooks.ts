@@ -19,10 +19,14 @@ export const transactionKeys = {
   list: (filters: TransactionFilters) => ["transactions", filters] as const,
 };
 
-export function useTransactions(filters: TransactionFilters = {}) {
+export function useTransactions(
+  filters: TransactionFilters = {},
+  options?: { enabled?: boolean }
+) {
   return useQuery({
     queryKey: transactionKeys.list(filters),
     queryFn: () => getTransactions(filters),
+    enabled: options?.enabled ?? true,
   });
 }
 

@@ -1,5 +1,7 @@
 import { useEffect } from "react";
+import Image from "next/image";
 import { UseFormReturn } from "react-hook-form";
+import { Landmark } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -21,6 +23,9 @@ export interface CardFormData {
   expiration_date: string;
   outstanding_balance: string;
   credit_limit: string;
+  cut_start_day: string;
+  cut_end_day: string;
+  payment_due_day: string;
 }
 
 export const defaultCardFormValues: CardFormData = {
@@ -34,22 +39,28 @@ export const defaultCardFormValues: CardFormData = {
   expiration_date: "",
   outstanding_balance: "",
   credit_limit: "",
+  cut_start_day: "",
+  cut_end_day: "",
+  payment_due_day: "",
 };
 
 interface CardFormProps {
   form: UseFormReturn<CardFormData>;
-  banks: { id: string; name: string }[];
+  banks: { id: string; name: string; image?: string | null }[];
 }
 
 export function CardForm({ form, banks }: CardFormProps) {
-  const { register, watch, setValue } = form;
+  const { register, watch, setValue, getValues } = form;
   const color = watch("color") || "#1e293b";
   const cardType = watch("card_type");
   const cardKind = watch("card_kind");
   const bankId = watch("bank_id");
 
-  // Auto-generate name from card_type + card_kind + bank_name
+  // Auto-generate name from card_type + card_kind + bank_name (solo cuando name está vacío, para no sobrescribir al editar)
   useEffect(() => {
+    const currentName = getValues("name");
+    if (currentName?.trim()) return;
+
     const parts: string[] = [];
 
     const typeLabel = CARD_TYPES.find((t) => t.value === cardType)?.label;
@@ -64,7 +75,7 @@ export function CardForm({ form, banks }: CardFormProps) {
     if (parts.length > 0) {
       setValue("name", parts.join(" "));
     }
-  }, [cardType, cardKind, bankId, banks, setValue]);
+  }, [cardType, cardKind, bankId, banks, setValue, getValues]);
 
   return (
     <div className="space-y-4">
@@ -76,7 +87,7 @@ export function CardForm({ form, banks }: CardFormProps) {
             value={watch("card_type") || "__none__"}
             onValueChange={(v) => setValue("card_type", v === "__none__" ? "" : v)}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Select" />
             </SelectTrigger>
             <SelectContent>
@@ -95,7 +106,7 @@ export function CardForm({ form, banks }: CardFormProps) {
             value={watch("card_kind") || "__none__"}
             onValueChange={(v) => setValue("card_kind", v === "__none__" ? "" : v)}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Select" />
             </SelectTrigger>
             <SelectContent>
@@ -117,14 +128,27 @@ export function CardForm({ form, banks }: CardFormProps) {
           value={watch("bank_id") || "__none__"}
           onValueChange={(v) => setValue("bank_id", v === "__none__" ? "" : v)}
         >
-          <SelectTrigger>
+          <SelectTrigger className="w-full">
             <SelectValue placeholder="Select" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="__none__">None</SelectItem>
             {banks.map((bank) => (
               <SelectItem key={bank.id} value={bank.id}>
-                {bank.name}
+                <div className="flex items-center gap-2">
+                  {bank.image ? (
+                    <Image
+                      src={bank.image}
+                      alt={bank.name}
+                      width={16}
+                      height={16}
+                      className="h-4 w-4 rounded object-contain shrink-0"
+                    />
+                  ) : (
+                    <Landmark className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  )}
+                  {bank.name}
+                </div>
               </SelectItem>
             ))}
           </SelectContent>
@@ -172,7 +196,7 @@ export function CardForm({ form, banks }: CardFormProps) {
       {cardKind === "credit" && (
         <>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Saldo pendiente</label>
+            <label className="text-sm font-medium">Saldo utilizado</label>
             <Input
               type="number"
               {...register("outstanding_balance")}
@@ -191,6 +215,56 @@ export function CardForm({ form, banks }: CardFormProps) {
             <p className="text-xs text-muted-foreground">
               Límite de crédito de la tarjeta (para la barra de uso)
             </p>
+          </div>
+          <div className="space-y-3">
+            <p className="text-sm font-medium">Ciclo de corte</p>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Inicio
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={31}
+                  {...register("cut_start_day")}
+                  placeholder="16"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Día inicio ciclo
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Fin
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={31}
+                  {...register("cut_end_day")}
+                  placeholder="13"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Día fin (mes sig.)
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Pago máximo
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={31}
+                  {...register("payment_due_day")}
+                  placeholder="28"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Fecha límite pago
+                </p>
+              </div>
+            </div>
           </div>
         </>
       )}

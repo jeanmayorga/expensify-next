@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
   format,
+  parse,
   parseISO,
   startOfMonth,
   endOfMonth,
@@ -15,7 +16,7 @@ import { es } from "date-fns/locale";
 import {
   Wallet,
   RefreshCw,
-  Building2,
+  Landmark,
   Plus,
   X,
   List,
@@ -125,13 +126,28 @@ export default function TransactionsPage() {
     return { from: start, to: end };
   });
 
-  // Sync dateRange when selectedMonth changes (e.g. navigation)
+  // Initialize from URL params (e.g. from "Ver transacciones del período" link)
   useEffect(() => {
+    const cardId = searchParams.get("card_id");
+    const dateFrom = searchParams.get("date_from");
+    const dateTo = searchParams.get("date_to");
+
+    if (cardId) setCardFilter(cardId);
+    if (dateFrom && dateTo) {
+      const from = parse(dateFrom, "yyyy-MM-dd", new Date());
+      const to = parse(dateTo, "yyyy-MM-dd", new Date());
+      setDateRange({ from, to });
+    }
+  }, [searchParams]);
+
+  // Sync dateRange when selectedMonth changes (skip if we have URL date params)
+  useEffect(() => {
+    if (searchParams.get("date_from") && searchParams.get("date_to")) return;
     setDateRange({
       from: startOfMonth(selectedMonth),
       to: endOfMonth(selectedMonth),
     });
-  }, [selectedMonth]);
+  }, [selectedMonth, searchParams]);
 
   // Build filters
   const filters: Record<string, string> = {
@@ -535,7 +551,7 @@ export default function TransactionsPage() {
                           className="h-5 w-5 shrink-0 rounded object-contain"
                         />
                       ) : (
-                        <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <Landmark className="h-4 w-4 shrink-0 text-muted-foreground" />
                       )}
                       <span>{cardLabel || card.name}</span>
                     </div>
@@ -569,7 +585,7 @@ export default function TransactionsPage() {
                       className="h-4 w-4 rounded object-contain shrink-0"
                     />
                   ) : (
-                    <Building2 className="h-3.5 w-3.5 shrink-0" />
+                    <Landmark className="h-3.5 w-3.5 shrink-0" />
                   )}
                   {bank.name}
               </div>

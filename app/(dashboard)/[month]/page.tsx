@@ -463,7 +463,33 @@ export default function HomePage() {
     return Object.values(map).sort((a, b) => b.total - a.total);
   }, [expenses]);
 
-  // Card spending
+  // Credit cards stats (deuda, % disponible)
+  const creditStats = useMemo(() => {
+    const credit = cards.filter((c) => c.card_kind === "credit");
+    const totalLimit = credit.reduce(
+      (s, c) => s + (Number(c.credit_limit) || 0),
+      0
+    );
+    const totalOutstanding = credit.reduce(
+      (s, c) => s + (Number(c.outstanding_balance) || 0),
+      0
+    );
+    const totalAvailable = totalLimit - totalOutstanding;
+    const usagePct =
+      totalLimit > 0 ? (totalOutstanding / totalLimit) * 100 : 0;
+    const availablePct = totalLimit > 0 ? 100 - usagePct : 0;
+    if (credit.length === 0 || totalLimit <= 0) return null;
+    return {
+      totalLimit,
+      totalOutstanding,
+      totalAvailable,
+      usagePct,
+      availablePct,
+      count: credit.length,
+    };
+  }, [cards]);
+
+  // Card spending (crédito primero, luego débito, ordenados por total)
   const cardSpending = useMemo(() => {
     const map: Record<
       string,
@@ -477,7 +503,12 @@ export default function HomePage() {
         map[id].total += Math.abs(tx.amount);
         map[id].count++;
       });
-    return Object.values(map).sort((a, b) => b.total - a.total);
+    return Object.values(map).sort((a, b) => {
+      const aCredit = a.card.card_kind === "credit" ? 1 : 0;
+      const bCredit = b.card.card_kind === "credit" ? 1 : 0;
+      if (aCredit !== bCredit) return bCredit - aCredit;
+      return b.total - a.total;
+    });
   }, [expenses]);
 
   // Top 8 biggest expenses
@@ -568,6 +599,73 @@ export default function HomePage() {
           loading={loading}
         />
       </div>
+
+      {/* Stats tarjetas de crédito - arriba de las tarjetas */}
+      {creditStats && (
+        <Link href={`/${monthStr}/cards`}>
+          <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                    <CreditCard className="h-4 w-4 text-red-600 dark:text-red-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">Tarjetas de crédito</p>
+                    <p className="text-xs text-muted-foreground">
+                      {creditStats.count} tarjeta{creditStats.count !== 1 ? "s" : ""}
+                    </p>
+                  </div>
+                </div>
+                <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+              </div>
+              <div className="grid grid-cols-2 gap-4 mb-3">
+                <div>
+                  <p className="text-xs text-muted-foreground">Total deuda</p>
+                  <p className="text-lg font-bold tabular-nums text-destructive">
+                    {fmt(creditStats.totalOutstanding)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">% disponible</p>
+                  <p
+                    className={cn(
+                      "text-lg font-bold tabular-nums",
+                      creditStats.availablePct < 0
+                        ? "text-destructive"
+                        : "text-emerald-600 dark:text-emerald-400",
+                    )}
+                  >
+                    {creditStats.availablePct.toFixed(0)}%
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">
+                    {fmt(creditStats.totalOutstanding)} / {fmt(creditStats.totalLimit)}
+                  </span>
+                  <span className="font-medium">
+                    {creditStats.usagePct.toFixed(0)}% cupo utilizado
+                  </span>
+                </div>
+                <Progress
+                  value={Math.min(creditStats.usagePct, 100)}
+                  className="h-2.5"
+                  indicatorClassName={cn(
+                    "bg-gradient-to-r",
+                    creditStats.usagePct >= 100
+                      ? "from-red-500 to-red-600"
+                      : creditStats.usagePct >= 80
+                        ? "from-amber-500 to-amber-600"
+                        : "from-emerald-500 to-emerald-600",
+                  )}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
 
       {/* Budget Overview Bar */}
       {budgets.length > 0 && (
