@@ -103,9 +103,6 @@ export class MessagesService {
         let url =
           "/?$select=id,sender,receivedDateTime,subject&$orderby=receivedDateTime desc&$top=25";
 
-        let startDate: string;
-        let endDate: string;
-
         if (dateFrom && dateTo) {
           const [y1, m1, d1] = dateFrom.split("-").map(Number);
           const [y2, m2, d2] = dateTo.split("-").map(Number);
@@ -113,19 +110,17 @@ export class MessagesService {
           const baseUtcEnd = Date.UTC(y2, m2 - 1, d2, 23, 59, 59);
           const startUtc = baseUtcStart + timezoneOffset * 60 * 1000;
           const endUtc = baseUtcEnd + timezoneOffset * 60 * 1000;
-          startDate = new Date(startUtc).toISOString();
-          endDate = new Date(endUtc).toISOString();
+          const startDate = new Date(startUtc).toISOString();
+          const endDate = new Date(endUtc).toISOString();
+          url += `&$filter=receivedDateTime ge ${startDate} and receivedDateTime le ${endDate}`;
         } else if (date) {
           const [year, month, day] = date.split("-").map(Number);
           const baseUtcStart = Date.UTC(year, month - 1, day, 0, 0, 0);
           const baseUtcEnd = Date.UTC(year, month - 1, day, 23, 59, 59);
           const startUtc = baseUtcStart + timezoneOffset * 60 * 1000;
           const endUtc = baseUtcEnd + timezoneOffset * 60 * 1000;
-          startDate = new Date(startUtc).toISOString();
-          endDate = new Date(endUtc).toISOString();
-        }
-
-        if ((dateFrom && dateTo) || date) {
+          const startDate = new Date(startUtc).toISOString();
+          const endDate = new Date(endUtc).toISOString();
           url += `&$filter=receivedDateTime ge ${startDate} and receivedDateTime le ${endDate}`;
         }
 
