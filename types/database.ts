@@ -208,6 +208,7 @@ export type Database = {
           billing_cycle: string
           card_id: string | null
           budget_id: string | null
+          bank_id: string | null
           is_active: boolean
           icon: string | null
           created_at: string
@@ -221,6 +222,7 @@ export type Database = {
           billing_cycle?: string
           card_id?: string | null
           budget_id?: string | null
+          bank_id?: string | null
           is_active?: boolean
           icon?: string | null
           created_at?: string
@@ -234,6 +236,7 @@ export type Database = {
           billing_cycle?: string
           card_id?: string | null
           budget_id?: string | null
+          bank_id?: string | null
           is_active?: boolean
           icon?: string | null
           created_at?: string
@@ -252,6 +255,13 @@ export type Database = {
             columns: ["budget_id"]
             isOneToOne: false
             referencedRelation: "expensify_budgets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expensify_subscriptions_bank_id_fkey"
+            columns: ["bank_id"]
+            isOneToOne: false
+            referencedRelation: "expensify_banks"
             referencedColumns: ["id"]
           },
         ]

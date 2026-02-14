@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Trash2, CreditCard, CalendarDays } from "lucide-react";
+import { Pencil, Trash2, CreditCard, CalendarDays, Building2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -78,9 +78,15 @@ export function SubscriptionCard({
           <span>Día {sub.billing_day} de cada mes</span>
         </div>
 
-        {/* Card & Budget */}
-        {(sub.card || sub.budget) && (
+        {/* Bank, Card & Budget */}
+        {(sub.bank || sub.card || sub.budget) && (
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            {(sub.bank || sub.card?.bank) && (
+              <span className="inline-flex items-center gap-1">
+                <Building2 className="h-3 w-3" />
+                {sub.bank?.name ?? sub.card?.bank?.name}
+              </span>
+            )}
             {sub.card && (
               <span className="inline-flex items-center gap-1">
                 <CreditCard className="h-3 w-3" />

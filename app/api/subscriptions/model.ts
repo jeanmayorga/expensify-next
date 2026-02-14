@@ -14,4 +14,5 @@ export type SubscriptionWithRelations = Subscription & {
       })
     | null;
   budget: Database["public"]["Tables"]["expensify_budgets"]["Row"] | null;
+  bank: Database["public"]["Tables"]["expensify_banks"]["Row"] | null;
 };

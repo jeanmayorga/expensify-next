@@ -54,7 +54,7 @@ export function DateRangePicker({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "border-input data-placeholder:text-muted-foreground [&_svg]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 flex h-9 w-fit min-w-[200px] items-center justify-between gap-2 rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] hover:bg-transparent",
+            "border-input data-placeholder:text-muted-foreground [&_svg]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 flex h-9 w-full sm:w-fit sm:min-w-[200px] items-center justify-between gap-2 rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] hover:bg-transparent",
             triggerClassName,
             className,
           )}

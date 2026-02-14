@@ -318,14 +318,14 @@ export default function SubscriptionsPage() {
                               </Badge>
                             )}
                           </div>
-                          {(sub.card || sub.budget) && (
+                          {(sub.bank || sub.card || sub.budget) && (
                             <div className="flex flex-col gap-0.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-0.5 text-xs text-muted-foreground min-w-0 overflow-hidden mt-0.5">
-                              {sub.card?.bank && (
+                              {(sub.bank || sub.card?.bank) && (
                                 <span className="inline-flex items-center gap-1.5 shrink-0">
-                                  {sub.card.bank.image ? (
+                                  {(sub.bank?.image ?? sub.card?.bank?.image) ? (
                                     <Image
-                                      src={sub.card.bank.image}
-                                      alt={sub.card.bank.name}
+                                      src={(sub.bank?.image ?? sub.card?.bank?.image)!}
+                                      alt={sub.bank?.name ?? sub.card?.bank?.name ?? ""}
                                       width={14}
                                       height={14}
                                       className="h-3.5 w-3.5 rounded object-contain"
@@ -333,7 +333,7 @@ export default function SubscriptionsPage() {
                                   ) : (
                                     <Building2 className="h-3 w-3" />
                                   )}
-                                  {sub.card.bank.name}
+                                  {sub.bank?.name ?? sub.card?.bank?.name}
                                 </span>
                               )}
                               {sub.card && (

@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCards } from "@/app/(dashboard)/[month]/cards/hooks";
+import { useBanks } from "@/app/(dashboard)/[month]/banks/hooks";
 import { useBudgets } from "@/app/(dashboard)/[month]/budgets/hooks";
 import { CARD_TYPES, CARD_KINDS } from "@/app/(dashboard)/[month]/cards/utils";
 import { useCreateSubscription, useUpdateSubscription } from "../hooks";
@@ -33,6 +34,7 @@ export interface SubscriptionFormData {
   billing_cycle: string;
   card_id: string;
   budget_id: string;
+  bank_id: string;
 }
 
 const defaultFormValues: SubscriptionFormData = {
@@ -42,6 +44,7 @@ const defaultFormValues: SubscriptionFormData = {
   billing_cycle: "monthly",
   card_id: "",
   budget_id: "",
+  bank_id: "",
 };
 
 function formatCardLabel(card: {
@@ -80,6 +83,7 @@ export function CreateSubscriptionDialog({
   const createSubscription = useCreateSubscription();
   const updateSubscription = useUpdateSubscription();
   const { data: cards = [] } = useCards();
+  const { data: banks = [] } = useBanks();
   const { data: budgets = [] } = useBudgets();
 
   const isEditing = !!editingSubscription;
@@ -102,6 +106,7 @@ export function CreateSubscriptionDialog({
           billing_cycle: editingSubscription.billing_cycle,
           card_id: editingSubscription.card_id || "",
           budget_id: editingSubscription.budget_id || "",
+          bank_id: editingSubscription.bank_id || "",
         });
       } else {
         reset({ ...defaultFormValues, ...defaultValues });
@@ -117,6 +122,7 @@ export function CreateSubscriptionDialog({
       billing_cycle: data.billing_cycle,
       card_id: data.card_id || null,
       budget_id: data.budget_id || null,
+      bank_id: data.bank_id || null,
     };
 
     if (isEditing) {
@@ -212,6 +218,42 @@ export function CreateSubscriptionDialog({
                 <SelectItem value="weekly">Semanal</SelectItem>
                 <SelectItem value="monthly">Mensual</SelectItem>
                 <SelectItem value="yearly">Anual</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Bank */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Banco</label>
+            <Select
+              value={watch("bank_id") || "none"}
+              onValueChange={(v) =>
+                setValue("bank_id", v === "none" ? "" : v)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Ninguno" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Ninguno</SelectItem>
+                {banks.map((bank) => (
+                  <SelectItem key={bank.id} value={bank.id}>
+                    <div className="flex items-center gap-2">
+                      {bank.image ? (
+                        <Image
+                          src={bank.image}
+                          alt={bank.name}
+                          width={16}
+                          height={16}
+                          className="h-4 w-4 rounded object-contain shrink-0"
+                        />
+                      ) : (
+                        <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      )}
+                      {bank.name}
+                    </div>
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

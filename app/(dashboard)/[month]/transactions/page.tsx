@@ -486,8 +486,8 @@ export default function TransactionsPage() {
         />
       </div>
 
-      {/* Date range + Type tabs + View mode */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
+      {/* Date range - su propia fila */}
+      <div>
         <DateRangePicker
           value={dateRange}
           onChange={(range) => {
@@ -496,64 +496,9 @@ export default function TransactionsPage() {
           }}
           placeholder="Rango de fechas"
         />
-        <div className="flex items-center justify-between gap-2 sm:justify-start">
-          <Tabs
-              value={typeFilter}
-              onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}
-            >
-              <TabsList className="h-8">
-                <TabsTrigger value="all" className="gap-1.5 text-xs px-2 sm:px-3">
-                  <LayoutGrid className="h-3.5 w-3.5" />
-                  Todas
-                </TabsTrigger>
-                <TabsTrigger value="expense" className="gap-1.5 text-xs px-2 sm:px-3">
-                  <ArrowDownRight className="h-3.5 w-3.5" />
-                  Gastos
-                </TabsTrigger>
-                <TabsTrigger value="income" className="gap-1.5 text-xs px-2 sm:px-3">
-                  <ArrowUpRight className="h-3.5 w-3.5" />
-                  Ingresos
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-            <Tabs
-              value={viewMode}
-              onValueChange={(v) => setViewMode(v as "list" | "chart")}
-              className="sm:hidden"
-            >
-              <TabsList className="h-8 shrink-0">
-                <TabsTrigger value="list" className="gap-1 text-xs px-2">
-                  <List className="h-3.5 w-3.5" />
-                  Lista
-                </TabsTrigger>
-                <TabsTrigger value="chart" className="gap-1 text-xs px-2">
-                  <BarChart3 className="h-3.5 w-3.5" />
-                  Gráfico
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-
-        {/* View Mode (Lista / Gráfico) - right on desktop, hidden on mobile (shown above) */}
-        <Tabs
-          value={viewMode}
-          onValueChange={(v) => setViewMode(v as "list" | "chart")}
-          className="hidden sm:block sm:ml-auto"
-        >
-          <TabsList className="h-8 shrink-0">
-            <TabsTrigger value="list" className="gap-1.5 text-xs px-3">
-              <List className="h-3.5 w-3.5" />
-              Lista
-            </TabsTrigger>
-            <TabsTrigger value="chart" className="gap-1.5 text-xs px-3">
-              <BarChart3 className="h-3.5 w-3.5" />
-              Gráfico
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
       </div>
 
-      {/* Filters - nueva línea */}
+      {/* Filters - debajo del filtro de fechas */}
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
         <div className="flex items-center gap-1.5 text-muted-foreground shrink-0">
           <Filter className="h-3.5 w-3.5" />
@@ -660,13 +605,51 @@ export default function TransactionsPage() {
 
         {hasActiveFilters && (
           <button
-                onClick={clearFilters}
-                className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0 w-fit"
-              >
-                <X className="h-3 w-3" />
+            onClick={clearFilters}
+            className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0 w-fit"
+          >
+            <X className="h-3 w-3" />
             Limpiar ({activeFilterCount})
           </button>
         )}
+      </div>
+
+      {/* Todas / Gastos / Ingresos + Lista / Gráfico */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Tabs
+          value={typeFilter}
+          onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}
+        >
+          <TabsList className="h-8">
+            <TabsTrigger value="all" className="gap-1.5 text-xs px-2 sm:px-3">
+              <LayoutGrid className="h-3.5 w-3.5" />
+              Todas
+            </TabsTrigger>
+            <TabsTrigger value="expense" className="gap-1.5 text-xs px-2 sm:px-3">
+              <ArrowDownRight className="h-3.5 w-3.5" />
+              Gastos
+            </TabsTrigger>
+            <TabsTrigger value="income" className="gap-1.5 text-xs px-2 sm:px-3">
+              <ArrowUpRight className="h-3.5 w-3.5" />
+              Ingresos
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <Tabs
+          value={viewMode}
+          onValueChange={(v) => setViewMode(v as "list" | "chart")}
+        >
+          <TabsList className="h-8 shrink-0">
+            <TabsTrigger value="list" className="gap-1.5 text-xs px-3">
+              <List className="h-3.5 w-3.5" />
+              Lista
+            </TabsTrigger>
+            <TabsTrigger value="chart" className="gap-1.5 text-xs px-3">
+              <BarChart3 className="h-3.5 w-3.5" />
+              Gráfico
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       {/* Content */}

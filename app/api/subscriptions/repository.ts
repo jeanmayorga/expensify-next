@@ -9,7 +9,7 @@ export class SubscriptionsRepository {
   async getAll(): Promise<SubscriptionWithRelations[]> {
     const { data, error } = await supabase
       .from("expensify_subscriptions")
-      .select("*, card:expensify_cards(*, bank:expensify_banks(*)), budget:expensify_budgets(*)")
+      .select("*, card:card_id(*, bank:bank_id(*)), budget:budget_id(*), bank:bank_id(*)")
       .order("billing_day", { ascending: true });
 
     if (error) {
@@ -23,7 +23,7 @@ export class SubscriptionsRepository {
   async getById(id: string): Promise<SubscriptionWithRelations | null> {
     const { data, error } = await supabase
       .from("expensify_subscriptions")
-      .select("*, card:expensify_cards(*, bank:expensify_banks(*)), budget:expensify_budgets(*)")
+      .select("*, card:card_id(*, bank:bank_id(*)), budget:budget_id(*), bank:bank_id(*)")
       .eq("id", id)
       .single();
 
@@ -45,7 +45,7 @@ export class SubscriptionsRepository {
     const { data, error } = await supabase
       .from("expensify_subscriptions")
       .insert(dto)
-      .select("*, card:expensify_cards(*, bank:expensify_banks(*)), budget:expensify_budgets(*)")
+      .select("*, card:card_id(*, bank:bank_id(*)), budget:budget_id(*), bank:bank_id(*)")
       .single();
 
     if (error) {
@@ -67,7 +67,7 @@ export class SubscriptionsRepository {
       .from("expensify_subscriptions")
       .update(dto)
       .eq("id", id)
-      .select("*, card:expensify_cards(*, bank:expensify_banks(*)), budget:expensify_budgets(*)")
+      .select("*, card:card_id(*, bank:bank_id(*)), budget:budget_id(*), bank:bank_id(*)")
       .single();
 
     if (error) {
