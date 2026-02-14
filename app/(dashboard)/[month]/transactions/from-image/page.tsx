@@ -277,6 +277,7 @@ export default function FromImagePage() {
       amount: tx.amount,
       occurred_at: tx.occurred_at,
       bank_id: tx.bank_id,
+      payment_method: tx.card_id ? "card" : "transfer",
       card_id: tx.card_id,
       budget_id: tx.budget_id,
     }));

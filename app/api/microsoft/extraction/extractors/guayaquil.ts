@@ -69,6 +69,7 @@ export function extractGuayaquilTransferenciasInternas(
     description,
     amount,
     occurred_at,
+    payment_method: "transfer",
     card_last4,
     comment: commentParts.length > 0 ? commentParts.join(" | ") : undefined,
   };
@@ -132,6 +133,7 @@ export function extractGuayaquilPagoExitoso(
     description,
     amount,
     occurred_at,
+    payment_method: "card",
     card_last4,
     comment: commentParts.length > 0 ? commentParts.join(" | ") : undefined,
   };
@@ -196,6 +198,7 @@ export function extractGuayaquilNotaCredito(
     description,
     amount,
     occurred_at,
+    payment_method: "card",
     card_last4,
     comment: commentParts.length > 0 ? commentParts.join(" | ") : undefined,
   };
@@ -267,6 +270,7 @@ export function extractGuayaquilConsumo(
     description,
     amount,
     occurred_at,
+    payment_method: "card",
     card_last4,
     prefer_card_type: "debit",
   };

@@ -31,6 +31,7 @@ export async function getTransactions(filters: TransactionFilters = {}) {
   if (filters.card_id) params.set("card_id", filters.card_id);
   if (filters.bank_id) params.set("bank_id", filters.bank_id);
   if (filters.budget_id) params.set("budget_id", filters.budget_id);
+  if (filters.payment_method) params.set("payment_method", filters.payment_method);
   if (filters.timezone) params.set("timezone", filters.timezone);
 
   const query = params.toString();

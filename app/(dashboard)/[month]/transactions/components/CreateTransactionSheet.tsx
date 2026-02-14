@@ -28,8 +28,11 @@ import {
 
 /** Convert API TransactionInsert to form values (occurred_at → Ecuador local) */
 function transactionInsertToFormData(
-  insert: TransactionInsert,
+  insert: TransactionInsert & { payment_method?: string | null },
 ): Partial<TransactionFormData> {
+  const payment_method =
+    (insert.payment_method as "card" | "transfer") ??
+    (insert.card_id ? "card" : "transfer");
   return {
     type: (insert.type as "expense" | "income") ?? "expense",
     description: insert.description ?? "",
@@ -37,6 +40,7 @@ function transactionInsertToFormData(
     occurred_at: insert.occurred_at
       ? toEcuadorDateTimeLocal(insert.occurred_at)
       : toEcuadorDateTimeLocal(),
+    payment_method,
     card_id: insert.card_id ?? "",
     bank_id: insert.bank_id ?? "",
     budget_id: insert.budget_id ?? "",
@@ -98,7 +102,8 @@ export function CreateTransactionSheet({
       description: data.description,
       amount: data.amount,
       occurred_at: fromEcuadorDateTimeLocalToUTC(data.occurred_at),
-      card_id: data.card_id || null,
+      payment_method: data.payment_method,
+      card_id: data.payment_method === "card" ? data.card_id || null : null,
       bank_id: data.bank_id || null,
       budget_id: data.budget_id || null,
       comment: data.comment || null,

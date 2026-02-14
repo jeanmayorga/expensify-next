@@ -72,6 +72,7 @@ export function extractPacifiCardConfirmacionPago(
     description,
     amount,
     occurred_at,
+    payment_method: "card",
     card_last4,
   };
 }
@@ -137,6 +138,7 @@ export function extractPacifiCardConsumos(
     description,
     amount,
     occurred_at,
+    payment_method: "card",
     card_last4,
   };
 }
@@ -205,6 +207,7 @@ export function extractPacifiCardSolicitudDevolucion(
     description,
     amount,
     occurred_at,
+    payment_method: "card",
     card_last4,
   };
 }

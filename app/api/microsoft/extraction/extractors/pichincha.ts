@@ -85,6 +85,7 @@ export function extractPichinchaNotificacionConsumos(
     description,
     amount,
     occurred_at,
+    payment_method: "card",
     card_last4,
     comment,
   };
@@ -143,6 +144,7 @@ export function extractPichinchaTransferencia(
     description,
     amount,
     occurred_at,
+    payment_method: "transfer",
     card_last4,
     comment: commentParts.length > 0 ? commentParts.join(" | ") : undefined,
   };
@@ -235,6 +237,7 @@ export function extractPichinchaNotificacionBanco(
     description,
     amount,
     occurred_at,
+    payment_method: "transfer",
     card_last4,
     comment,
   };

@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
     const cardId = searchParams.get("card_id");
     const bankId = searchParams.get("bank_id");
     const budgetId = searchParams.get("budget_id");
+    const paymentMethod = searchParams.get("payment_method");
     const timezone = searchParams.get("timezone");
 
     if (date) filters.date = date;
@@ -24,6 +25,8 @@ export async function GET(request: NextRequest) {
     if (cardId) filters.card_id = cardId;
     if (bankId) filters.bank_id = bankId;
     if (budgetId) filters.budget_id = budgetId;
+    if (paymentMethod === "card" || paymentMethod === "transfer")
+      filters.payment_method = paymentMethod;
     if (timezone) filters.timezone = timezone;
 
     console.log("GET /api/transactions -> filters", filters);

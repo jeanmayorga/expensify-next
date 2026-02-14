@@ -9,6 +9,7 @@ import {
   Landmark,
   PiggyBank,
   MessageSquare,
+  ArrowRightLeft,
 } from "lucide-react";
 import { BudgetLabel } from "@/app/(dashboard)/[month]/budgets/components/BudgetLabel";
 import { Input } from "@/components/ui/input";
@@ -26,11 +27,14 @@ import { CARD_TYPES, CARD_KINDS } from "../../cards/utils";
 import { type Bank } from "../../banks/service";
 import { type Budget } from "../../budgets/service";
 
+export type PaymentMethod = "card" | "transfer";
+
 export interface TransactionFormData {
   type: "expense" | "income";
   description: string;
   amount: number;
   occurred_at: string; // datetime-local string in Ecuador time
+  payment_method: PaymentMethod;
   card_id: string;
   bank_id: string;
   budget_id: string;
@@ -42,6 +46,7 @@ export const defaultTransactionFormValues: TransactionFormData = {
   description: "",
   amount: 0,
   occurred_at: toEcuadorDateTimeLocal(), // Current time in Ecuador
+  payment_method: "card",
   card_id: "",
   bank_id: "",
   budget_id: "",
@@ -63,6 +68,7 @@ export function TransactionForm({
 }: TransactionFormProps) {
   const { register, watch, setValue } = form;
   const selectedType = watch("type");
+  const paymentMethod = watch("payment_method");
 
   return (
     <div className="space-y-6">
@@ -136,7 +142,46 @@ export function TransactionForm({
           Detalles financieros
         </p>
 
-        {/* Card */}
+        {/* Payment method: Tarjeta vs Transferencia */}
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-muted-foreground">
+            Forma de pago
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setValue("payment_method", "card");
+              }}
+              className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-all ${
+                paymentMethod === "card"
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-input bg-transparent text-muted-foreground hover:bg-accent/50"
+              }`}
+            >
+              <CreditCard className="h-4 w-4" />
+              Tarjeta
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setValue("payment_method", "transfer");
+                setValue("card_id", "");
+              }}
+              className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-all ${
+                paymentMethod === "transfer"
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-input bg-transparent text-muted-foreground hover:bg-accent/50"
+              }`}
+            >
+              <ArrowRightLeft className="h-4 w-4" />
+              Transferencia
+            </button>
+          </div>
+        </div>
+
+        {/* Card - solo cuando forma de pago es tarjeta */}
+        {paymentMethod === "card" && (
         <div className="space-y-1.5">
           <label className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
             <CreditCard className="h-3.5 w-3.5" />
@@ -190,6 +235,7 @@ export function TransactionForm({
             </SelectContent>
           </Select>
         </div>
+        )}
 
         {/* Bank */}
         <div className="space-y-1.5">

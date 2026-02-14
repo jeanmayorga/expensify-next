@@ -104,6 +104,7 @@ export function extractProdubancoConsumoTarjeta(
     description,
     amount,
     occurred_at,
+    payment_method: "card",
     card_last4,
   };
 }
@@ -161,6 +162,7 @@ export function extractProdubancoConsumoDebito(
     description,
     amount,
     occurred_at,
+    payment_method: "card",
     card_last4,
     prefer_card_type: "debit",
   };
@@ -220,6 +222,7 @@ export function extractProdubancoReversoDebito(
     description,
     amount,
     occurred_at,
+    payment_method: "card",
     card_last4,
   };
 }
@@ -279,6 +282,7 @@ export function extractProdubancoReversoCredito(
     description,
     amount,
     occurred_at,
+    payment_method: "card",
     card_last4,
   };
 }
@@ -337,6 +341,7 @@ export function extractProdubancoTransferenciaRecibida(
     description,
     amount,
     occurred_at,
+    payment_method: "transfer",
     card_last4,
   };
 }
@@ -414,6 +419,7 @@ export function extractProdubancoTransferenciaEnviada(
     description,
     amount,
     occurred_at,
+    payment_method: "transfer",
     card_last4,
     comment: comment ?? null,
   };

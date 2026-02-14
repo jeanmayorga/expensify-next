@@ -28,6 +28,8 @@ import {
   Filter,
   LayoutGrid,
   Search,
+  CreditCard,
+  ArrowRightLeft,
 } from "lucide-react";
 import { useTransactions, useUpdateTransaction } from "./hooks";
 import { getEcuadorDate } from "@/utils/ecuador-time";
@@ -118,6 +120,7 @@ export default function TransactionsPage() {
   const [cardFilter, setCardFilter] = useState<string>("__all__");
   const [bankFilter, setBankFilter] = useState<string>("__all__");
   const [budgetFilter, setBudgetFilter] = useState<string>("__all__");
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>("__all__");
 
   // Date range: default = inicio y fin del mes actual (selectedMonth)
   const [dateRange, setDateRange] = useState<DateRange>(() => {
@@ -161,6 +164,8 @@ export default function TransactionsPage() {
   }
   if (cardFilter !== "__all__") filters.card_id = cardFilter;
   if (bankFilter !== "__all__") filters.bank_id = bankFilter;
+  if (paymentMethodFilter === "card" || paymentMethodFilter === "transfer")
+    filters.payment_method = paymentMethodFilter;
   if (budgetId) {
     filters.budget_id = budgetId;
   } else if (budgetFilter !== "__all__") {
@@ -363,13 +368,15 @@ export default function TransactionsPage() {
     searchInput.trim() !== "" ||
     cardFilter !== "__all__" ||
     bankFilter !== "__all__" ||
-    budgetFilter !== "__all__";
+    budgetFilter !== "__all__" ||
+    paymentMethodFilter !== "__all__";
 
   const activeFilterCount = [
     searchInput.trim() !== "",
     cardFilter !== "__all__",
     bankFilter !== "__all__",
     budgetFilter !== "__all__",
+    paymentMethodFilter !== "__all__",
   ].filter(Boolean).length;
 
   const clearFilters = () => {
@@ -378,6 +385,7 @@ export default function TransactionsPage() {
     setCardFilter("__all__");
     setBankFilter("__all__");
     setBudgetFilter("__all__");
+    setPaymentMethodFilter("__all__");
   };
 
   const currentMonth = format(selectedMonth, "MMMM yyyy", { locale: es });
@@ -520,6 +528,33 @@ export default function TransactionsPage() {
           <Filter className="h-3.5 w-3.5" />
           <span className="text-xs font-medium">Filtros</span>
         </div>
+
+        {/* Payment method: Tarjeta / Transferencia */}
+        <Select value={paymentMethodFilter} onValueChange={setPaymentMethodFilter}>
+          <SelectTrigger
+            className={cn(
+              "w-full sm:w-auto sm:min-w-[140px] sm:shrink-0",
+              paymentMethodFilter !== "__all__" && "bg-primary/10 border-primary/30",
+            )}
+          >
+            <SelectValue placeholder="Forma de pago" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todas</SelectItem>
+            <SelectItem value="card">
+              <div className="flex items-center gap-2">
+                <CreditCard className="h-3.5 w-3.5" />
+                Tarjeta
+              </div>
+            </SelectItem>
+            <SelectItem value="transfer">
+              <div className="flex items-center gap-2">
+                <ArrowRightLeft className="h-3.5 w-3.5" />
+                Transferencia
+              </div>
+            </SelectItem>
+          </SelectContent>
+        </Select>
 
         {/* Card Filter */}
         <Select value={cardFilter} onValueChange={setCardFilter}>

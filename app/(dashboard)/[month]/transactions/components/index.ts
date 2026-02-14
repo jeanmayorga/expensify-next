@@ -6,7 +6,7 @@ export {
   TransactionForm,
   defaultTransactionFormValues,
 } from "./TransactionForm";
-export type { TransactionFormData } from "./TransactionForm";
+export type { TransactionFormData, PaymentMethod } from "./TransactionForm";
 export { CreateTransactionSheet } from "./CreateTransactionSheet";
 export { EditTransactionSheet } from "./EditTransactionSheet";
 export { DeleteTransactionDialog } from "./DeleteTransactionDialog";

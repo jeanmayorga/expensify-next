@@ -54,8 +54,10 @@ export async function buildTransactionInsertFromEmail(
   const extracted = extractor(message);
   if (!extracted) return null;
 
+  const payment_method = extracted.payment_method ?? (extracted.card_last4 || extracted.prefer_card_type ? "card" : "transfer");
+
   let card_id: string | null = null;
-  if (bank.id) {
+  if (payment_method === "card" && bank.id) {
     const cardsRepository = new CardsRepository();
     const bankCards = (await cardsRepository.getAll()).filter(
       (c) => c.bank_id === bank.id,
@@ -105,7 +107,8 @@ export async function buildTransactionInsertFromEmail(
     occurred_at: extracted.occurred_at,
     income_message_id: messageId,
     bank_id: bank.id,
-    card_id,
+    payment_method,
+    card_id: payment_method === "card" ? card_id : null,
     budget_id,
     comment: extracted.comment ?? null,
   };

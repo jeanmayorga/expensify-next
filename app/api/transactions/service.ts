@@ -59,6 +59,12 @@ export class TransactionsService {
       query = query.eq("card_id", filters.card_id);
     }
 
+    if (filters.payment_method === "card") {
+      query = query.not("card_id", "is", null);
+    } else if (filters.payment_method === "transfer") {
+      query = query.is("card_id", null);
+    }
+
     if (filters.bank_id) {
       query = query.eq("bank_id", filters.bank_id);
     }
@@ -135,6 +141,7 @@ export class TransactionsService {
       bank_id: dto.bank_id ?? null,
       budget_id: dto.budget_id ?? null,
       card_id: dto.card_id ?? null,
+      payment_method: dto.payment_method ?? null,
       income_message_id: dto.income_message_id ?? null,
       is_manual: !isFromEmail,
       comment: dto.comment ?? null,

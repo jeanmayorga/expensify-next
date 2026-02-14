@@ -288,6 +288,7 @@ export type Database = {
           income_message_id: string | null
           is_manual: boolean
           occurred_at: string
+          payment_method: string | null
           type: string
         }
         Insert: {
@@ -302,6 +303,7 @@ export type Database = {
           income_message_id?: string | null
           is_manual?: boolean
           occurred_at?: string
+          payment_method?: string | null
           type: string
         }
         Update: {
@@ -316,6 +318,7 @@ export type Database = {
           income_message_id?: string | null
           is_manual?: boolean
           occurred_at?: string
+          payment_method?: string | null
           type?: string
         }
         Relationships: [

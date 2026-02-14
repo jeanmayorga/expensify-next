@@ -17,6 +17,8 @@ export interface TransactionFilters {
   card_id?: string;
   bank_id?: string;
   budget_id?: string;
+  /** 'card' = con tarjeta, 'transfer' = transferencia (sin tarjeta) */
+  payment_method?: "card" | "transfer";
   /** Timezone IANA (ej: America/Guayaquil, America/New_York). Default: America/Guayaquil */
   timezone?: string;
   /** Buscar en description y comment (ignora date cuando se usa) */

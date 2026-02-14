@@ -35,8 +35,11 @@ import type { TransactionInsert } from "@/app/api/transactions/model";
 
 /** Map extracted API data to form values (occurred_at → Ecuador local) */
 function transactionInsertToFormData(
-  insert: TransactionInsert,
+  insert: TransactionInsert & { payment_method?: string | null },
 ): TransactionFormData {
+  const payment_method =
+    (insert.payment_method as "card" | "transfer") ??
+    (insert.card_id ? "card" : "transfer");
   return {
     ...defaultTransactionFormValues,
     type: (insert.type as "expense" | "income") ?? "expense",
@@ -45,6 +48,7 @@ function transactionInsertToFormData(
     occurred_at: insert.occurred_at
       ? toEcuadorDateTimeLocal(insert.occurred_at)
       : toEcuadorDateTimeLocal(),
+    payment_method,
     card_id: insert.card_id ?? "",
     bank_id: insert.bank_id ?? "",
     budget_id: insert.budget_id ?? "",
@@ -127,6 +131,9 @@ export function EditTransactionSheet({
     setEmailError(null);
     setExtractError(null);
     if (transaction) {
+      const payment_method =
+        (transaction as { payment_method?: string | null }).payment_method ??
+        (transaction.card_id ? "card" : "transfer");
       reset({
         type: transaction.type as "expense" | "income",
         description: transaction.description,
@@ -134,6 +141,7 @@ export function EditTransactionSheet({
         occurred_at: transaction.occurred_at
           ? toEcuadorDateTimeLocal(transaction.occurred_at) // Convert UTC to Ecuador time
           : toEcuadorDateTimeLocal(),
+        payment_method: payment_method as "card" | "transfer",
         card_id: transaction.card_id || "",
         bank_id: transaction.bank_id || "",
         budget_id: transaction.budget_id || "",
@@ -151,7 +159,8 @@ export function EditTransactionSheet({
         description: data.description,
         amount: data.amount,
         occurred_at: fromEcuadorDateTimeLocalToUTC(data.occurred_at), // Convert Ecuador time to UTC
-        card_id: data.card_id || null,
+        payment_method: data.payment_method,
+        card_id: data.payment_method === "card" ? data.card_id || null : null,
         bank_id: data.bank_id || null,
         budget_id: data.budget_id || null,
         comment: data.comment || null,
