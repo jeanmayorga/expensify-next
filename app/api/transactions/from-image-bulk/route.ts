@@ -9,8 +9,11 @@ import { BanksRepository } from "@/app/api/banks/repository";
 import { CardsRepository } from "@/app/api/cards/repository";
 
 interface FromImageBulkRequest {
-  image: string;
-  mimeType: string;
+  /** Text content - required. Can be transaction text or context for the image */
+  text: string;
+  /** Optional image - when provided, text is used as context for image extraction */
+  image?: string;
+  mimeType?: string;
   context?: ExtractionContext;
   hints?: ImageExtractionHints;
 }
@@ -19,19 +22,23 @@ export async function POST(request: NextRequest) {
   try {
     const body: FromImageBulkRequest = await request.json();
 
-    if (!body.image) {
-      return NextResponse.json({ error: "Image is required" }, { status: 400 });
+    if (!body.text || typeof body.text !== "string" || !body.text.trim()) {
+      return NextResponse.json(
+        { error: "Text is required" },
+        { status: 400 },
+      );
     }
 
-    if (!body.mimeType) {
+    const hasImage = !!body.image?.trim();
+    if (hasImage && !body.mimeType) {
       return NextResponse.json(
-        { error: "mimeType is required" },
+        { error: "mimeType is required when image is provided" },
         { status: 400 },
       );
     }
 
     console.log(
-      `POST /api/transactions/from-image-bulk -> mimeType=${body.mimeType}, imageLength=${body.image.length}`,
+      `POST /api/transactions/from-image-bulk -> hasImage=${hasImage}, textLength=${body.text.length}`,
     );
 
     // Build context from database if not provided
@@ -54,12 +61,20 @@ export async function POST(request: NextRequest) {
     }
 
     const openaiService = new OpenAIService();
-    const transactions = await openaiService.getTransactionsFromImage(
-      body.image,
-      body.mimeType,
-      context,
-      body.hints,
-    );
+    const text = body.text.trim();
+
+    const transactions = hasImage
+      ? await openaiService.getTransactionsFromImage(
+          body.image!,
+          body.mimeType!,
+          context,
+          { ...body.hints, userContext: text },
+        )
+      : await openaiService.getTransactionsFromText(
+          text,
+          context,
+          body.hints,
+        );
 
     return NextResponse.json({ data: transactions });
   } catch (error) {

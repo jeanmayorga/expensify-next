@@ -92,14 +92,27 @@ export async function extractTransactionFromImage(
   return data.data;
 }
 
+export interface ExtractTransactionsInput {
+  /** Text content - required. Transaction text or context for image */
+  text: string;
+  /** Optional image - when provided, text is context for the image */
+  image?: string;
+  mimeType?: string;
+  hints?: ImageExtractionHints;
+}
+
 export async function extractTransactionsFromImage(
-  imageBase64: string,
-  mimeType: string,
-  hints?: ImageExtractionHints,
+  input: ExtractTransactionsInput,
 ): Promise<ParsedTransaction[]> {
   const { data } = await api.post<{ data: ParsedTransaction[] }>(
     `/transactions/from-image-bulk`,
-    { image: imageBase64, mimeType, hints },
+    {
+      text: input.text,
+      ...(input.image && input.mimeType
+        ? { image: input.image, mimeType: input.mimeType }
+        : {}),
+      hints: input.hints,
+    },
   );
   return data.data;
 }

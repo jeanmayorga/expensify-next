@@ -310,6 +310,54 @@ ${hintsSection}
 `;
 }
 
+function buildBulkTextExtractionPrompt(
+  context: ExtractionContext,
+  hints?: ImageExtractionHints,
+): string {
+  const { banksInfo, cardsInfo } = buildContextInfo(context);
+
+  let hintsSection = "";
+  if (hints?.userContext) {
+    hintsSection += `\n## User provided context:\n${hints.userContext}\n`;
+  }
+  if (hints?.preselectedBankId) {
+    const bank = context.banks.find((b) => b.id === hints.preselectedBankId);
+    if (bank) {
+      hintsSection += `\n## Pre-selected bank: ${bank.name} (id: ${bank.id}) - USE THIS bank_id FOR ALL TRANSACTIONS\n`;
+    }
+  }
+  if (hints?.preselectedCardId) {
+    const card = context.cards.find((c) => c.id === hints.preselectedCardId);
+    if (card) {
+      hintsSection += `\n## Pre-selected card: ${card.name} (id: ${card.id}) - USE THIS card_id FOR ALL TRANSACTIONS\n`;
+    }
+  }
+
+  return `You are an expert assistant that extracts MULTIPLE transactions from free text, bank statement text, or transaction descriptions.
+
+## Available Banks:
+${banksInfo}
+
+## Available Cards:
+${cardsInfo}
+${hintsSection}
+## INSTRUCTIONS:
+1. Extract ALL transactions mentioned in the text - each line/item is typically ONE transaction
+2. The text can be: a single transaction ("Café $5"), multiple lines, or full bank statement copy-paste
+3. Match bank/card by name or last 4 digits when mentioned
+
+## FOR EACH TRANSACTION:
+- **type**: "expense" for purchases/debits/withdrawals, "income" for credits/deposits/refunds
+- **description**: The merchant name or transaction description
+- **amount**: ALWAYS a positive number (absolute value)
+- **occurred_at**: UTC format (YYYY-MM-DDTHH:mm:ssZ). If no date, use today. Assume Ecuador timezone (UTC-5)
+- **bank_id**: Match from context if mentioned, otherwise use first bank
+- **card_id**: Match by last 4 digits if present, null otherwise
+
+## If pre-selected values are provided above, apply them to ALL transactions.
+`;
+}
+
 export class OpenAIService {
   private openai: OpenAI;
 
@@ -532,6 +580,63 @@ export class OpenAIService {
       const errorMessage = getErrorMessage(error);
       console.error(
         "OpenAIService->getTransactionsFromImage()->error",
+        errorMessage,
+      );
+      return [];
+    }
+  }
+
+  async getTransactionsFromText(
+    text: string,
+    context: ExtractionContext,
+    hints?: ImageExtractionHints,
+  ): Promise<ParsedTransaction[]> {
+    try {
+      console.log(
+        `OpenAIService->getTransactionsFromText() textLength=${text.length}`,
+      );
+      console.log(
+        `Context: ${context.banks.length} banks, ${context.cards.length} cards`,
+      );
+
+      const systemPrompt = buildBulkTextExtractionPrompt(context, hints);
+      const schema = buildBulkTransactionSchema(context);
+
+      const response = await this.openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          {
+            role: "user",
+            content: `Extract ALL transactions from this text:\n\n${text}`,
+          },
+        ],
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "transactions_list",
+            schema,
+            strict: true,
+          },
+        },
+        max_tokens: 4000,
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        console.error("OpenAIService->getTransactionsFromText() no content");
+        return [];
+      }
+
+      const parsed = JSON.parse(content);
+      console.log(
+        `OpenAIService->getTransactionsFromText() extracted ${parsed.transactions?.length || 0} transactions`,
+      );
+      return (parsed.transactions || []) as ParsedTransaction[];
+    } catch (error) {
+      const errorMessage = getErrorMessage(error);
+      console.error(
+        "OpenAIService->getTransactionsFromText()->error",
         errorMessage,
       );
       return [];
