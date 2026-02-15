@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
+import { ThemeProvider } from "next-themes";
 import { QueryProvider } from "@/lib/query-provider";
 import { AuthProvider } from "@/lib/auth-context";
 import { AuthGuard } from "@/components/auth-guard";
@@ -29,19 +30,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AuthProvider>
-          <AuthGuard>
-            <NuqsAdapter>
-              <QueryProvider>
-                <TooltipProvider>{children}</TooltipProvider>
-              </QueryProvider>
-            </NuqsAdapter>
-          </AuthGuard>
-        </AuthProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <AuthProvider>
+            <AuthGuard>
+              <NuqsAdapter>
+                <QueryProvider>
+                  <TooltipProvider>{children}</TooltipProvider>
+                </QueryProvider>
+              </NuqsAdapter>
+            </AuthGuard>
+          </AuthProvider>
+        </ThemeProvider>
         <Toaster position="top-center" />
       </body>
     </html>
