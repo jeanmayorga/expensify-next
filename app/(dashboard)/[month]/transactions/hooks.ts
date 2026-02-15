@@ -82,15 +82,7 @@ export function useExtractFromImage() {
 
 export function useExtractBulkFromImage() {
   return useMutation({
-    mutationFn: ({
-      image,
-      mimeType,
-      hints,
-    }: {
-      image: string;
-      mimeType: string;
-      hints?: ImageExtractionHints;
-    }) => extractTransactionsFromImage(image, mimeType, hints),
+    mutationFn: extractTransactionsFromImage,
   });
 }
 

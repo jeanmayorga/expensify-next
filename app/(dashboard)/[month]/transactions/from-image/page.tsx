@@ -2,8 +2,6 @@
 
 import { useState, useRef, useCallback, DragEvent } from "react";
 import { useRouter } from "next/navigation";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import {
   Loader2,
   X,
@@ -11,16 +9,12 @@ import {
   Building2,
   CreditCard,
   Wallet,
-  Trash2,
   Save,
   ArrowLeft,
-  Edit2,
-  Check,
-  TrendingDown,
-  TrendingUp,
+  Play,
+  FileSearch,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -35,11 +29,16 @@ import { useBanks } from "../../banks/hooks";
 import { useBudgets } from "../../budgets/hooks";
 import { BudgetLabel } from "../../budgets/components/BudgetLabel";
 import { useExtractBulkFromImage, useCreateTransactions } from "../hooks";
-import type {
-  ParsedTransaction,
-  ImageExtractionHints,
-  TransactionInsert,
-} from "../service";
+import type { ParsedTransaction, ImageExtractionHints, TransactionInsert } from "../service";
+import { ExtractedTransactionRow } from "@/app/(dashboard)/microsoft/daily-mailer-extractor/components/ExtractedTransactionRow";
+import type { ExtractedItem } from "@/app/(dashboard)/microsoft/daily-mailer-extractor/types";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { cn } from "@/lib/utils";
 
 const MAX_DIMENSION = 1024;
 const INITIAL_QUALITY = 0.7;
@@ -102,24 +101,17 @@ async function compressImage(
   });
 }
 
-interface EditableTransaction extends ParsedTransaction {
-  id: string;
-  budget_id: string | null;
-}
-
 export default function FromImagePage() {
   const router = useRouter();
 
-  // Data queries
   const { data: cards = [] } = useCards();
   const { data: banks = [] } = useBanks();
   const { data: budgets = [] } = useBudgets();
 
-  // Mutations
   const extractBulk = useExtractBulkFromImage();
   const createTransactions = useCreateTransactions();
 
-  // Image state
+  const [text, setText] = useState("");
   const [preview, setPreview] = useState<string | null>(null);
   const [pendingImage, setPendingImage] = useState<{
     base64: string;
@@ -129,15 +121,13 @@ export default function FromImagePage() {
   const [isCompressing, setIsCompressing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Hints state
-  const [userContext, setUserContext] = useState("");
   const [selectedBankId, setSelectedBankId] = useState<string>("__none__");
   const [selectedCardId, setSelectedCardId] = useState<string>("__none__");
   const [selectedBudgetId, setSelectedBudgetId] = useState<string>("__none__");
 
-  // Extracted transactions state
-  const [transactions, setTransactions] = useState<EditableTransaction[]>([]);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [extractedItems, setExtractedItems] = useState<ExtractedItem[]>([]);
+  const [savingTempId, setSavingTempId] = useState<string | null>(null);
+  const [selectedForDelete, setSelectedForDelete] = useState<Set<string>>(new Set());
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -165,9 +155,7 @@ export default function FromImagePage() {
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
-      if (file) {
-        handleFileSelect(file);
-      }
+      if (file) handleFileSelect(file);
       e.target.value = "";
     },
     [handleFileSelect],
@@ -195,604 +183,401 @@ export default function FromImagePage() {
       e.preventDefault();
       e.stopPropagation();
       setIsDragging(false);
-
       const files = e.dataTransfer.files;
-      if (files && files.length > 0) {
-        handleFileSelect(files[0]);
-      }
+      if (files?.length) handleFileSelect(files[0]);
     },
     [handleFileSelect],
   );
 
   const handleExtract = useCallback(async () => {
-    if (!pendingImage) return;
+    const trimmed = text.trim();
+    if (!trimmed) {
+      setError("Escribe o pega el texto de las transacciones");
+      return;
+    }
+
+    setError(null);
 
     const hints: ImageExtractionHints = {};
-    if (userContext.trim()) {
-      hints.userContext = userContext.trim();
-    }
-    if (selectedBankId !== "__none__") {
-      hints.preselectedBankId = selectedBankId;
-    }
-    if (selectedCardId !== "__none__") {
-      hints.preselectedCardId = selectedCardId;
-    }
-    if (selectedBudgetId !== "__none__") {
-      hints.preselectedBudgetId = selectedBudgetId;
-    }
+    if (selectedBankId !== "__none__") hints.preselectedBankId = selectedBankId;
+    if (selectedCardId !== "__none__") hints.preselectedCardId = selectedCardId;
+    if (selectedBudgetId !== "__none__") hints.preselectedBudgetId = selectedBudgetId;
 
     try {
       const result = await extractBulk.mutateAsync({
-        image: pendingImage.base64,
-        mimeType: pendingImage.mimeType,
+        text: trimmed,
+        ...(pendingImage
+          ? { image: pendingImage.base64, mimeType: pendingImage.mimeType }
+          : {}),
         hints,
       });
 
-      // Convert to editable transactions with IDs
-      const editableTransactions: EditableTransaction[] = result.map(
-        (tx, index) => ({
-          ...tx,
-          id: `tx-${Date.now()}-${index}`,
-          budget_id: selectedBudgetId !== "__none__" ? selectedBudgetId : null,
-        }),
-      );
+      const defaultBudget =
+        selectedBudgetId !== "__none__" ? selectedBudgetId : null;
 
-      setTransactions(editableTransactions);
+      const items: ExtractedItem[] = result.map((tx: ParsedTransaction, i: number) => ({
+        tempId: `ext-${Date.now()}-${i}`,
+        data: {
+          ...tx,
+          payment_method: tx.card_id ? "card" : "transfer",
+          budget_id: defaultBudget,
+        } as TransactionInsert,
+      }));
+
+      setExtractedItems(items);
     } catch (err) {
       setError("Error al extraer transacciones. Intenta de nuevo.");
       console.error("Extraction error:", err);
     }
   }, [
+    text,
     pendingImage,
-    userContext,
     selectedBankId,
     selectedCardId,
     selectedBudgetId,
     extractBulk,
   ]);
 
-  const handleDeleteTransaction = useCallback((id: string) => {
-    setTransactions((prev) => prev.filter((tx) => tx.id !== id));
+  const updateItem = useCallback((tempId: string, patch: Partial<TransactionInsert>) => {
+    setExtractedItems((prev) =>
+      prev.map((i) =>
+        i.tempId === tempId ? { ...i, data: { ...i.data, ...patch } } : i,
+      ),
+    );
   }, []);
 
-  const handleUpdateTransaction = useCallback(
-    (
-      id: string,
-      field: keyof EditableTransaction,
-      value: string | number | null,
-    ) => {
-      setTransactions((prev) =>
-        prev.map((tx) => (tx.id === id ? { ...tx, [field]: value } : tx)),
-      );
-    },
-    [],
-  );
+  const removeItems = useCallback((tempIds: string[]) => {
+    setExtractedItems((prev) => prev.filter((i) => !tempIds.includes(i.tempId)));
+    setSelectedForDelete(new Set());
+  }, []);
 
   const handleSaveAll = useCallback(async () => {
-    if (transactions.length === 0) return;
+    if (extractedItems.length === 0) return;
 
-    const payloads: TransactionInsert[] = transactions.map((tx) => ({
-      type: tx.type,
-      description: tx.description,
-      amount: tx.amount,
-      occurred_at: tx.occurred_at,
-      bank_id: tx.bank_id,
-      payment_method: tx.card_id ? "card" : "transfer",
-      card_id: tx.card_id,
-      budget_id: tx.budget_id,
-    }));
-
+    setSavingTempId("all");
     try {
+      const payloads = extractedItems.map((i) => i.data);
       await createTransactions.mutateAsync(payloads);
       router.push("..");
     } catch (err) {
       setError("Error al guardar las transacciones.");
       console.error("Save error:", err);
+    } finally {
+      setSavingTempId(null);
     }
-  }, [transactions, createTransactions, router]);
+  }, [extractedItems, createTransactions, router]);
 
   const handleClearImage = useCallback(() => {
     setPreview(null);
     setPendingImage(null);
-    setTransactions([]);
-    setError(null);
   }, []);
 
   const isLoading = isCompressing || extractBulk.isPending;
   const isSaving = createTransactions.isPending;
+  const canExtract = text.trim().length > 0 && !isLoading;
 
-  const totalAmount = transactions.reduce((sum, tx) => {
-    return tx.type === "expense" ? sum - tx.amount : sum + tx.amount;
+  const totalAmount = extractedItems.reduce((sum, item) => {
+    return item.data.type === "expense"
+      ? sum - item.data.amount
+      : sum + item.data.amount;
   }, 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.push("..")}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 shrink-0"
+          onClick={() => router.push("..")}
+        >
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            Extraer desde imagen
+        <div className="min-w-0">
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
+            Extraer transacciones
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Sube un estado de cuenta o documento con múltiples transacciones
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Solo texto o texto + imagen. El texto puede ser las transacciones o contexto para la imagen.
           </p>
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Left Column - Image Upload */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Imagen</CardTitle>
+      {/* Two columns - same layout as daily/monthly extractor */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
+        {/* Left: Text + optional image */}
+        <Card className="flex flex-col overflow-hidden">
+          <CardHeader className="border-b py-3 px-4 sm:px-5">
+            <CardTitle className="text-sm font-medium">
+              Texto e imagen (opcional)
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Image Preview or Drop Zone */}
-            {preview ? (
-              <div className="relative">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={preview}
-                  alt="Document preview"
-                  className="w-full max-h-64 object-contain rounded-lg border bg-muted"
-                />
-                {!isLoading && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute top-2 right-2 h-8 w-8 bg-background/80 hover:bg-background"
-                    onClick={handleClearImage}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-                {isLoading && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-lg">
-                    <div className="flex flex-col items-center gap-2">
-                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                      <span className="text-sm text-muted-foreground">
-                        {isCompressing ? "Comprimiendo..." : "Extrayendo..."}
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-3">
+          <CardContent className="flex flex-1 flex-col gap-4 p-4 sm:p-5">
+            {/* Text - primary input */}
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-muted-foreground">
+                Texto de transacciones o contexto
+              </label>
+              <Textarea
+                placeholder="Ej: Café Starbucks $5.50
+Supermercado $45.30
+
+O pega el estado de cuenta. Si agregas imagen, este texto será el contexto."
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                className="min-h-[120px] resize-none text-sm sm:min-h-[140px]"
+                disabled={isLoading}
+              />
+            </div>
+
+            {/* Optional image */}
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-muted-foreground">
+                Imagen (opcional)
+              </label>
+              {preview ? (
+                <div className="relative rounded-lg border bg-muted/30">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={preview}
+                    alt="Vista previa"
+                    className="max-h-40 w-full object-contain rounded-lg sm:max-h-48"
+                  />
+                  {!isLoading && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-2 top-2 h-7 w-7 bg-background/90 hover:bg-background"
+                      onClick={handleClearImage}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
+              ) : (
                 <div
-                  className={`flex items-center justify-center w-full h-40 rounded-lg border-2 border-dashed transition-colors cursor-pointer ${
+                  className={cn(
+                    "flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed py-6 transition-colors sm:py-8",
                     isDragging
                       ? "border-primary bg-primary/10"
-                      : "border-muted-foreground/30 bg-muted/50 hover:border-primary/50 hover:bg-muted"
-                  }`}
+                      : "border-muted-foreground/25 bg-muted/30 hover:border-muted-foreground/40 hover:bg-muted/50",
+                  )}
                   onDragEnter={handleDragEnter}
                   onDragLeave={handleDragLeave}
                   onDragOver={handleDragOver}
                   onDrop={handleDrop}
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  <div className="flex flex-col items-center gap-2 text-muted-foreground pointer-events-none">
-                    <ImageIcon className="h-10 w-10" />
-                    <span className="text-sm text-center px-4">
-                      {isDragging
-                        ? "Suelta la imagen aquí"
-                        : "Arrastra una imagen o haz clic"}
-                    </span>
-                  </div>
+                  <ImageIcon className="h-5 w-5 text-muted-foreground sm:h-6 sm:w-6" />
+                  <span className="text-xs text-muted-foreground sm:text-sm">
+                    {isDragging ? "Suelta aquí" : "Arrastra imagen o haz clic"}
+                  </span>
                 </div>
-              </div>
-            )}
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleInputChange}
+              />
+            </div>
 
-            {/* Context and Filters */}
-            <div className="space-y-4 pt-4 border-t">
-              <div className="space-y-2">
-                <span className="text-sm font-medium">
-                  Contexto adicional (opcional)
+            {/* Filters */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div className="space-y-1.5">
+                <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                  <Building2 className="h-3 w-3" />
+                  Banco
                 </span>
-                <Textarea
-                  placeholder="Ej: Estado de cuenta de enero, tarjeta de crédito..."
-                  value={userContext}
-                  onChange={(e) => setUserContext(e.target.value)}
-                  className="resize-none h-16 text-sm"
+                <Select
+                  value={selectedBankId}
+                  onValueChange={setSelectedBankId}
                   disabled={isLoading}
-                />
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Seleccionar" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Sin preselección</SelectItem>
+                    {banks.map((bank) => (
+                      <SelectItem key={bank.id} value={bank.id}>
+                        {bank.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <span className="text-xs font-medium flex items-center gap-1">
-                    <Building2 className="h-3 w-3" />
-                    Banco
-                  </span>
-                  <Select
-                    value={selectedBankId}
-                    onValueChange={setSelectedBankId}
-                    disabled={isLoading}
-                  >
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="Seleccionar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Sin preselección</SelectItem>
-                      {banks.map((bank) => (
-                        <SelectItem key={bank.id} value={bank.id}>
-                          {bank.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <span className="text-xs font-medium flex items-center gap-1">
-                    <CreditCard className="h-3 w-3" />
-                    Tarjeta
-                  </span>
-                  <Select
-                    value={selectedCardId}
-                    onValueChange={setSelectedCardId}
-                    disabled={isLoading}
-                  >
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="Seleccionar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Sin preselección</SelectItem>
-                      {cards.map((card) => (
-                        <SelectItem key={card.id} value={card.id}>
-                          {card.name}
-                          {card.last4 && ` •••• ${card.last4}`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <span className="text-xs font-medium flex items-center gap-1">
-                    <Wallet className="h-3 w-3" />
-                    Presupuesto
-                  </span>
-                  <Select
-                    value={selectedBudgetId}
-                    onValueChange={setSelectedBudgetId}
-                    disabled={isLoading}
-                  >
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="Seleccionar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Sin preselección</SelectItem>
-                      {budgets.map((budget) => (
-                        <SelectItem key={budget.id} value={budget.id}>
-                          <BudgetLabel
-                            budget={budget}
-                            iconClassName="h-3.5 w-3.5"
-                          />
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-1.5">
+                <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                  <CreditCard className="h-3 w-3" />
+                  Tarjeta
+                </span>
+                <Select
+                  value={selectedCardId}
+                  onValueChange={setSelectedCardId}
+                  disabled={isLoading}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Seleccionar" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Sin preselección</SelectItem>
+                    {cards.map((card) => (
+                      <SelectItem key={card.id} value={card.id}>
+                        {card.name}
+                        {card.last4 && ` •••• ${card.last4}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="col-span-2 space-y-1.5 sm:col-span-1">
+                <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                  <Wallet className="h-3 w-3" />
+                  Presupuesto
+                </span>
+                <Select
+                  value={selectedBudgetId}
+                  onValueChange={setSelectedBudgetId}
+                  disabled={isLoading}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Seleccionar" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Sin preselección</SelectItem>
+                    {budgets.map((budget) => (
+                      <SelectItem key={budget.id} value={budget.id}>
+                        <BudgetLabel
+                          budget={budget}
+                          iconClassName="h-3.5 w-3.5"
+                        />
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
             {error && (
-              <p className="text-sm text-destructive text-center">{error}</p>
+              <p className="text-sm text-destructive">{error}</p>
             )}
 
             <Button
               className="w-full"
               onClick={handleExtract}
-              disabled={!pendingImage || isLoading}
+              disabled={!canExtract}
             >
               {extractBulk.isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Extrayendo transacciones...
+                  Extrayendo...
                 </>
               ) : (
-                "Extraer transacciones"
+                <>
+                  <Play className="h-4 w-4 mr-2" />
+                  Extraer transacciones
+                </>
               )}
             </Button>
-
-            {/* Hidden inputs */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleInputChange}
-            />
           </CardContent>
         </Card>
 
-        {/* Right Column - Transactions List */}
-        <Card>
-          <CardHeader className="flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-lg">
-              Transacciones extraídas ({transactions.length})
+        {/* Right: Extracted transactions - same as daily/monthly */}
+        <Card className="flex flex-col overflow-hidden">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 border-b py-3 px-4 sm:px-5">
+            <CardTitle className="text-sm font-medium">
+              Transacciones extraídas
             </CardTitle>
-            {transactions.length > 0 && (
-              <div
-                className={`text-sm font-medium ${totalAmount >= 0 ? "text-emerald-600" : "text-red-600"}`}
-              >
-                {totalAmount >= 0 ? "+" : ""}${totalAmount.toFixed(2)}
-              </div>
-            )}
-          </CardHeader>
-          <CardContent>
-            {transactions.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                <ImageIcon className="h-12 w-12 mb-3 opacity-50" />
-                <p className="text-sm">
-                  Las transacciones extraídas aparecerán aquí
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3 max-h-[500px] overflow-y-auto">
-                {transactions.map((tx) => (
-                  <TransactionItem
-                    key={tx.id}
-                    transaction={tx}
-                    isEditing={editingId === tx.id}
-                    onEdit={() => setEditingId(tx.id)}
-                    onSave={() => setEditingId(null)}
-                    onDelete={() => handleDeleteTransaction(tx.id)}
-                    onUpdate={(field, value) =>
-                      handleUpdateTransaction(tx.id, field, value)
-                    }
-                    banks={banks}
-                    cards={cards}
-                    budgets={budgets}
-                  />
-                ))}
-              </div>
-            )}
-
-            {transactions.length > 0 && (
-              <div className="mt-4 pt-4 border-t">
+            <div className="flex items-center gap-2">
+              {selectedForDelete.size > 0 && (
                 <Button
-                  className="w-full"
-                  onClick={handleSaveAll}
-                  disabled={isSaving || transactions.length === 0}
+                  variant="destructive"
+                  size="sm"
+                  className="h-8"
+                  onClick={() => removeItems([...selectedForDelete])}
                 >
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Guardando...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4 mr-2" />
-                      Guardar todas ({transactions.length})
-                    </>
-                  )}
+                  Eliminar ({selectedForDelete.size})
                 </Button>
-              </div>
+              )}
+              <Button
+                onClick={handleSaveAll}
+                disabled={extractedItems.length === 0 || !!savingTempId}
+                size="sm"
+                className="h-8"
+              >
+                {savingTempId ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-1.5" />
+                    Guardar todo
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="flex flex-1 flex-col overflow-hidden p-0">
+            {extractedItems.length === 0 ? (
+              <Empty className="min-h-[200px] border-0 p-6 sm:min-h-[240px]">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <FileSearch className="size-5" />
+                  </EmptyMedia>
+                  <EmptyTitle className="text-base">
+                    Sin transacciones
+                  </EmptyTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Escribe o pega el texto y extrae. Las transacciones aparecerán aquí.
+                  </p>
+                </EmptyHeader>
+              </Empty>
+            ) : (
+              <>
+                {extractedItems.length > 0 && (
+                  <div className="px-4 py-2 border-b bg-muted/30">
+                    <span
+                      className={cn(
+                        "text-sm font-semibold",
+                        totalAmount >= 0 ? "text-emerald-600" : "text-red-600",
+                      )}
+                    >
+                      {totalAmount >= 0 ? "+" : ""}${totalAmount.toFixed(2)}
+                    </span>
+                  </div>
+                )}
+                <div className="flex-1 overflow-auto min-h-[140px] max-h-[360px] divide-y">
+                  {extractedItems.map((item) => (
+                    <ExtractedTransactionRow
+                      key={item.tempId}
+                      item={item}
+                      banks={banks}
+                      cards={cards}
+                      budgets={budgets}
+                      onUpdate={(patch) => updateItem(item.tempId, patch)}
+                      onRemove={() => removeItems([item.tempId])}
+                      isSaving={savingTempId === item.tempId || savingTempId === "all"}
+                      selected={selectedForDelete.has(item.tempId)}
+                      onToggleSelect={() => {
+                        setSelectedForDelete((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(item.tempId)) next.delete(item.tempId);
+                          else next.add(item.tempId);
+                          return next;
+                        });
+                      }}
+                    />
+                  ))}
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
-      </div>
-    </div>
-  );
-}
-
-interface TransactionItemProps {
-  transaction: EditableTransaction;
-  isEditing: boolean;
-  onEdit: () => void;
-  onSave: () => void;
-  onDelete: () => void;
-  onUpdate: (
-    field: keyof EditableTransaction,
-    value: string | number | null,
-  ) => void;
-  banks: Array<{ id: string; name: string }>;
-  cards: Array<{ id: string; name: string; last4: string | null }>;
-  budgets: Array<{ id: string; name: string }>;
-}
-
-function TransactionItem({
-  transaction,
-  isEditing,
-  onEdit,
-  onSave,
-  onDelete,
-  onUpdate,
-  banks,
-  cards,
-  budgets,
-}: TransactionItemProps) {
-  const bank = banks.find((b) => b.id === transaction.bank_id);
-  const card = cards.find((c) => c.id === transaction.card_id);
-  const budget = budgets.find((b) => b.id === transaction.budget_id);
-
-  const formatDate = (dateStr: string) => {
-    try {
-      return format(new Date(dateStr), "d MMM yyyy", { locale: es });
-    } catch {
-      return dateStr;
-    }
-  };
-
-  if (isEditing) {
-    return (
-      <div className="p-3 rounded-lg border bg-muted/30 space-y-3">
-        <div className="flex items-center justify-between">
-          <Select
-            value={transaction.type}
-            onValueChange={(v) => onUpdate("type", v)}
-          >
-            <SelectTrigger className="h-8 w-28 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="expense">Gasto</SelectItem>
-              <SelectItem value="income">Ingreso</SelectItem>
-            </SelectContent>
-          </Select>
-          <div className="flex gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={onSave}
-            >
-              <Check className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-destructive"
-              onClick={onDelete}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
-        <Input
-          value={transaction.description}
-          onChange={(e) => onUpdate("description", e.target.value)}
-          className="h-8 text-sm"
-          placeholder="Descripción"
-        />
-
-        <div className="grid grid-cols-2 gap-2">
-          <Input
-            type="number"
-            step="0.01"
-            value={transaction.amount}
-            onChange={(e) =>
-              onUpdate("amount", parseFloat(e.target.value) || 0)
-            }
-            className="h-8 text-sm"
-            placeholder="Monto"
-          />
-          <Input
-            type="datetime-local"
-            value={transaction.occurred_at.slice(0, 16)}
-            onChange={(e) => onUpdate("occurred_at", e.target.value + ":00Z")}
-            className="h-8 text-sm"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <Select
-            value={transaction.bank_id || "__none__"}
-            onValueChange={(v) =>
-              onUpdate("bank_id", v === "__none__" ? null : v)
-            }
-          >
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="Banco" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">Sin banco</SelectItem>
-              {banks.map((b) => (
-                <SelectItem key={b.id} value={b.id}>
-                  {b.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select
-            value={transaction.card_id || "__none__"}
-            onValueChange={(v) =>
-              onUpdate("card_id", v === "__none__" ? null : v)
-            }
-          >
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="Tarjeta" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">Sin tarjeta</SelectItem>
-              {cards.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select
-            value={transaction.budget_id || "__none__"}
-            onValueChange={(v) =>
-              onUpdate("budget_id", v === "__none__" ? null : v)
-            }
-          >
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="Presupuesto" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">Sin presupuesto</SelectItem>
-              {budgets.map((b) => (
-                <SelectItem key={b.id} value={b.id}>
-                  {b.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="p-3 rounded-lg border hover:bg-muted/30 transition-colors group">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            {transaction.type === "expense" ? (
-              <TrendingDown className="h-4 w-4 text-red-500 shrink-0" />
-            ) : (
-              <TrendingUp className="h-4 w-4 text-emerald-500 shrink-0" />
-            )}
-            <span className="font-medium text-sm truncate">
-              {transaction.description}
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
-            <span>{formatDate(transaction.occurred_at)}</span>
-            {bank && <span>{bank.name}</span>}
-            {card && <span>•••• {card.last4}</span>}
-            {budget && <span>{budget.name}</span>}
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <span
-            className={`font-semibold text-sm whitespace-nowrap ${
-              transaction.type === "expense"
-                ? "text-red-600"
-                : "text-emerald-600"
-            }`}
-          >
-            {transaction.type === "expense" ? "-" : "+"}$
-            {transaction.amount.toFixed(2)}
-          </span>
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={onEdit}
-            >
-              <Edit2 className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-destructive"
-              onClick={onDelete}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </div>
       </div>
     </div>
   );
